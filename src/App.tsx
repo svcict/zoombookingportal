@@ -11,7 +11,7 @@ import { M365SyncView } from './components/M365SyncView';
 import { ZoomApiIntegrationView } from './components/ZoomApiIntegrationView';
 import { AdminSecurityAuditView } from './components/AdminSecurityAuditView';
 import { TimezoneSelector } from './components/TimezoneSelector';
-import { Office365CalendarDashboard } from './components/Office365CalendarDashboard';
+import { Office365CalendarDashboard, DashboardWelcomeCard } from './components/Office365CalendarDashboard';
 import { ZoomMeetingDetailsModal } from './components/ZoomMeetingDetailsModal';
 import { MeetingType, TimeSlot, Booking, M365CalendarState, M365User, HostAccount, ZoomMeetingConfig } from './types';
 import { INITIAL_MEETING_TYPES, INITIAL_HOST_ACCOUNTS, INITIAL_M365_STATE } from './data/initialData';
@@ -372,36 +372,53 @@ export default function App() {
         
         {/* VIEW 0: OFFICE 365 CALENDAR DASHBOARD (Default view on initial login) */}
         {currentView === 'dashboard' && (
-          <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 items-start">
-            <div className="xl:col-span-3">
-              <Office365CalendarDashboard
-                authUser={authUser}
-                m365State={m365State}
-                bookings={visibleBookings}
-                syncedEvents={m365State.events || []}
-                onScheduleMeeting={() => {
-                  setCurrentView('booking');
-                  setBookingStep('slots');
-                  setSelectedSlot(null);
-                }}
-                onSelectBookingForDetails={(booking) => {
-                  setSelectedBookingForDetails(booking);
-                }}
-                userEmail={authUser?.email || 'buhatar@gmail.com'}
-                userName={authUser?.name || 'Authorized User'}
-                selectedTimezone={selectedTimezone}
-              />
-            </div>
+          <div className="space-y-6">
+            {/* Full-width greeting banner shared by both columns below */}
+            <DashboardWelcomeCard
+              authUser={authUser}
+              m365State={m365State}
+              selectedTimezone={selectedTimezone}
+              userEmail={authUser?.email || 'buhatar@gmail.com'}
+              userName={authUser?.name || 'Authorized User'}
+              onScheduleMeeting={() => {
+                setCurrentView('booking');
+                setBookingStep('slots');
+                setSelectedSlot(null);
+              }}
+            />
 
-            {/* Scheduled Meetings (User sees own meetings; Admin sees all) */}
-            <div className="xl:col-span-2 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto">
-              <HostBookingsView
-                bookings={visibleBookings}
-                isAdmin={isAdmin}
-                onCancelBooking={handleCancelBooking}
-                onSelectBookingForDetails={(booking) => setSelectedBookingForDetails(booking)}
-                onNavigateToSchedule={() => setCurrentView('booking')}
-              />
+            <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 items-start">
+              <div className="xl:col-span-3">
+                <Office365CalendarDashboard
+                  authUser={authUser}
+                  m365State={m365State}
+                  bookings={visibleBookings}
+                  syncedEvents={m365State.events || []}
+                  hideWelcomeCard
+                  onScheduleMeeting={() => {
+                    setCurrentView('booking');
+                    setBookingStep('slots');
+                    setSelectedSlot(null);
+                  }}
+                  onSelectBookingForDetails={(booking) => {
+                    setSelectedBookingForDetails(booking);
+                  }}
+                  userEmail={authUser?.email || 'buhatar@gmail.com'}
+                  userName={authUser?.name || 'Authorized User'}
+                  selectedTimezone={selectedTimezone}
+                />
+              </div>
+
+              {/* Scheduled Meetings (User sees own meetings; Admin sees all) */}
+              <div className="xl:col-span-2 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto">
+                <HostBookingsView
+                  bookings={visibleBookings}
+                  isAdmin={isAdmin}
+                  onCancelBooking={handleCancelBooking}
+                  onSelectBookingForDetails={(booking) => setSelectedBookingForDetails(booking)}
+                  onNavigateToSchedule={() => setCurrentView('booking')}
+                />
+              </div>
             </div>
           </div>
         )}
