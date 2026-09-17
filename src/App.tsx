@@ -583,7 +583,7 @@ export default function App() {
 
         {/* VIEW 3: ZOOM API INTEGRATION & DIAGNOSTICS (Admin Only) */}
         {currentView === 'zoom-api' && isAdmin && (
-          <ZoomApiIntegrationView />
+          <ZoomApiIntegrationView adminEmail={authUser?.email} />
         )}
 
         {/* VIEW 4: MICROSOFT 365 CALENDAR SYNC SETTINGS (Admin Only) */}

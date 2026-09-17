@@ -16,6 +16,7 @@ import {
   isAccountConfigured,
   getAccountLabel,
   getMaskedAccountId,
+  getAccountAdminView,
   createZoomMeeting,
   updateZoomMeeting,
   deleteZoomMeeting,
@@ -1973,6 +1974,55 @@ app.get('/api/zoom/config', (req, res) => {
       mode: accounts.some((a) => a.configured) ? 'live' : 'demo_mode'
     },
     activeRoomsCount: bookings.filter((b) => b.status !== 'cancelled').length
+  });
+});
+
+// Admin-only: view/edit the two rotating Zoom credentials, persisted to .env
+// so they survive a restart. The client secret is write-only - GET never
+// returns it, only whether one is currently set.
+app.get('/api/admin/zoom/config', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  const accounts = (['A', 'B'] as ZoomAccountKey[]).map((key) => getAccountAdminView(key));
+  res.json({ success: true, data: { accounts } });
+});
+
+app.post('/api/admin/zoom/config', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  const { accountKey, label, accountId, clientId, clientSecret, userId } = req.body as {
+    accountKey?: string;
+    label?: string;
+    accountId?: string;
+    clientId?: string;
+    clientSecret?: string;
+    userId?: string;
+  };
+
+  if (accountKey !== 'A' && accountKey !== 'B') {
+    return res.status(400).json({ success: false, message: 'accountKey must be "A" or "B"' });
+  }
+
+  const prefix = `ZOOM_ACCOUNT_${accountKey}`;
+  // Whitelisted keys only - never forward the request body's own key names
+  // to updateEnvFile, so this can't be used to overwrite arbitrary env vars.
+  const keys: Record<string, string> = {};
+  if (label !== undefined) keys[`${prefix}_LABEL`] = label;
+  if (accountId !== undefined) keys[`${prefix}_ID`] = accountId;
+  if (clientId !== undefined) keys[`${prefix}_CLIENT_ID`] = clientId;
+  if (userId !== undefined) keys[`${prefix}_USER_ID`] = userId;
+  // Blank/omitted secret means "keep the existing one" - never blank it out
+  // just because the field was left empty in the edit form.
+  if (clientSecret) keys[`${prefix}_CLIENT_SECRET`] = clientSecret;
+
+  const saved = updateEnvFile(keys);
+
+  res.json({
+    success: saved,
+    message: saved
+      ? `${getAccountLabel(accountKey)} credentials saved.`
+      : 'Saved to memory, but failed to write .env file to disk - changes will not survive a restart.',
+    data: getAccountAdminView(accountKey)
   });
 });
 

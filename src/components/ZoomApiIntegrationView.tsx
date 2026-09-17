@@ -1,27 +1,53 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Video, 
-  CheckCircle2, 
-  Activity, 
-  Send, 
-  ShieldCheck, 
-  Terminal, 
-  RefreshCw, 
-  Key, 
+import {
+  Video,
+  CheckCircle2,
+  Activity,
+  Send,
+  ShieldCheck,
+  Terminal,
+  RefreshCw,
+  Key,
   Webhook,
   Sparkles,
   ExternalLink,
   Layers,
-  Cpu
+  Cpu,
+  Pencil,
+  X,
+  Save
 } from 'lucide-react';
 import { ZoomApiConfig, ZoomApiLog } from '../types';
 
-export const ZoomApiIntegrationView: React.FC = () => {
+interface ZoomAccountAdminView {
+  key: 'A' | 'B';
+  label: string;
+  accountId: string;
+  clientId: string;
+  userId: string;
+  hasClientSecret: boolean;
+  configured: boolean;
+}
+
+interface ZoomApiIntegrationViewProps {
+  adminEmail?: string;
+}
+
+const emptyAccountForm = { label: '', accountId: '', clientId: '', clientSecret: '', userId: '' };
+
+export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ adminEmail }) => {
   const [config, setConfig] = useState<ZoomApiConfig | null>(null);
   const [logs, setLogs] = useState<ZoomApiLog[]>([]);
   const [isPinging, setIsPinging] = useState(false);
   const [pingResult, setPingResult] = useState<any | null>(null);
   const [activeRoomsCount, setActiveRoomsCount] = useState(0);
+
+  // Admin-editable rotating account credentials
+  const [adminAccounts, setAdminAccounts] = useState<ZoomAccountAdminView[]>([]);
+  const [editingKey, setEditingKey] = useState<'A' | 'B' | null>(null);
+  const [accountForm, setAccountForm] = useState(emptyAccountForm);
+  const [isSavingAccount, setIsSavingAccount] = useState(false);
+  const [accountNotice, setAccountNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Playground form state
   const [testTopic, setTestTopic] = useState('Enterprise Architecture Review');
@@ -50,9 +76,71 @@ export const ZoomApiIntegrationView: React.FC = () => {
     }
   };
 
+  const fetchAdminAccounts = async () => {
+    if (!adminEmail) return;
+    try {
+      const res = await fetch('/api/admin/zoom/config', {
+        headers: { 'X-User-Email': adminEmail }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAdminAccounts(data.data.accounts || []);
+      }
+    } catch (e) {
+      console.error('Failed to load Zoom admin account config', e);
+    }
+  };
+
+  const startEditingAccount = (acct: ZoomAccountAdminView) => {
+    setEditingKey(acct.key);
+    setAccountForm({
+      label: acct.label,
+      accountId: acct.accountId,
+      clientId: acct.clientId,
+      clientSecret: '',
+      userId: acct.userId
+    });
+    setAccountNotice(null);
+  };
+
+  const cancelEditingAccount = () => {
+    setEditingKey(null);
+    setAccountForm(emptyAccountForm);
+  };
+
+  const handleSaveAccount = async () => {
+    if (!editingKey || !adminEmail) return;
+    setIsSavingAccount(true);
+    setAccountNotice(null);
+    try {
+      const res = await fetch('/api/admin/zoom/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-User-Email': adminEmail },
+        body: JSON.stringify({ accountKey: editingKey, ...accountForm })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAccountNotice({ type: 'success', message: data.message || 'Saved.' });
+        setEditingKey(null);
+        setAccountForm(emptyAccountForm);
+        await Promise.all([fetchAdminAccounts(), fetchZoomStatus()]);
+      } else {
+        setAccountNotice({ type: 'error', message: data.message || 'Failed to save credentials.' });
+      }
+    } catch (e: any) {
+      setAccountNotice({ type: 'error', message: e?.message || 'Error saving credentials.' });
+    } finally {
+      setIsSavingAccount(false);
+    }
+  };
+
   useEffect(() => {
     fetchZoomStatus();
   }, []);
+
+  useEffect(() => {
+    fetchAdminAccounts();
+  }, [adminEmail]);
 
   const handleTestConnection = async () => {
     setIsPinging(true);
@@ -250,28 +338,115 @@ export const ZoomApiIntegrationView: React.FC = () => {
 
             <p className="text-xs text-gray-600">
               Bookings are provisioned by alternating between two Zoom Server-to-Server OAuth credentials, so
-              overlapping meetings never collide on the same account's concurrent-meeting limit.
+              overlapping meetings never collide on the same account's concurrent-meeting limit. Changes here
+              are written to the server's <code className="bg-gray-100 px-1 py-0.5 rounded text-[10px]">.env</code> file,
+              so they survive a restart &mdash; use this when swapping in a new Zoom account.
             </p>
 
+            {accountNotice && (
+              <div className={`p-2.5 rounded-lg text-[11px] font-medium flex items-center justify-between gap-2 ${
+                accountNotice.type === 'success'
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                  : 'bg-red-50 text-red-800 border border-red-200'
+              }`}>
+                <span>{accountNotice.message}</span>
+                <button type="button" onClick={() => setAccountNotice(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer">&times;</button>
+              </div>
+            )}
+
             <div className="space-y-3 text-xs">
-              {(config?.accounts || [
-                { key: 'A', label: 'Zoom Account A', configured: false, accountIdMasked: null },
-                { key: 'B', label: 'Zoom Account B', configured: false, accountIdMasked: null }
-              ]).map((acct) => (
+              {(adminAccounts.length > 0 ? adminAccounts : (['A', 'B'] as const).map((key) => ({
+                key, label: `Zoom Account ${key}`, accountId: '', clientId: '', userId: '', hasClientSecret: false, configured: false
+              }))).map((acct) => (
                 <div key={acct.key} className="p-3 bg-[#F7F9FA] rounded-xl border border-gray-200">
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="font-bold text-gray-800">{acct.label}</span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                      acct.configured
-                        ? 'text-green-700 bg-green-50 border-green-200'
-                        : 'text-gray-500 bg-gray-100 border-gray-200'
-                    }`}>
-                      {acct.configured ? 'Configured' : 'Not configured'}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                        acct.configured
+                          ? 'text-green-700 bg-green-50 border-green-200'
+                          : 'text-gray-500 bg-gray-100 border-gray-200'
+                      }`}>
+                        {acct.configured ? 'Configured' : 'Not configured'}
+                      </span>
+                      {editingKey !== acct.key && (
+                        <button
+                          type="button"
+                          onClick={() => startEditingAccount(acct)}
+                          className="p-1 rounded-md border border-gray-200 hover:border-[#0b5cff] hover:text-[#0b5cff] text-gray-500 transition-colors cursor-pointer"
+                          title={`Edit ${acct.label}`}
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="font-mono text-gray-500 text-[11px]">
-                    {acct.accountIdMasked || `Set ZOOM_ACCOUNT_${acct.key}_ID / _CLIENT_ID / _CLIENT_SECRET / _USER_ID`}
-                  </div>
+
+                  {editingKey === acct.key ? (
+                    <div className="space-y-2 pt-1.5">
+                      <input
+                        type="text"
+                        placeholder="Label (e.g. Sales Team Zoom)"
+                        value={accountForm.label}
+                        onChange={(e) => setAccountForm((f) => ({ ...f, label: e.target.value }))}
+                        className="w-full px-2.5 py-1.5 bg-white rounded-lg border border-gray-300 text-[11px] focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Account ID"
+                        value={accountForm.accountId}
+                        onChange={(e) => setAccountForm((f) => ({ ...f, accountId: e.target.value }))}
+                        className="w-full px-2.5 py-1.5 bg-white rounded-lg border border-gray-300 text-[11px] font-mono focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Client ID"
+                        value={accountForm.clientId}
+                        onChange={(e) => setAccountForm((f) => ({ ...f, clientId: e.target.value }))}
+                        className="w-full px-2.5 py-1.5 bg-white rounded-lg border border-gray-300 text-[11px] font-mono focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+                      />
+                      <input
+                        type="password"
+                        placeholder={acct.hasClientSecret ? 'Client Secret (leave blank to keep existing)' : 'Client Secret'}
+                        value={accountForm.clientSecret}
+                        onChange={(e) => setAccountForm((f) => ({ ...f, clientSecret: e.target.value }))}
+                        className="w-full px-2.5 py-1.5 bg-white rounded-lg border border-gray-300 text-[11px] font-mono focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Host User ID / email (e.g. host@company.com)"
+                        value={accountForm.userId}
+                        onChange={(e) => setAccountForm((f) => ({ ...f, userId: e.target.value }))}
+                        className="w-full px-2.5 py-1.5 bg-white rounded-lg border border-gray-300 text-[11px] font-mono focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+                      />
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleSaveAccount}
+                          disabled={isSavingAccount}
+                          className="px-3 py-1.5 rounded-lg bg-[#0b5cff] hover:bg-[#0049d1] disabled:bg-gray-300 text-white text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
+                        >
+                          {isSavingAccount ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                          <span>Save</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEditingAccount}
+                          disabled={isSavingAccount}
+                          className="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-100 text-gray-600 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <X className="w-3 h-3" />
+                          <span>Cancel</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="font-mono text-gray-500 text-[11px]">
+                      {acct.configured
+                        ? `${acct.accountId} · ${acct.userId}`
+                        : `Not configured yet — click edit to set this account's credentials`}
+                    </div>
+                  )}
                 </div>
               ))}
 

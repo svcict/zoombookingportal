@@ -46,6 +46,31 @@ export function getMaskedAccountId(key: ZoomAccountKey): string | null {
   return `${creds.accountId.slice(0, 4)}${'*'.repeat(Math.max(0, creds.accountId.length - 4))}`;
 }
 
+export interface ZoomAccountAdminView {
+  key: ZoomAccountKey;
+  label: string;
+  accountId: string;
+  clientId: string;
+  userId: string;
+  hasClientSecret: boolean;
+  configured: boolean;
+}
+
+// Everything an admin editing form needs, except the client secret itself -
+// that's write-only from the UI's perspective, same as any other credential.
+export function getAccountAdminView(key: ZoomAccountKey): ZoomAccountAdminView {
+  const prefix = `ZOOM_ACCOUNT_${key}`;
+  return {
+    key,
+    label: process.env[`${prefix}_LABEL`] || `Zoom Account ${key}`,
+    accountId: process.env[`${prefix}_ID`] || '',
+    clientId: process.env[`${prefix}_CLIENT_ID`] || '',
+    userId: process.env[`${prefix}_USER_ID`] || '',
+    hasClientSecret: Boolean(process.env[`${prefix}_CLIENT_SECRET`]),
+    configured: isAccountConfigured(key)
+  };
+}
+
 const tokenCache = new Map<ZoomAccountKey, { token: string; expiresAt: number }>();
 
 async function getAccessToken(key: ZoomAccountKey): Promise<string> {
