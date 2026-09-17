@@ -483,16 +483,32 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
 
           {/* Webhooks Card */}
           <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-xs space-y-3">
-            <div className="flex items-center gap-2">
-              <Webhook className="w-4 h-4 text-purple-600" />
-              <h3 className="font-bold text-gray-900 text-sm">Zoom Event Webhook Listener</h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Webhook className="w-4 h-4 text-purple-600" />
+                <h3 className="font-bold text-gray-900 text-sm">Zoom Event Webhook Listener</h3>
+              </div>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                config?.webhookSecretConfigured
+                  ? 'text-green-700 bg-green-50 border-green-200'
+                  : 'text-amber-700 bg-amber-50 border-amber-200'
+              }`}>
+                {config?.webhookSecretConfigured ? 'Signature Verified' : 'Secret Not Set'}
+              </span>
             </div>
             <p className="text-xs text-gray-600">
-              Subscribed to real-time events: <code className="bg-gray-100 px-1 py-0.5 rounded text-[11px]">meeting.started</code>, <code className="bg-gray-100 px-1 py-0.5 rounded text-[11px]">meeting.ended</code>, <code className="bg-gray-100 px-1 py-0.5 rounded text-[11px]">participant_joined</code>.
+              Listens for real-time events: <code className="bg-gray-100 px-1 py-0.5 rounded text-[11px]">meeting.started</code>, <code className="bg-gray-100 px-1 py-0.5 rounded text-[11px]">meeting.ended</code>, <code className="bg-gray-100 px-1 py-0.5 rounded text-[11px]">meeting.participant_joined</code> and
+              matches them to a booking by Zoom meeting ID.
             </p>
             <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-200 font-mono text-[11px] text-gray-700 truncate">
               {config?.webhookUrl || '/api/zoom/webhooks'}
             </div>
+            {!config?.webhookSecretConfigured && (
+              <p className="text-[11px] text-amber-700">
+                Set <code className="bg-amber-50 px-1 py-0.5 rounded">ZOOM_WEBHOOK_SECRET_TOKEN</code> (from your Zoom app's
+                Event Subscriptions page) so incoming events are verified as genuinely from Zoom.
+              </p>
+            )}
           </div>
 
         </div>

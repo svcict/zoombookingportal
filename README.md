@@ -56,3 +56,30 @@ You can configure just one account (rotation is skipped and every meeting uses i
 (the server picks whichever account is free at the requested time slot, alternating when both
 are free). Restart the server after editing `.env`, then use the **Zoom API Integration**
 page's "Test API Ping" button to confirm both accounts authenticate successfully.
+
+Admins can also add, edit, or swap either account's credentials directly from the **Zoom API
+Integration** page (click the pencil icon on an account card) instead of hand-editing `.env` —
+changes are written to `.env` and take effect immediately, no restart needed.
+
+## Zoom Event Webhook Listener
+
+The portal also listens for real-time Zoom meeting events (`meeting.started`, `meeting.ended`,
+`meeting.participant_joined`) and matches them to the corresponding booking by Zoom meeting ID.
+To wire this up against a real Zoom app:
+
+1. In the same Zoom Server-to-Server OAuth app (or a separate one), go to **Feature > Event
+   Subscriptions** and add a subscription.
+2. Set the **Event notification endpoint URL** to `{APP_URL}/api/zoom/webhooks` (e.g.
+   `https://your-deployment.example.com/api/zoom/webhooks`).
+3. Subscribe to the **Meeting** events: `Meeting Started`, `Meeting Ended`, and
+   `Meeting Participant/Host has joined`.
+4. Copy the **Secret Token** shown on that page and set it in `.env`:
+   ```
+   ZOOM_WEBHOOK_SECRET_TOKEN=...
+   ```
+5. Save — Zoom will immediately send a validation request to your endpoint, which this app
+   answers automatically as long as `ZOOM_WEBHOOK_SECRET_TOKEN` is set.
+
+Without that secret configured, the endpoint still accepts events (useful for local testing)
+but can't verify they actually came from Zoom, and can't complete Zoom's URL validation
+handshake — the **Zoom API Integration** page shows whether a secret is currently set.

@@ -157,6 +157,7 @@ export interface Booking {
   m365EventId?: string;
   answers: Record<string, any>;
   status: 'confirmed' | 'rescheduled' | 'cancelled';
+  liveStatus?: 'started' | 'ended';
   reminders: {
     emailSent: boolean;
     emailSentAt?: string;
@@ -211,6 +212,7 @@ export interface ZoomApiConfig {
   webhookUrl: string;
   lastPingMs: number;
   mode?: 'live' | 'demo_mode';
+  webhookSecretConfigured?: boolean;
   accounts?: Array<{
     key: 'A' | 'B';
     label: string;

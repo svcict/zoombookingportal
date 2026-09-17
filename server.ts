@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { createServer as createViteServer } from 'vite';
 import { 
   authenticateLocalUser, 
@@ -27,7 +28,16 @@ import {
 const app = express();
 const PORT = 3000;
 
-app.use(express.json());
+// Captures the raw request body alongside express.json()'s parsed version,
+// needed to verify Zoom's webhook HMAC signature (computed over the exact
+// raw bytes Zoom sent, not a re-serialized copy).
+app.use(
+  express.json({
+    verify: (req: any, _res, buf) => {
+      req.rawBody = buf;
+    }
+  })
+);
 
 // ----------------------------------------------------
 // HOST ACCOUNTS DATA
@@ -521,7 +531,9 @@ let zoomApiConfig = {
     'recording:read:admin',
     'webinar:write:admin'
   ],
-  webhookUrl: 'https://ais-dev-jfm6qha32kjy23k5537tz5-415973400396.asia-southeast1.run.app/api/zoom/webhooks',
+  webhookUrl: process.env.APP_URL
+    ? `${process.env.APP_URL.replace(/\/$/, '')}/api/zoom/webhooks`
+    : '/api/zoom/webhooks',
   lastPingMs: 64
 };
 
@@ -1971,7 +1983,8 @@ app.get('/api/zoom/config', (req, res) => {
     data: {
       ...zoomApiConfig,
       accounts,
-      mode: accounts.some((a) => a.configured) ? 'live' : 'demo_mode'
+      mode: accounts.some((a) => a.configured) ? 'live' : 'demo_mode',
+      webhookSecretConfigured: Boolean(process.env.ZOOM_WEBHOOK_SECRET_TOKEN)
     },
     activeRoomsCount: bookings.filter((b) => b.status !== 'cancelled').length
   });
@@ -2069,6 +2082,91 @@ app.get('/api/zoom/logs', (req, res) => {
     success: true,
     data: zoomApiLogs
   });
+});
+
+// Real Zoom Event Webhook Listener.
+// Configure this URL (APP_URL + /api/zoom/webhooks) under your Zoom
+// Server-to-Server app's Feature > Event Subscriptions, subscribed to
+// Meeting > Started/Ended/Participant Joined. Set ZOOM_WEBHOOK_SECRET_TOKEN
+// to the "Secret Token" Zoom shows on that page, so requests can be verified.
+app.post('/api/zoom/webhooks', (req: any, res) => {
+  const body = req.body || {};
+  const secretToken = process.env.ZOOM_WEBHOOK_SECRET_TOKEN;
+
+  // 1. Zoom's one-time endpoint URL validation handshake.
+  if (body.event === 'endpoint.url_validation') {
+    const plainToken = body.payload?.plainToken;
+    if (!plainToken) {
+      return res.status(400).json({ success: false, message: 'Missing plainToken' });
+    }
+    if (!secretToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'ZOOM_WEBHOOK_SECRET_TOKEN is not configured on this server; cannot complete validation.'
+      });
+    }
+    const encryptedToken = crypto.createHmac('sha256', secretToken).update(plainToken).digest('hex');
+    return res.json({ plainToken, encryptedToken });
+  }
+
+  // 2. Verify Zoom's request signature (skipped, with a warning, if no
+  // secret is configured yet - matches the rest of the app's "works in
+  // demo mode without real credentials" behavior).
+  if (secretToken) {
+    const signature = req.headers['x-zm-signature'];
+    const timestamp = req.headers['x-zm-request-timestamp'];
+    const rawBody = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(body);
+    const expected = `v0=${crypto
+      .createHmac('sha256', secretToken)
+      .update(`v0:${timestamp}:${rawBody}`)
+      .digest('hex')}`;
+
+    const signatureValid =
+      typeof signature === 'string' &&
+      signature.length === expected.length &&
+      crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+
+    if (!signatureValid) {
+      return res.status(401).json({ success: false, message: 'Invalid webhook signature' });
+    }
+  }
+
+  // 3. Handle the event.
+  const eventName = body.event as string | undefined;
+  const zoomObject = body.payload?.object;
+  const rawMeetingId = zoomObject?.id !== undefined ? String(zoomObject.id) : null;
+  const booking = rawMeetingId
+    ? bookings.find((b) => b.zoomDetails.meetingId.replace(/\s/g, '') === rawMeetingId)
+    : undefined;
+
+  let payloadSummary = `Received ${eventName || 'unknown event'}`;
+  if (eventName === 'meeting.started' && booking) {
+    booking.liveStatus = 'started';
+    payloadSummary = `Meeting started: "${booking.meetingTitle}" (${rawMeetingId})`;
+  } else if (eventName === 'meeting.ended' && booking) {
+    booking.liveStatus = 'ended';
+    payloadSummary = `Meeting ended: "${booking.meetingTitle}" (${rawMeetingId})`;
+  } else if (eventName === 'meeting.participant_joined' && booking) {
+    const participantName = zoomObject?.participant?.user_name || 'Unknown participant';
+    payloadSummary = `${participantName} joined "${booking.meetingTitle}" (${rawMeetingId})`;
+  } else if (rawMeetingId && !booking) {
+    payloadSummary = `${eventName || 'Event'} for meeting ${rawMeetingId} - no matching booking found`;
+  } else if (!secretToken) {
+    payloadSummary += ' (signature not verified - ZOOM_WEBHOOK_SECRET_TOKEN not configured)';
+  }
+
+  zoomApiLogs.unshift({
+    id: `zlog-webhook-${Date.now()}`,
+    timestamp: new Date().toISOString(),
+    method: 'POST',
+    endpoint: '/api/zoom/webhooks',
+    statusCode: 200,
+    responseTimeMs: 0,
+    payloadSummary
+  });
+  if (zoomApiLogs.length > 30) zoomApiLogs.pop();
+
+  res.status(200).json({ success: true });
 });
 
 // 8. Microsoft 365 Calendar & Graph API Sync
