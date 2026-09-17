@@ -183,10 +183,12 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
                           <Clock className="w-3.5 h-3.5" />
                           {booking.timeSlot} ({booking.timezone.split('/')[1]?.replace('_', ' ') || booking.timezone})
                         </span>
-                        <span className="flex items-center gap-1">
-                          <User className="w-3.5 h-3.5 text-gray-400" />
-                          <span className="font-medium text-gray-900">{booking.participantName}</span>
-                          <span className="text-gray-500">({booking.participantEmail})</span>
+                        <span className="flex items-start flex-wrap gap-x-1 gap-y-0.5">
+                          <span className="flex items-center gap-1 shrink-0">
+                            <User className="w-3.5 h-3.5 text-gray-400" />
+                            <span className="font-medium text-gray-900">{booking.participantName}</span>
+                          </span>
+                          <span className="text-gray-500 break-all">({booking.participantEmail})</span>
                         </span>
                         {booking.participantCompany && (
                           <span className="flex items-center gap-1 text-gray-500">
