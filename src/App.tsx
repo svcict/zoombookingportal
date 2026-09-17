@@ -597,7 +597,7 @@ export default function App() {
 
         {/* VIEW 5: SECURITY AUDITS & FAILED LOGINS (Admin Only) */}
         {currentView === 'security-logs' && isAdmin && (
-          <AdminSecurityAuditView onBackToSchedule={() => setCurrentView('booking')} />
+          <AdminSecurityAuditView onBackToSchedule={() => setCurrentView('booking')} adminEmail={authUser?.email} />
         )}
 
       </main>

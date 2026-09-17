@@ -773,11 +773,25 @@ const failedLoginLogs: FailedAttemptRecord[] = [];
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
 function getClientIp(req: express.Request): string {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string') {
-    return forwarded.split(',')[0].trim();
+  // Only trust X-Forwarded-For when explicitly running behind a trusted
+  // reverse proxy/load balancer that sets it - otherwise any client can
+  // spoof this header to evade or frame another IP for the rate limiter.
+  if (process.env.TRUST_PROXY === 'true') {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string' && forwarded.trim()) {
+      return forwarded.split(',')[0].trim();
+    }
   }
   return req.socket.remoteAddress || req.ip || '127.0.0.1';
+}
+
+// Resets an entry's lockout state once its timer has expired, so callers
+// (login, status check, admin audit) never see stale "still locked" data.
+function resetExpiredLockout(entry: RateLimitEntry): void {
+  if (entry.lockoutUntil && entry.lockoutUntil <= Date.now()) {
+    entry.lockoutUntil = null;
+    entry.consecutiveFails = 0;
+  }
 }
 
 function getRateLimitEntry(req: express.Request): RateLimitEntry {
@@ -800,14 +814,10 @@ function getRateLimitEntry(req: express.Request): RateLimitEntry {
 
 app.get('/api/auth/rate-limit-status', (req, res) => {
   const entry = getRateLimitEntry(req);
-  let remainingSeconds = 0;
-  if (entry.lockoutUntil && entry.lockoutUntil > Date.now()) {
-    remainingSeconds = Math.ceil((entry.lockoutUntil - Date.now()) / 1000);
-  } else if (entry.lockoutUntil && entry.lockoutUntil <= Date.now()) {
-    // Expired lockout window - reset lockout timer but preserve cycle count for repeats
-    entry.lockoutUntil = null;
-    entry.consecutiveFails = 0;
-  }
+  resetExpiredLockout(entry);
+  const remainingSeconds = entry.lockoutUntil && entry.lockoutUntil > Date.now()
+    ? Math.ceil((entry.lockoutUntil - Date.now()) / 1000)
+    : 0;
 
   res.json({
     success: true,
@@ -1222,10 +1232,7 @@ app.post('/api/auth/m365/login', async (req, res) => {
   }
 
   // If lockout timer just expired, reset consecutive fails for the new attempt batch
-  if (entry.lockoutUntil && entry.lockoutUntil <= Date.now()) {
-    entry.lockoutUntil = null;
-    entry.consecutiveFails = 0;
-  }
+  resetExpiredLockout(entry);
 
   // 2. Microsoft 365 SSO Attempt Check
   if (isSSO || authMethod === 'microsoft_sso') {
@@ -1363,8 +1370,27 @@ app.post('/api/auth/m365/login', async (req, res) => {
 });
 
 // Admin Security Audits & IP Management
+// Requires the same X-User-Email identity header used by the bookings API;
+// getRequestUserEmail/isAdminEmail are declared further down but hoisted,
+// since these are function declarations evaluated before any request runs.
+function requireAdmin(req: express.Request, res: express.Response): string | null {
+  const email = getRequestUserEmail(req);
+  if (!email) {
+    res.status(401).json({ success: false, message: 'Missing X-User-Email identity header' });
+    return null;
+  }
+  if (!isAdminEmail(email)) {
+    res.status(403).json({ success: false, message: 'Admin access required' });
+    return null;
+  }
+  return email;
+}
+
 app.get('/api/admin/failed-logins', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   const rateLimits = Array.from(rateLimitStore.values()).map((r) => {
+    resetExpiredLockout(r);
     const remainingSeconds = r.lockoutUntil && r.lockoutUntil > Date.now()
       ? Math.ceil((r.lockoutUntil - Date.now()) / 1000)
       : 0;
@@ -1390,6 +1416,8 @@ app.get('/api/admin/failed-logins', (req, res) => {
 });
 
 app.post('/api/admin/unblock-ip', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   const { ip } = req.body;
   if (!ip) {
     return res.status(400).json({ success: false, message: 'IP address is required.' });
@@ -1411,6 +1439,8 @@ app.post('/api/admin/unblock-ip', (req, res) => {
 });
 
 app.post('/api/admin/clear-failed-logs', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   failedLoginLogs.length = 0;
   res.json({
     success: true,

@@ -18,9 +18,10 @@ import { LoginSecurityAudit, FailedLoginRecord, SecurityRateLimitInfo } from '..
 
 interface AdminSecurityAuditViewProps {
   onBackToSchedule?: () => void;
+  adminEmail?: string;
 }
 
-export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ onBackToSchedule }) => {
+export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ onBackToSchedule, adminEmail }) => {
   const [auditData, setAuditData] = useState<LoginSecurityAudit>({
     totalFailedAttempts: 0,
     activeLockoutsCount: 0,
@@ -35,9 +36,12 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
   const [unblockingIp, setUnblockingIp] = useState<string | null>(null);
 
   const fetchAuditData = async () => {
+    if (!adminEmail) return;
     setIsLoading(true);
     try {
-      const res = await fetch('/api/admin/failed-logins');
+      const res = await fetch('/api/admin/failed-logins', {
+        headers: { 'X-User-Email': adminEmail }
+      });
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
@@ -55,15 +59,16 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
     fetchAuditData();
     const interval = setInterval(fetchAuditData, 8000);
     return () => clearInterval(interval);
-  }, []);
+  }, [adminEmail]);
 
   const handleUnblockIp = async (ip: string) => {
+    if (!adminEmail) return;
     setUnblockingIp(ip);
     setActionNotice(null);
     try {
       const res = await fetch('/api/admin/unblock-ip', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-User-Email': adminEmail },
         body: JSON.stringify({ ip })
       });
       const data = await res.json();
@@ -81,10 +86,14 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
   };
 
   const handleClearLogs = async () => {
+    if (!adminEmail) return;
     if (!window.confirm('Are you sure you want to clear all historical failed login logs?')) return;
 
     try {
-      const res = await fetch('/api/admin/clear-failed-logs', { method: 'POST' });
+      const res = await fetch('/api/admin/clear-failed-logs', {
+        method: 'POST',
+        headers: { 'X-User-Email': adminEmail }
+      });
       const data = await res.json();
       if (res.ok && data.success) {
         setActionNotice({ type: 'success', message: 'Failed login security logs have been cleared.' });
