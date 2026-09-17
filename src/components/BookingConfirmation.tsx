@@ -215,7 +215,10 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
                 try {
                   const res = await fetch(`/api/bookings/${currentBooking.id}`, {
                     method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'X-User-Email': currentBooking.participantEmail,
+                    },
                     body: JSON.stringify({ zoomConfig: updatedConfig }),
                   });
                   if (res.ok) {

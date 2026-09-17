@@ -1621,17 +1621,51 @@ app.get('/api/availability', (req, res) => {
 });
 
 // 6. Bookings Endpoints
+
+// Identity of the caller, asserted by the logged-in frontend via this header.
+// (Best-effort, not a cryptographically verified session — see Supabase Auth
+// migration notes in README for hardening this further.)
+function getRequestUserEmail(req: any): string | null {
+  const raw = req.headers['x-user-email'];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  const email = value ? value.toString().toLowerCase().trim() : '';
+  return email || null;
+}
+
+function isAdminEmail(email: string): boolean {
+  return email.includes('admin') || email === 'sarah.jenkins@zoompartner.com';
+}
+
+function canAccessBooking(booking: any, email: string): boolean {
+  const participantMatch = (booking.participantEmail || '').toLowerCase().trim() === email;
+  const guestMatch = (booking.guestEmails || []).some(
+    (g: string) => (g || '').toLowerCase().trim() === email
+  );
+  return participantMatch || guestMatch;
+}
+
 app.get('/api/bookings', (req, res) => {
   try {
-    res.json({ success: true, data: bookings });
+    const email = getRequestUserEmail(req);
+    if (!email) {
+      return res.status(401).json({ success: false, error: 'Missing X-User-Email identity header' });
+    }
+    const visible = isAdminEmail(email) ? bookings : bookings.filter((b) => canAccessBooking(b, email));
+    res.json({ success: true, data: visible });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 app.get('/api/bookings/:id', (req, res) => {
+  const email = getRequestUserEmail(req);
+  if (!email) {
+    return res.status(401).json({ success: false, error: 'Missing X-User-Email identity header' });
+  }
   const booking = bookings.find((b) => b.id === req.params.id);
-  if (!booking) return res.status(404).json({ success: false, error: 'Booking not found' });
+  if (!booking || (!isAdminEmail(email) && !canAccessBooking(booking, email))) {
+    return res.status(404).json({ success: false, error: 'Booking not found' });
+  }
   res.json({ success: true, data: booking });
 });
 
@@ -1765,8 +1799,14 @@ app.post('/api/bookings', async (req, res) => {
 });
 
 app.patch('/api/bookings/:id', async (req, res) => {
+  const email = getRequestUserEmail(req);
+  if (!email) {
+    return res.status(401).json({ success: false, error: 'Missing X-User-Email identity header' });
+  }
   const booking = bookings.find((b) => b.id === req.params.id);
-  if (!booking) return res.status(404).json({ success: false, error: 'Booking not found' });
+  if (!booking || (!isAdminEmail(email) && !canAccessBooking(booking, email))) {
+    return res.status(404).json({ success: false, error: 'Booking not found' });
+  }
 
   const { zoomConfig, meetingTitle, notes, guestEmails } = req.body;
 
@@ -1819,8 +1859,14 @@ app.patch('/api/bookings/:id', async (req, res) => {
 });
 
 app.post('/api/bookings/:id/cancel', async (req, res) => {
+  const email = getRequestUserEmail(req);
+  if (!email) {
+    return res.status(401).json({ success: false, error: 'Missing X-User-Email identity header' });
+  }
   const booking = bookings.find((b) => b.id === req.params.id);
-  if (!booking) return res.status(404).json({ success: false, error: 'Booking not found' });
+  if (!booking || (!isAdminEmail(email) && !canAccessBooking(booking, email))) {
+    return res.status(404).json({ success: false, error: 'Booking not found' });
+  }
 
   const accountKey = booking.zoomAccountKey as ZoomAccountKey | undefined;
   const rawMeetingId = booking.zoomDetails.meetingId.replace(/\s/g, '');

@@ -95,7 +95,11 @@ export default function App() {
       try {
         const results = await Promise.allSettled([
           fetch('/api/meeting-types').then((r) => (r.ok ? r.json() : null)),
-          fetch('/api/bookings').then((r) => (r.ok ? r.json() : null)),
+          authUser?.email
+            ? fetch('/api/bookings', { headers: { 'X-User-Email': authUser.email } }).then((r) =>
+                r.ok ? r.json() : null
+              )
+            : Promise.resolve(null),
           fetch('/api/m365/status').then((r) => (r.ok ? r.json() : null)),
           fetch('/api/auth/m365/accounts').then((r) => (r.ok ? r.json() : null)),
         ]);
@@ -132,7 +136,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [authUser?.email]);
 
   // Filter visible bookings according to RBAC:
   // Admin sees all organization meetings.
@@ -276,7 +280,10 @@ export default function App() {
   // Cancel Booking
   const handleCancelBooking = async (bookingId: string) => {
     try {
-      const res = await fetch(`/api/bookings/${bookingId}/cancel`, { method: 'POST' });
+      const res = await fetch(`/api/bookings/${bookingId}/cancel`, {
+        method: 'POST',
+        headers: authUser?.email ? { 'X-User-Email': authUser.email } : undefined,
+      });
       const data = await res.json();
       if (data.success) {
         setBookings((prev) =>
@@ -584,7 +591,10 @@ export default function App() {
             try {
               const res = await fetch(`/api/bookings/${selectedBookingForDetails.id}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(authUser?.email ? { 'X-User-Email': authUser.email } : {}),
+                },
                 body: JSON.stringify({ zoomConfig: updatedConfig }),
               });
               if (res.ok) {
