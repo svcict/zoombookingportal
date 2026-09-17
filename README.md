@@ -19,6 +19,45 @@ View your app in AI Studio: https://ai.studio/apps/a9af5e83-f90d-401a-a09f-0f01d
 3. Run the app:
    `npm run dev`
 
+## CI/CD
+
+**CI** (`.github/workflows/ci.yml`) runs on every push and pull request targeting `staging` or
+`main`: installs dependencies with `npm ci`, typechecks (`npm run lint`), and builds
+(`npm run build`). This is active now — it doesn't deploy anywhere, it just catches broken
+builds before they merge.
+
+**CD (deployment) isn't wired up yet.** When you're ready to deploy `staging` (or `main`) to a
+real AWS server, the straightforward path for a self-managed EC2/VPS instance (as opposed to a
+managed service like ECS or Elastic Beanstalk) is:
+
+1. Add a second workflow (e.g. `.github/workflows/deploy.yml`) triggered on `push: branches:
+   [staging]`, that runs after CI passes.
+2. Add these as GitHub Secrets (Settings → Secrets and variables → Actions):
+   - `STAGING_SSH_HOST` — the server's IP or hostname
+   - `STAGING_SSH_USER` — the SSH login user (e.g. `ec2-user`, `ubuntu`)
+   - `STAGING_SSH_PRIVATE_KEY` — a private key matching a public key already on the server
+   - `STAGING_DEPLOY_PATH` — where the app lives on the server
+3. Use an action like [`appleboy/ssh-action`](https://github.com/appleboy/ssh-action) to SSH in
+   and run something like:
+   ```
+   cd $STAGING_DEPLOY_PATH
+   git fetch origin staging && git reset --hard origin/staging
+   npm ci && npm run build
+   pm2 restart zoom-booking-portal || pm2 start dist/server.cjs --name zoom-booking-portal
+   ```
+   (swap `pm2` for whatever process manager — systemd, Docker, etc. — you end up using).
+4. On AWS specifically, make sure the security group allows inbound SSH (port 22) from GitHub
+   Actions' IP ranges (or just from anywhere if you're relying on the private key alone), and
+   that the app's port (3000) is reachable however you intend to expose it (directly, behind
+   nginx, behind an ALB, etc.).
+
+None of this is committed yet since the server doesn't exist — come back to this once it does,
+or ask me to scaffold the actual `deploy.yml` when you're ready.
+
+> **Note:** the repo has a `bun.lock` file, but it isn't actually usable — `bun install` on the
+> current committed lockfile fails with "Unknown lockfile version". CI uses plain `npm`
+> (with a committed `package-lock.json`) instead, which works reliably.
+
 ## Identity & Session Auth
 
 The API server resolves "who is making this request" one of two ways, depending on whether
