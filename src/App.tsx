@@ -372,33 +372,37 @@ export default function App() {
         
         {/* VIEW 0: OFFICE 365 CALENDAR DASHBOARD (Default view on initial login) */}
         {currentView === 'dashboard' && (
-          <div className="space-y-6">
-            <Office365CalendarDashboard
-              authUser={authUser}
-              m365State={m365State}
-              bookings={visibleBookings}
-              syncedEvents={m365State.events || []}
-              onScheduleMeeting={() => {
-                setCurrentView('booking');
-                setBookingStep('slots');
-                setSelectedSlot(null);
-              }}
-              onSelectBookingForDetails={(booking) => {
-                setSelectedBookingForDetails(booking);
-              }}
-              userEmail={authUser?.email || 'buhatar@gmail.com'}
-              userName={authUser?.name || 'Authorized User'}
-              selectedTimezone={selectedTimezone}
-            />
+          <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 items-start">
+            <div className="xl:col-span-3">
+              <Office365CalendarDashboard
+                authUser={authUser}
+                m365State={m365State}
+                bookings={visibleBookings}
+                syncedEvents={m365State.events || []}
+                onScheduleMeeting={() => {
+                  setCurrentView('booking');
+                  setBookingStep('slots');
+                  setSelectedSlot(null);
+                }}
+                onSelectBookingForDetails={(booking) => {
+                  setSelectedBookingForDetails(booking);
+                }}
+                userEmail={authUser?.email || 'buhatar@gmail.com'}
+                userName={authUser?.name || 'Authorized User'}
+                selectedTimezone={selectedTimezone}
+              />
+            </div>
 
             {/* Scheduled Meetings (User sees own meetings; Admin sees all) */}
-            <HostBookingsView
-              bookings={visibleBookings}
-              isAdmin={isAdmin}
-              onCancelBooking={handleCancelBooking}
-              onSelectBookingForDetails={(booking) => setSelectedBookingForDetails(booking)}
-              onNavigateToSchedule={() => setCurrentView('booking')}
-            />
+            <div className="xl:col-span-2 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto">
+              <HostBookingsView
+                bookings={visibleBookings}
+                isAdmin={isAdmin}
+                onCancelBooking={handleCancelBooking}
+                onSelectBookingForDetails={(booking) => setSelectedBookingForDetails(booking)}
+                onNavigateToSchedule={() => setCurrentView('booking')}
+              />
+            </div>
           </div>
         )}
 
