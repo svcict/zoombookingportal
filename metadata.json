@@ -1,0 +1,6 @@
+{
+  "name": "Zoom Booking Portal",
+  "description": "A seamless Zoom-branded scheduling portal with Microsoft 365 calendar sync, timezone conversion, green/red availability slots, custom intake forms, and automated reminders.",
+  "requestFramePermissions": ["notifications"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
