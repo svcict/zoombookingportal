@@ -1063,6 +1063,8 @@ async function validateMicrosoftEntraLive(tenantId?: string, clientId?: string, 
 }
 
 app.get('/api/admin/m365/config', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   const tenantId = process.env.MICROSOFT_TENANT_ID || '';
   const clientId = process.env.MICROSOFT_CLIENT_ID || '';
   const clientSecret = process.env.MICROSOFT_CLIENT_SECRET || '';
@@ -1096,13 +1098,34 @@ app.get('/api/admin/m365/config', async (req, res) => {
   });
 });
 
+const M365_CONFIG_KEYS = new Set([
+  'MICROSOFT_TENANT_ID',
+  'MICROSOFT_CLIENT_ID',
+  'MICROSOFT_CLIENT_SECRET',
+  'MICROSOFT_REDIRECT_URI',
+  'MICROSOFT_GRAPH_SCOPES',
+  'MICROSOFT_ORGANIZATION_DOMAIN',
+  'MICROSOFT_PRIMARY_USER_EMAIL'
+]);
+
 app.post('/api/admin/m365/config', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   const { keys } = req.body;
   if (!keys || typeof keys !== 'object') {
     return res.status(400).json({ success: false, message: 'Invalid payload: keys object required' });
   }
 
-  const success = updateEnvFile(keys);
+  // Whitelist to known M365 keys only - never forward arbitrary key names
+  // from the request body to updateEnvFile.
+  const filteredKeys: Record<string, string> = {};
+  for (const [k, v] of Object.entries(keys)) {
+    if (M365_CONFIG_KEYS.has(k)) {
+      filteredKeys[k] = String(v);
+    }
+  }
+
+  const success = updateEnvFile(filteredKeys);
 
   const tenantId = process.env.MICROSOFT_TENANT_ID || '';
   const clientId = process.env.MICROSOFT_CLIENT_ID || '';
@@ -1140,6 +1163,8 @@ app.post('/api/admin/m365/config', async (req, res) => {
 });
 
 app.post('/api/admin/m365/test-connection', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   const tenantId = req.body?.tenantId || process.env.MICROSOFT_TENANT_ID || '';
   const clientId = req.body?.clientId || process.env.MICROSOFT_CLIENT_ID || '';
   const clientSecret = req.body?.clientSecret || process.env.MICROSOFT_CLIENT_SECRET || '';
@@ -1697,14 +1722,25 @@ function canAccessBooking(booking: any, email: string): boolean {
   return participantMatch || guestMatch;
 }
 
+// zoomDetails.startUrl lets whoever holds it start/control the meeting as
+// host - it's for the host, never the participant who booked it. Nothing
+// in this app's participant-facing UI uses it (only join_url does), so it
+// is stripped for anyone but an admin.
+function redactStartUrlForParticipant(booking: any): any {
+  if (!booking?.zoomDetails?.startUrl) return booking;
+  const { startUrl, ...restZoomDetails } = booking.zoomDetails;
+  return { ...booking, zoomDetails: restZoomDetails };
+}
+
 app.get('/api/bookings', (req, res) => {
   try {
     const email = getRequestUserEmail(req);
     if (!email) {
       return res.status(401).json({ success: false, error: 'Missing X-User-Email identity header' });
     }
-    const visible = isAdminEmail(email) ? bookings : bookings.filter((b) => canAccessBooking(b, email));
-    res.json({ success: true, data: visible });
+    const isAdmin = isAdminEmail(email);
+    const visible = isAdmin ? bookings : bookings.filter((b) => canAccessBooking(b, email));
+    res.json({ success: true, data: isAdmin ? visible : visible.map(redactStartUrlForParticipant) });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -1716,10 +1752,11 @@ app.get('/api/bookings/:id', (req, res) => {
     return res.status(401).json({ success: false, error: 'Missing X-User-Email identity header' });
   }
   const booking = bookings.find((b) => b.id === req.params.id);
-  if (!booking || (!isAdminEmail(email) && !canAccessBooking(booking, email))) {
+  const isAdmin = isAdminEmail(email);
+  if (!booking || (!isAdmin && !canAccessBooking(booking, email))) {
     return res.status(404).json({ success: false, error: 'Booking not found' });
   }
-  res.json({ success: true, data: booking });
+  res.json({ success: true, data: isAdmin ? booking : redactStartUrlForParticipant(booking) });
 });
 
 app.post('/api/bookings', async (req, res) => {
@@ -1842,7 +1879,7 @@ app.post('/api/bookings', async (req, res) => {
 
     res.status(201).json({
       success: true,
-      data: newBooking,
+      data: redactStartUrlForParticipant(newBooking),
       message: 'Zoom meeting scheduled successfully! Microsoft 365 calendar synced & Zoom REST API meeting generated.'
     });
   } catch (err: any) {
@@ -2040,6 +2077,8 @@ app.post('/api/admin/zoom/config', (req, res) => {
 });
 
 app.post('/api/zoom/test-connection', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   const results: Array<{ key: ZoomAccountKey; label: string; connected: boolean; latencyMs?: number; error?: string }> = [];
 
   for (const key of (['A', 'B'] as ZoomAccountKey[])) {
@@ -2078,6 +2117,8 @@ app.post('/api/zoom/test-connection', async (req, res) => {
 });
 
 app.get('/api/zoom/logs', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   res.json({
     success: true,
     data: zoomApiLogs
@@ -2115,6 +2156,15 @@ app.post('/api/zoom/webhooks', (req: any, res) => {
   if (secretToken) {
     const signature = req.headers['x-zm-signature'];
     const timestamp = req.headers['x-zm-request-timestamp'];
+
+    // Reject stale/replayed requests - a captured valid payload should not
+    // stay valid forever. Zoom's own docs recommend a 5 minute window.
+    const timestampMs = Number(timestamp);
+    const isFreshTimestamp = Number.isFinite(timestampMs) && Math.abs(Date.now() - timestampMs) <= 5 * 60 * 1000;
+    if (!isFreshTimestamp) {
+      return res.status(401).json({ success: false, message: 'Missing or stale x-zm-request-timestamp' });
+    }
+
     const rawBody = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(body);
     const expected = `v0=${crypto
       .createHmac('sha256', secretToken)
@@ -2200,14 +2250,23 @@ app.post('/api/m365/add-busy-slot', (req, res) => {
 
 // 9. Reminder dispatch trigger endpoint
 app.post('/api/reminders/trigger', (req, res) => {
+  const email = getRequestUserEmail(req);
+  if (!email) {
+    return res.status(401).json({ success: false, error: 'Missing X-User-Email identity header' });
+  }
+
   const { bookingId, reminderType } = req.body;
-  const booking = bookings.find((b) => b.id === bookingId) || bookings[0];
-  
+  const booking = bookings.find((b) => b.id === bookingId);
+  if (!booking || (!isAdminEmail(email) && !canAccessBooking(booking, email))) {
+    return res.status(404).json({ success: false, error: 'Booking not found' });
+  }
+
   res.json({
     success: true,
     reminderSent: true,
     timestamp: new Date().toISOString(),
-    booking,
+    // Host-only fields (startUrl) are never handed back over this endpoint.
+    booking: { id: booking.id, meetingTitle: booking.meetingTitle, participantEmail: booking.participantEmail },
     reminderType: reminderType || '15-min-reminder',
     message: `Reminder sent to ${booking.participantEmail} for Zoom Meeting: ${booking.meetingTitle}`
   });

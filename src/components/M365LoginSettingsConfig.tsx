@@ -85,7 +85,11 @@ const FIELD_TOOLTIPS: Record<string, TooltipInfo> = {
   }
 };
 
-export const M365LoginSettingsConfig: React.FC = () => {
+interface M365LoginSettingsConfigProps {
+  adminEmail?: string;
+}
+
+export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = ({ adminEmail }) => {
   const [isOpen, setIsOpen] = useState(true);
   const [config, setConfig] = useState<M365SettingsConfig>({
     tenantId: '',
@@ -118,9 +122,12 @@ export const M365LoginSettingsConfig: React.FC = () => {
 
   // Load initial config and perform real live validation against Microsoft servers
   const fetchConfig = async () => {
+    if (!adminEmail) return;
     setIsLoading(true);
     try {
-      const res = await fetch('/api/admin/m365/config');
+      const res = await fetch('/api/admin/m365/config', {
+        headers: { 'X-User-Email': adminEmail }
+      });
       const data = await res.json();
       if (data.success && data.data) {
         setConfig(data.data);
@@ -134,15 +141,16 @@ export const M365LoginSettingsConfig: React.FC = () => {
 
   useEffect(() => {
     fetchConfig();
-  }, []);
+  }, [adminEmail]);
 
   // Save to server & write directly to .env
   const saveKeyToEnv = async (keyName: string, value: string) => {
+    if (!adminEmail) return;
     setIsSaving(true);
     try {
       const res = await fetch('/api/admin/m365/config', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-User-Email': adminEmail },
         body: JSON.stringify({
           keys: {
             [keyName]: value
@@ -179,11 +187,12 @@ export const M365LoginSettingsConfig: React.FC = () => {
   };
 
   const handleTestConnection = async () => {
+    if (!adminEmail) return;
     setIsPinging(true);
     try {
-      const res = await fetch('/api/admin/m365/test-connection', { 
+      const res = await fetch('/api/admin/m365/test-connection', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-User-Email': adminEmail },
         body: JSON.stringify({
           tenantId: config.tenantId,
           clientId: config.clientId,

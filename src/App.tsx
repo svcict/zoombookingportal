@@ -612,6 +612,7 @@ export default function App() {
             m365State={m365State}
             onToggleSync={handleToggleM365Sync}
             onAddBusySlot={handleAddM365BusySlot}
+            adminEmail={authUser?.email}
           />
         )}
 

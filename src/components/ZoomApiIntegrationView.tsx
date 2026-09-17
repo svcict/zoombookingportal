@@ -61,7 +61,9 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
     try {
       const [cfgRes, logsRes] = await Promise.all([
         fetch('/api/zoom/config').then((r) => r.json()),
-        fetch('/api/zoom/logs').then((r) => r.json())
+        adminEmail
+          ? fetch('/api/zoom/logs', { headers: { 'X-User-Email': adminEmail } }).then((r) => r.json())
+          : Promise.resolve({ success: false })
       ]);
 
       if (cfgRes.success) {
@@ -143,9 +145,13 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
   }, [adminEmail]);
 
   const handleTestConnection = async () => {
+    if (!adminEmail) return;
     setIsPinging(true);
     try {
-      const res = await fetch('/api/zoom/test-connection', { method: 'POST' });
+      const res = await fetch('/api/zoom/test-connection', {
+        method: 'POST',
+        headers: { 'X-User-Email': adminEmail }
+      });
       const data = await res.json();
       setPingResult(data);
       fetchZoomStatus();
