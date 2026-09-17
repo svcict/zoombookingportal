@@ -21,8 +21,18 @@ export function generateLocalAvailabilitySlots(params: {
   const dayOfWeek = parsedDate.getDay(); // 0 = Sun, 6 = Sat
   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
+  // Each meeting type has one fixed host - only checking that host (instead
+  // of every demo host account) is what makes a booked slot actually show
+  // as blocked for that meeting type. An explicit selectedAccountId still
+  // wins, for the (currently unused) multi-host picker.
+  const meetingTypeHost = meetingType.hostAccountId
+    ? INITIAL_HOST_ACCOUNTS.find((a) => a.id === meetingType.hostAccountId)
+    : undefined;
+
   const targetAccounts = selectedAccountId && selectedAccountId !== 'all'
     ? INITIAL_HOST_ACCOUNTS.filter((a) => a.id === selectedAccountId)
+    : meetingTypeHost
+    ? [meetingTypeHost]
     : INITIAL_HOST_ACCOUNTS;
 
   const slots: TimeSlot[] = [];

@@ -1490,8 +1490,18 @@ app.get('/api/availability', (req, res) => {
     const dayOfWeek = parsedDate.getDay(); // 0 = Sun, 6 = Sat
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
+    // Each meeting type has one fixed host - only checking that host (instead
+    // of every demo host account) is what makes a booked slot actually show
+    // as blocked for that meeting type. An explicit accountId query param
+    // still wins, for the (currently unused) multi-host picker.
+    const meetingTypeHost = meetingType?.hostAccountId
+      ? hostAccounts.find((a) => a.id === meetingType.hostAccountId)
+      : undefined;
+
     const targetAccounts = accountId && accountId !== 'all'
       ? hostAccounts.filter((a) => a.id === accountId)
+      : meetingTypeHost
+      ? [meetingTypeHost]
       : hostAccounts;
 
     // Booking hours: 08:00 AM to 20:00 (8:00 PM)
