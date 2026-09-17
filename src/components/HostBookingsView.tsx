@@ -65,20 +65,20 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
     <div className="max-w-6xl mx-auto space-y-6">
       
       {/* Header Bar */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-4">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-xl font-bold text-gray-900">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-lg font-bold text-gray-900">
               {isAdmin ? 'All Scheduled Zoom Meetings' : 'My Booked Meetings'}
             </h1>
-            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold shrink-0 ${
               isAdmin ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-blue-50 text-[#0b5cff] border border-blue-100'
             }`}>
               {bookings.length} {isAdmin ? 'Total System' : 'Booked'}
             </span>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            {isAdmin 
+            {isAdmin
               ? 'Admin directory view: Complete organizational visibility across all hosts, attendees, and M365 Exchange calendars.'
               : 'Your personal meeting schedule. Only meetings booked under your account are displayed here.'}
           </p>
@@ -86,7 +86,7 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
 
         {/* Filter & Search */}
         <div className="flex flex-col sm:flex-row items-center gap-3">
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full">
             <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -100,7 +100,7 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="px-3.5 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] cursor-pointer"
+            className="w-full sm:w-auto shrink-0 px-3.5 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] cursor-pointer"
           >
             <option value="all">All Statuses</option>
             <option value="confirmed">Confirmed</option>
@@ -150,7 +150,7 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
                 }`}
               >
                 {/* Meeting Card Header Strip */}
-                <div className="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="p-5 flex flex-col justify-between gap-4">
                   
                   {/* Left: Time, Date & Title */}
                   <div className="flex items-start gap-4">
