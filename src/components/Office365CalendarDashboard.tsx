@@ -81,11 +81,11 @@ export const DashboardWelcomeCard: React.FC<DashboardWelcomeCardProps> = ({
         </div>
         <div>
           <h1 className="text-xl font-bold text-gray-900">Welcome, {accountName}!</h1>
-          <p className="text-xs text-gray-500 mt-1 flex items-center gap-2">
-            <span>Email: <strong>{accountEmail}</strong></span>
-            <span>•</span>
+          <p className="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="break-all">Email: <strong>{accountEmail}</strong></span>
+            <span className="hidden sm:inline">•</span>
             <span>Timezone: {selectedTimezone}</span>
-            <span>•</span>
+            <span className="hidden sm:inline">•</span>
             <span className="text-gray-400">Hours: 8:00 AM – 5:00 PM</span>
           </p>
         </div>
