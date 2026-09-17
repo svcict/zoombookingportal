@@ -39,6 +39,19 @@ Supabase is configured (`SUPABASE_URL` + `SUPABASE_ANON_KEY` in `.env`):
 The frontend always sends both headers (see `src/utils/auth.ts`); which one the server actually
 honors depends entirely on its own Supabase configuration, not anything the client requests.
 
+### Demo accounts (signing in without a real password)
+
+Logging in normally requires a real Supabase Auth password (`auth.signInWithPassword`). For
+demoing the app with seeded `profiles` rows that were never given one, set `DEMO_LOGIN_EMAILS`
+in `.env` to a comma-separated allowlist of specific emails — only those exact accounts can sign
+in with any/no password; every other email still requires a real one. This replaced an earlier
+version that let *any* row in the `profiles` table sign in passwordless (including
+self-registered accounts, since sign-up also creates a profile) — that's gone now.
+
+A demo login gets its own short-lived, signed token (12 hours), verified independently of
+Supabase — not a real Supabase session. Removing an email from `DEMO_LOGIN_EMAILS` immediately
+invalidates any outstanding token for it, even before it would otherwise expire.
+
 ## Zoom API Setup (Two Rotating Server-to-Server OAuth Accounts)
 
 This portal creates real Zoom meetings via the [Zoom REST API](https://developers.zoom.us/docs/api/)

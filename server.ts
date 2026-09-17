@@ -10,7 +10,8 @@ import {
   testSupabaseConnection,
   isSupabaseConfigured,
   getSupabase,
-  verifySessionToken
+  verifySessionToken,
+  verifyDemoSessionToken
 } from './src/lib/supabase';
 import {
   ZoomAccountKey,
@@ -1721,7 +1722,11 @@ async function resolveIdentity(req: express.Request): Promise<RequestIdentity | 
       ? authHeader.slice(7).trim()
       : null;
     if (!token) return null;
-    return verifySessionToken(token);
+
+    // Real Supabase sessions first; fall back to our own signed demo-account
+    // tokens (see issueDemoSessionToken) for explicitly allowlisted demo
+    // profiles that don't have a real Supabase Auth password.
+    return (await verifySessionToken(token)) || verifyDemoSessionToken(token);
   }
 
   const raw = req.headers['x-user-email'];
