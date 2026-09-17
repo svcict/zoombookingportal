@@ -1,22 +1,24 @@
 import React, { useState } from 'react';
-import { 
-  Video, 
-  Clock, 
-  Calendar, 
-  Globe, 
-  ShieldCheck, 
-  User, 
-  Mail, 
-  Building, 
-  Phone, 
-  Users, 
-  Plus, 
-  X, 
-  ArrowLeft, 
-  CheckCircle2, 
+import {
+  Video,
+  Clock,
+  Calendar,
+  Globe,
+  ShieldCheck,
+  User,
+  Mail,
+  Building,
+  Phone,
+  Users,
+  Plus,
+  X,
+  ArrowLeft,
+  CheckCircle2,
   Lock,
   Mic,
-  Monitor
+  Monitor,
+  SlidersHorizontal,
+  KeyRound
 } from 'lucide-react';
 import { MeetingType, TimeSlot, M365User } from '../types';
 
@@ -56,6 +58,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   onSubmit,
   isSubmitting = false,
 }) => {
+  const [activeTab, setActiveTab] = useState<'details' | 'credentials'>('details');
   const [topic, setTopic] = useState(meetingTopic || meetingType.title || 'Zoom Video Meeting');
   const initialNames = authUser?.name ? authUser.name.split(' ') : ['', ''];
   const [firstName, setFirstName] = useState(initialNames[0] || '');
@@ -202,6 +205,103 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
           </span>
         </div>
       </div>
+
+      {/* View Tabs: Zoom Meeting Details (host-configured) vs Join Credentials (issued after registering) */}
+      <div className="flex border-b border-gray-200 bg-[#f8fafc] px-6 sm:px-8 pt-3 gap-3">
+        <button
+          type="button"
+          onClick={() => setActiveTab('details')}
+          className={`pb-3 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === 'details'
+              ? 'border-[#0b5cff] text-[#0b5cff]'
+              : 'border-transparent text-gray-500 hover:text-gray-900'
+          }`}
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+          <span>Meeting Details (Zoom Web UI)</span>
+          <span className="px-1.5 py-0.2 rounded bg-blue-100 text-[#0b5cff] text-[10px] font-bold">
+            Configured
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('credentials')}
+          className={`pb-3 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === 'credentials'
+              ? 'border-[#0b5cff] text-[#0b5cff]'
+              : 'border-transparent text-gray-500 hover:text-gray-900'
+          }`}
+        >
+          <KeyRound className="w-3.5 h-3.5" />
+          <span>Join Credentials &amp; Calendars</span>
+        </button>
+      </div>
+
+      {/* TAB 1: Meeting Details already configured by the host via the Zoom API */}
+      {activeTab === 'details' && (
+        <div className="p-6 sm:p-8 bg-white border-b border-gray-100 space-y-3">
+          <p className="text-xs text-gray-500">
+            These settings are already configured on the Zoom meeting by the host and will apply
+            once you register &mdash; they can't be changed from this form.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div className="flex items-center justify-between p-3 bg-[#F7F9FA] rounded-xl border border-gray-200">
+              <span className="text-gray-500 font-medium">Meeting Type</span>
+              <span className="font-bold text-gray-900 capitalize">{meetingType.zoomMeetingType}</span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-[#F7F9FA] rounded-xl border border-gray-200">
+              <span className="text-gray-500 font-medium">Registration Approval</span>
+              <span className="font-bold text-gray-900">
+                {meetingType.requiresApproval ? 'Manually approved by host' : 'Automatic'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-[#F7F9FA] rounded-xl border border-gray-200">
+              <span className="text-gray-500 font-medium">Waiting Room</span>
+              <span className="font-bold text-gray-900">Enabled</span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-[#F7F9FA] rounded-xl border border-gray-200">
+              <span className="text-gray-500 font-medium">Passcode</span>
+              <span className="font-bold text-gray-900">Required (auto-generated)</span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-[#F7F9FA] rounded-xl border border-gray-200">
+              <span className="text-gray-500 font-medium">Host / Participant Video</span>
+              <span className="font-bold text-gray-900">On</span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-[#F7F9FA] rounded-xl border border-gray-200">
+              <span className="text-gray-500 font-medium">Encryption</span>
+              <span className="font-bold text-gray-900">Enhanced (AES-256)</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: Join credentials - locked until registration completes, matching Zoom's actual registration flow */}
+      {activeTab === 'credentials' && (
+        <div className="p-6 sm:p-8 bg-white border-b border-gray-100">
+          <div className="flex items-center gap-3 p-5 bg-[#F7F9FA] rounded-2xl border border-dashed border-gray-300">
+            <div className="w-10 h-10 rounded-xl bg-gray-200 text-gray-500 flex items-center justify-center shrink-0">
+              <Lock className="w-5 h-5" />
+            </div>
+            <div className="space-y-2 w-full">
+              <p className="text-xs font-bold text-gray-700">Join link, Meeting ID &amp; passcode are locked</p>
+              <p className="text-[11px] text-gray-500">
+                Just like registering for a real Zoom meeting, your join credentials and calendar
+                invite are generated only after you submit this registration below &mdash; then
+                sent to your email instantly.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                {['Meeting ID', 'Passcode', 'Join URL'].map((label) => (
+                  <div key={label} className="p-2.5 bg-white rounded-lg border border-gray-200">
+                    <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">{label}</div>
+                    <div className="text-xs font-mono text-gray-300 tracking-widest">•••• •••• ••••</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Intake Form Fields (Sleek UI) */}
       <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6">
