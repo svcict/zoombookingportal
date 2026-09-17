@@ -313,9 +313,9 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
             <CalendarIcon className="w-6 h-6 text-[#0b5cff]" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Office 365 Calendar Dashboard</h1>
+            <h1 className="text-xl font-bold text-gray-900">Welcome, {accountName}!</h1>
             <p className="text-xs text-gray-500 mt-1 flex items-center gap-2">
-              <span>Account: <strong>{accountEmail}</strong></span>
+              <span>Email: <strong>{accountEmail}</strong></span>
               <span>•</span>
               <span>Timezone: {selectedTimezone}</span>
               <span>•</span>
