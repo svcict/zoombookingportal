@@ -2,19 +2,44 @@ import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { createServer as createViteServer } from 'vite';
-import { 
-  authenticateLocalUser, 
+import {
+  authenticateLocalUser,
   registerSupabaseUser,
   testSupabaseConnection,
-  isSupabaseConfigured, 
-  getSupabase 
+  isSupabaseConfigured,
+  getSupabase,
+  verifySessionToken,
+  verifyDemoSessionToken
 } from './src/lib/supabase';
+import {
+  ZoomAccountKey,
+  getConfiguredAccountKeys,
+  isAccountConfigured,
+  getAccountLabel,
+  getMaskedAccountId,
+  getAccountAdminView,
+  createZoomMeeting,
+  updateZoomMeeting,
+  deleteZoomMeeting,
+  getZoomUserProfile,
+  mapZoomMeetingResponse
+} from './src/lib/zoomApi';
 
 const app = express();
 const PORT = 3000;
 
-app.use(express.json());
+// Captures the raw request body alongside express.json()'s parsed version,
+// needed to verify Zoom's webhook HMAC signature (computed over the exact
+// raw bytes Zoom sent, not a re-serialized copy).
+app.use(
+  express.json({
+    verify: (req: any, _res, buf) => {
+      req.rawBody = buf;
+    }
+  })
+);
 
 // ----------------------------------------------------
 // HOST ACCOUNTS DATA
@@ -508,7 +533,9 @@ let zoomApiConfig = {
     'recording:read:admin',
     'webinar:write:admin'
   ],
-  webhookUrl: 'https://ais-dev-jfm6qha32kjy23k5537tz5-415973400396.asia-southeast1.run.app/api/zoom/webhooks',
+  webhookUrl: process.env.APP_URL
+    ? `${process.env.APP_URL.replace(/\/$/, '')}/api/zoom/webhooks`
+    : '/api/zoom/webhooks',
   lastPingMs: 64
 };
 
@@ -561,9 +588,72 @@ function generateZoomDetails(meetingTitle: string, hostName: string = 'Sarah Jen
     sipAddress: `${rawId}@zoomcrc.com`,
     h323Address: `162.255.37.11##${rawId}#${passcode}`,
     encryption: 'Enhanced (AES-256)' as const,
-    apiGenerated: true,
+    apiGenerated: false,
     zoomApiEndpoint: 'https://api.zoom.us/v2/users/me/meetings'
   };
+}
+
+// Rotation state: which account was assigned last when both were free
+let lastAssignedZoomAccount: ZoomAccountKey | null = null;
+
+// Picks a Zoom account for a new meeting, favoring whichever configured
+// account (A or B) has no overlapping booking at the requested time.
+// Falls back to round-robin between the two when both are free.
+function pickZoomAccount(startIso: string, endIso: string): ZoomAccountKey | null {
+  const configured = getConfiguredAccountKeys();
+  if (configured.length === 0) return null;
+  if (configured.length === 1) return configured[0];
+
+  const overlaps = (key: ZoomAccountKey) =>
+    bookings.some((b) => {
+      if (b.status === 'cancelled' || b.zoomAccountKey !== key) return false;
+      return b.startTimeIso < endIso && startIso < b.endTimeIso;
+    });
+
+  const free = configured.filter((key) => !overlaps(key));
+  if (free.length === 0) return null;
+  if (free.length === 1) return free[0];
+
+  const next = free.find((key) => key !== lastAssignedZoomAccount) || free[0];
+  lastAssignedZoomAccount = next;
+  return next;
+}
+
+// Creates a meeting on the given Zoom account via the real REST API, falling
+// back to the local mock generator when that account has no credentials configured.
+async function provisionZoomMeeting(
+  accountKey: ZoomAccountKey | null,
+  meetingTitle: string,
+  hostName: string,
+  startIso: string,
+  durationMinutes: number,
+  timezone: string,
+  agenda?: string
+) {
+  if (!accountKey || !isAccountConfigured(accountKey)) {
+    return { zoomDetails: generateZoomDetails(meetingTitle, hostName), accountKey };
+  }
+
+  const result = await createZoomMeeting(accountKey, {
+    topic: meetingTitle,
+    startTimeIso: startIso,
+    durationMinutes,
+    timezone,
+    agenda
+  });
+
+  zoomApiLogs.unshift({
+    id: `zlog-${Date.now()}`,
+    timestamp: new Date().toISOString(),
+    method: 'POST',
+    endpoint: result.endpoint,
+    statusCode: result.statusCode,
+    responseTimeMs: result.responseTimeMs,
+    payloadSummary: `Created Zoom meeting ${result.data.id} on ${getAccountLabel(accountKey)} for "${meetingTitle}"`
+  });
+  if (zoomApiLogs.length > 30) zoomApiLogs.pop();
+
+  return { zoomDetails: mapZoomMeetingResponse(result.data), accountKey };
 }
 
 // ----------------------------------------------------
@@ -698,11 +788,25 @@ const failedLoginLogs: FailedAttemptRecord[] = [];
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
 function getClientIp(req: express.Request): string {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string') {
-    return forwarded.split(',')[0].trim();
+  // Only trust X-Forwarded-For when explicitly running behind a trusted
+  // reverse proxy/load balancer that sets it - otherwise any client can
+  // spoof this header to evade or frame another IP for the rate limiter.
+  if (process.env.TRUST_PROXY === 'true') {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string' && forwarded.trim()) {
+      return forwarded.split(',')[0].trim();
+    }
   }
   return req.socket.remoteAddress || req.ip || '127.0.0.1';
+}
+
+// Resets an entry's lockout state once its timer has expired, so callers
+// (login, status check, admin audit) never see stale "still locked" data.
+function resetExpiredLockout(entry: RateLimitEntry): void {
+  if (entry.lockoutUntil && entry.lockoutUntil <= Date.now()) {
+    entry.lockoutUntil = null;
+    entry.consecutiveFails = 0;
+  }
 }
 
 function getRateLimitEntry(req: express.Request): RateLimitEntry {
@@ -725,14 +829,10 @@ function getRateLimitEntry(req: express.Request): RateLimitEntry {
 
 app.get('/api/auth/rate-limit-status', (req, res) => {
   const entry = getRateLimitEntry(req);
-  let remainingSeconds = 0;
-  if (entry.lockoutUntil && entry.lockoutUntil > Date.now()) {
-    remainingSeconds = Math.ceil((entry.lockoutUntil - Date.now()) / 1000);
-  } else if (entry.lockoutUntil && entry.lockoutUntil <= Date.now()) {
-    // Expired lockout window - reset lockout timer but preserve cycle count for repeats
-    entry.lockoutUntil = null;
-    entry.consecutiveFails = 0;
-  }
+  resetExpiredLockout(entry);
+  const remainingSeconds = entry.lockoutUntil && entry.lockoutUntil > Date.now()
+    ? Math.ceil((entry.lockoutUntil - Date.now()) / 1000)
+    : 0;
 
   res.json({
     success: true,
@@ -965,6 +1065,8 @@ async function validateMicrosoftEntraLive(tenantId?: string, clientId?: string, 
 }
 
 app.get('/api/admin/m365/config', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+
   const tenantId = process.env.MICROSOFT_TENANT_ID || '';
   const clientId = process.env.MICROSOFT_CLIENT_ID || '';
   const clientSecret = process.env.MICROSOFT_CLIENT_SECRET || '';
@@ -998,13 +1100,34 @@ app.get('/api/admin/m365/config', async (req, res) => {
   });
 });
 
+const M365_CONFIG_KEYS = new Set([
+  'MICROSOFT_TENANT_ID',
+  'MICROSOFT_CLIENT_ID',
+  'MICROSOFT_CLIENT_SECRET',
+  'MICROSOFT_REDIRECT_URI',
+  'MICROSOFT_GRAPH_SCOPES',
+  'MICROSOFT_ORGANIZATION_DOMAIN',
+  'MICROSOFT_PRIMARY_USER_EMAIL'
+]);
+
 app.post('/api/admin/m365/config', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+
   const { keys } = req.body;
   if (!keys || typeof keys !== 'object') {
     return res.status(400).json({ success: false, message: 'Invalid payload: keys object required' });
   }
 
-  const success = updateEnvFile(keys);
+  // Whitelist to known M365 keys only - never forward arbitrary key names
+  // from the request body to updateEnvFile.
+  const filteredKeys: Record<string, string> = {};
+  for (const [k, v] of Object.entries(keys)) {
+    if (M365_CONFIG_KEYS.has(k)) {
+      filteredKeys[k] = String(v);
+    }
+  }
+
+  const success = updateEnvFile(filteredKeys);
 
   const tenantId = process.env.MICROSOFT_TENANT_ID || '';
   const clientId = process.env.MICROSOFT_CLIENT_ID || '';
@@ -1042,6 +1165,8 @@ app.post('/api/admin/m365/config', async (req, res) => {
 });
 
 app.post('/api/admin/m365/test-connection', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+
   const tenantId = req.body?.tenantId || process.env.MICROSOFT_TENANT_ID || '';
   const clientId = req.body?.clientId || process.env.MICROSOFT_CLIENT_ID || '';
   const clientSecret = req.body?.clientSecret || process.env.MICROSOFT_CLIENT_SECRET || '';
@@ -1147,10 +1272,7 @@ app.post('/api/auth/m365/login', async (req, res) => {
   }
 
   // If lockout timer just expired, reset consecutive fails for the new attempt batch
-  if (entry.lockoutUntil && entry.lockoutUntil <= Date.now()) {
-    entry.lockoutUntil = null;
-    entry.consecutiveFails = 0;
-  }
+  resetExpiredLockout(entry);
 
   // 2. Microsoft 365 SSO Attempt Check
   if (isSSO || authMethod === 'microsoft_sso') {
@@ -1288,8 +1410,26 @@ app.post('/api/auth/m365/login', async (req, res) => {
 });
 
 // Admin Security Audits & IP Management
-app.get('/api/admin/failed-logins', (req, res) => {
+// resolveIdentity/requireAdmin are declared further down but hoisted, since
+// these are function declarations evaluated before any request runs.
+async function requireAdmin(req: express.Request, res: express.Response): Promise<string | null> {
+  const identity = await resolveIdentity(req);
+  if (!identity) {
+    res.status(401).json({ success: false, message: 'Not authenticated' });
+    return null;
+  }
+  if (!identity.isAdmin) {
+    res.status(403).json({ success: false, message: 'Admin access required' });
+    return null;
+  }
+  return identity.email;
+}
+
+app.get('/api/admin/failed-logins', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+
   const rateLimits = Array.from(rateLimitStore.values()).map((r) => {
+    resetExpiredLockout(r);
     const remainingSeconds = r.lockoutUntil && r.lockoutUntil > Date.now()
       ? Math.ceil((r.lockoutUntil - Date.now()) / 1000)
       : 0;
@@ -1314,7 +1454,9 @@ app.get('/api/admin/failed-logins', (req, res) => {
   });
 });
 
-app.post('/api/admin/unblock-ip', (req, res) => {
+app.post('/api/admin/unblock-ip', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+
   const { ip } = req.body;
   if (!ip) {
     return res.status(400).json({ success: false, message: 'IP address is required.' });
@@ -1335,7 +1477,9 @@ app.post('/api/admin/unblock-ip', (req, res) => {
   });
 });
 
-app.post('/api/admin/clear-failed-logs', (req, res) => {
+app.post('/api/admin/clear-failed-logs', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+
   failedLoginLogs.length = 0;
   res.json({
     success: true,
@@ -1415,8 +1559,18 @@ app.get('/api/availability', (req, res) => {
     const dayOfWeek = parsedDate.getDay(); // 0 = Sun, 6 = Sat
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
+    // Each meeting type has one fixed host - only checking that host (instead
+    // of every demo host account) is what makes a booked slot actually show
+    // as blocked for that meeting type. An explicit accountId query param
+    // still wins, for the (currently unused) multi-host picker.
+    const meetingTypeHost = meetingType?.hostAccountId
+      ? hostAccounts.find((a) => a.id === meetingType.hostAccountId)
+      : undefined;
+
     const targetAccounts = accountId && accountId !== 'all'
       ? hostAccounts.filter((a) => a.id === accountId)
+      : meetingTypeHost
+      ? [meetingTypeHost]
       : hostAccounts;
 
     // Booking hours: 08:00 AM to 20:00 (8:00 PM)
@@ -1546,21 +1700,88 @@ app.get('/api/availability', (req, res) => {
 });
 
 // 6. Bookings Endpoints
-app.get('/api/bookings', (req, res) => {
+
+interface RequestIdentity {
+  email: string;
+  isAdmin: boolean;
+}
+
+// Resolves who is actually making this request. When Supabase is
+// configured, this is a real, server-verified identity: the client sends
+// its Supabase session token, and we ask Supabase to vouch for it - the
+// client's own claim of who it is (or whether it's an admin) is never
+// trusted. Only when Supabase itself isn't configured anywhere in this
+// deployment (pure local/demo mode) do we fall back to trusting a
+// self-asserted X-User-Email header, matching this app's "still works
+// without real credentials" pattern elsewhere — that fallback provides no
+// real security guarantee and is not meant for production use.
+async function resolveIdentity(req: express.Request): Promise<RequestIdentity | null> {
+  if (isSupabaseConfigured()) {
+    const authHeader = req.headers['authorization'];
+    const token = typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')
+      ? authHeader.slice(7).trim()
+      : null;
+    if (!token) return null;
+
+    // Real Supabase sessions first; fall back to our own signed demo-account
+    // tokens (see issueDemoSessionToken) for explicitly allowlisted demo
+    // profiles that don't have a real Supabase Auth password.
+    return (await verifySessionToken(token)) || verifyDemoSessionToken(token);
+  }
+
+  const raw = req.headers['x-user-email'];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  const email = value ? value.toString().toLowerCase().trim() : '';
+  if (!email) return null;
+  return { email, isAdmin: email.includes('admin') || email === 'sarah.jenkins@zoompartner.com' };
+}
+
+function canAccessBooking(booking: any, email: string): boolean {
+  const participantMatch = (booking.participantEmail || '').toLowerCase().trim() === email;
+  const guestMatch = (booking.guestEmails || []).some(
+    (g: string) => (g || '').toLowerCase().trim() === email
+  );
+  return participantMatch || guestMatch;
+}
+
+// zoomDetails.startUrl lets whoever holds it start/control the meeting as
+// host - it's for the host, never the participant who booked it. Nothing
+// in this app's participant-facing UI uses it (only join_url does), so it
+// is stripped for anyone but an admin.
+function redactStartUrlForParticipant(booking: any): any {
+  if (!booking?.zoomDetails?.startUrl) return booking;
+  const { startUrl, ...restZoomDetails } = booking.zoomDetails;
+  return { ...booking, zoomDetails: restZoomDetails };
+}
+
+app.get('/api/bookings', async (req, res) => {
   try {
-    res.json({ success: true, data: bookings });
+    const identity = await resolveIdentity(req);
+    if (!identity) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
+    const { email, isAdmin } = identity;
+    const visible = isAdmin ? bookings : bookings.filter((b) => canAccessBooking(b, email));
+    res.json({ success: true, data: isAdmin ? visible : visible.map(redactStartUrlForParticipant) });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-app.get('/api/bookings/:id', (req, res) => {
+app.get('/api/bookings/:id', async (req, res) => {
+  const identity = await resolveIdentity(req);
+  if (!identity) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
+  }
+  const { email, isAdmin } = identity;
   const booking = bookings.find((b) => b.id === req.params.id);
-  if (!booking) return res.status(404).json({ success: false, error: 'Booking not found' });
-  res.json({ success: true, data: booking });
+  if (!booking || (!isAdmin && !canAccessBooking(booking, email))) {
+    return res.status(404).json({ success: false, error: 'Booking not found' });
+  }
+  res.json({ success: true, data: isAdmin ? booking : redactStartUrlForParticipant(booking) });
 });
 
-app.post('/api/bookings', (req, res) => {
+app.post('/api/bookings', async (req, res) => {
   try {
     const {
       meetingTypeId,
@@ -1611,8 +1832,35 @@ app.post('/api/bookings', (req, res) => {
     const endMin = endMinutes % 60;
     const endIso = `${date}T${pad(endHour)}:${pad(endMin)}:00.000Z`;
 
-    // Generate Unique Zoom Meeting ID & Passcode via Zoom REST API format
-    const zoomDetails = generateZoomDetails(finalMeetingTitle, assignedHost.name);
+    // Assign one of the two rotating Zoom accounts and provision the meeting
+    // (real Zoom REST API call when that account has credentials configured,
+    // otherwise a local mock so the app still works in dev without them).
+    const zoomAccountKey = pickZoomAccount(startIso, endIso);
+    if (getConfiguredAccountKeys().length > 0 && !zoomAccountKey) {
+      return res.status(409).json({
+        success: false,
+        error: 'Both rotating Zoom accounts already have a meeting at this time. Please choose a different slot.'
+      });
+    }
+
+    let zoomDetails;
+    try {
+      ({ zoomDetails } = await provisionZoomMeeting(
+        zoomAccountKey,
+        finalMeetingTitle,
+        assignedHost.name,
+        startIso,
+        meetingType.duration || 30,
+        timezone,
+        notes
+      ));
+    } catch (zoomErr: any) {
+      console.error('Zoom API error while creating meeting:', zoomErr);
+      return res.status(502).json({
+        success: false,
+        error: `Failed to create the Zoom meeting: ${zoomErr.message || 'Zoom API error'}`
+      });
+    }
 
     const newBooking = {
       id: `zm-${Math.floor(100000 + Math.random() * 900000)}`,
@@ -1623,6 +1871,7 @@ app.post('/api/bookings', (req, res) => {
       hostEmail: assignedHost.email,
       hostAvatar: assignedHost.avatar,
       hostAccountId: assignedHost.id,
+      zoomAccountKey,
       participantName,
       participantEmail,
       participantPhone,
@@ -1652,7 +1901,7 @@ app.post('/api/bookings', (req, res) => {
 
     res.status(201).json({
       success: true,
-      data: newBooking,
+      data: redactStartUrlForParticipant(newBooking),
       message: 'Zoom meeting scheduled successfully! Microsoft 365 calendar synced & Zoom REST API meeting generated.'
     });
   } catch (err: any) {
@@ -1661,11 +1910,56 @@ app.post('/api/bookings', (req, res) => {
   }
 });
 
-app.patch('/api/bookings/:id', (req, res) => {
+app.patch('/api/bookings/:id', async (req, res) => {
+  const identity = await resolveIdentity(req);
+  if (!identity) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
+  }
   const booking = bookings.find((b) => b.id === req.params.id);
-  if (!booking) return res.status(404).json({ success: false, error: 'Booking not found' });
+  if (!booking || (!identity.isAdmin && !canAccessBooking(booking, identity.email))) {
+    return res.status(404).json({ success: false, error: 'Booking not found' });
+  }
 
   const { zoomConfig, meetingTitle, notes, guestEmails } = req.body;
+
+  const accountKey = booking.zoomAccountKey as ZoomAccountKey | undefined;
+  if (booking.zoomDetails.apiGenerated && accountKey && isAccountConfigured(accountKey)) {
+    try {
+      const rawMeetingId = booking.zoomDetails.meetingId.replace(/\s/g, '');
+      const result = await updateZoomMeeting(accountKey, rawMeetingId, {
+        topic: meetingTitle,
+        agenda: notes,
+        passcode: zoomConfig?.passcode,
+        waitingRoom: zoomConfig?.waitingRoom,
+        autoRecording: zoomConfig?.autoRecord,
+        alternativeHosts: zoomConfig?.alternativeHosts,
+        hostVideo: zoomConfig?.hostVideo,
+        participantVideo: zoomConfig?.participantVideo,
+        audioOption: zoomConfig?.audioOption,
+        muteOnEntry: zoomConfig?.muteOnEntry,
+        joinBeforeHost: zoomConfig?.joinAnytime,
+        meetingAuthentication: zoomConfig?.requireAuth,
+        usePmi: zoomConfig ? zoomConfig.meetingIdType === 'pmi' : undefined
+      });
+      zoomApiLogs.unshift({
+        id: `zlog-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        method: 'PATCH',
+        endpoint: result.endpoint,
+        statusCode: result.statusCode,
+        responseTimeMs: result.responseTimeMs,
+        payloadSummary: `Updated Zoom meeting ${rawMeetingId} on ${getAccountLabel(accountKey)}`
+      });
+      if (zoomApiLogs.length > 30) zoomApiLogs.pop();
+    } catch (zoomErr: any) {
+      console.error('Zoom API error while updating meeting:', zoomErr);
+      return res.status(502).json({
+        success: false,
+        error: `Failed to update the Zoom meeting: ${zoomErr.message || 'Zoom API error'}`
+      });
+    }
+  }
+
   if (zoomConfig) booking.zoomConfig = zoomConfig;
   if (meetingTitle) booking.meetingTitle = meetingTitle;
   if (notes !== undefined) booking.notes = notes;
@@ -1683,83 +1977,268 @@ app.patch('/api/bookings/:id', (req, res) => {
   });
 });
 
-app.post('/api/bookings/:id/cancel', (req, res) => {
+app.post('/api/bookings/:id/cancel', async (req, res) => {
+  const identity = await resolveIdentity(req);
+  if (!identity) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
+  }
   const booking = bookings.find((b) => b.id === req.params.id);
-  if (!booking) return res.status(404).json({ success: false, error: 'Booking not found' });
+  if (!booking || (!identity.isAdmin && !canAccessBooking(booking, identity.email))) {
+    return res.status(404).json({ success: false, error: 'Booking not found' });
+  }
+
+  const accountKey = booking.zoomAccountKey as ZoomAccountKey | undefined;
+  const rawMeetingId = booking.zoomDetails.meetingId.replace(/\s/g, '');
+
+  if (booking.zoomDetails.apiGenerated && accountKey && isAccountConfigured(accountKey)) {
+    try {
+      const result = await deleteZoomMeeting(accountKey, rawMeetingId);
+      zoomApiLogs.unshift({
+        id: `zlog-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        method: 'DELETE',
+        endpoint: result.endpoint,
+        statusCode: result.statusCode,
+        responseTimeMs: result.responseTimeMs,
+        payloadSummary: `Cancelled Zoom meeting ${rawMeetingId} on ${getAccountLabel(accountKey)}`
+      });
+      if (zoomApiLogs.length > 30) zoomApiLogs.pop();
+    } catch (zoomErr: any) {
+      console.error('Zoom API error while cancelling meeting:', zoomErr);
+      return res.status(502).json({
+        success: false,
+        error: `Failed to cancel the Zoom meeting: ${zoomErr.message || 'Zoom API error'}`
+      });
+    }
+  } else {
+    zoomApiLogs.unshift({
+      id: `zlog-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      method: 'DELETE',
+      endpoint: `https://api.zoom.us/v2/meetings/${rawMeetingId}`,
+      statusCode: 204,
+      responseTimeMs: 95,
+      payloadSummary: `Cancelled Zoom meeting ${booking.zoomDetails.meetingId} via Zoom REST API`
+    });
+  }
+
   booking.status = 'cancelled';
   booking.m365SyncStatus = 'synced'; // M365 event removed
-
-  // Log cancellation to Zoom API log
-  zoomApiLogs.unshift({
-    id: `zlog-${Date.now()}`,
-    timestamp: new Date().toISOString(),
-    method: 'DELETE',
-    endpoint: `https://api.zoom.us/v2/meetings/${booking.zoomDetails.meetingId.replace(/\s/g, '')}`,
-    statusCode: 204,
-    responseTimeMs: 95,
-    payloadSummary: `Cancelled Zoom meeting ${booking.zoomDetails.meetingId} via Zoom REST API`
-  });
 
   res.json({ success: true, message: 'Meeting cancelled and removed from Microsoft 365 calendar and Zoom.', data: booking });
 });
 
 // 7. Zoom REST API Integration Endpoints
 app.get('/api/zoom/config', (req, res) => {
+  const accounts = (['A', 'B'] as ZoomAccountKey[]).map((key) => ({
+    key,
+    label: getAccountLabel(key),
+    configured: isAccountConfigured(key),
+    accountIdMasked: getMaskedAccountId(key)
+  }));
+
   res.json({
     success: true,
-    data: zoomApiConfig,
+    data: {
+      ...zoomApiConfig,
+      accounts,
+      mode: accounts.some((a) => a.configured) ? 'live' : 'demo_mode',
+      webhookSecretConfigured: Boolean(process.env.ZOOM_WEBHOOK_SECRET_TOKEN)
+    },
     activeRoomsCount: bookings.filter((b) => b.status !== 'cancelled').length
   });
 });
 
-app.post('/api/zoom/config', (req, res) => {
-  const { accountId, clientId } = req.body;
-  if (accountId) zoomApiConfig.accountId = accountId;
-  if (clientId) zoomApiConfig.clientId = clientId;
-  zoomApiConfig.lastPingMs = Math.floor(45 + Math.random() * 40);
-  res.json({ success: true, data: zoomApiConfig, message: 'Zoom API settings updated successfully.' });
+// Admin-only: view/edit the two rotating Zoom credentials, persisted to .env
+// so they survive a restart. The client secret is write-only - GET never
+// returns it, only whether one is currently set.
+app.get('/api/admin/zoom/config', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+
+  const accounts = (['A', 'B'] as ZoomAccountKey[]).map((key) => getAccountAdminView(key));
+  res.json({ success: true, data: { accounts } });
 });
 
-app.post('/api/zoom/test-connection', (req, res) => {
-  const pingMs = Math.floor(52 + Math.random() * 35);
-  zoomApiConfig.lastPingMs = pingMs;
-  zoomApiConfig.rateLimit.remaining = Math.max(1, zoomApiConfig.rateLimit.remaining - 1);
+app.post('/api/admin/zoom/config', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
 
-  const log: ZoomApiLog = {
-    id: `zlog-${Date.now()}`,
-    timestamp: new Date().toISOString(),
-    method: 'GET',
-    endpoint: 'https://api.zoom.us/v2/users/me',
-    statusCode: 200,
-    responseTimeMs: pingMs,
-    payloadSummary: 'Ping test successful: Zoom REST API authenticated (200 OK)'
+  const { accountKey, label, accountId, clientId, clientSecret, userId } = req.body as {
+    accountKey?: string;
+    label?: string;
+    accountId?: string;
+    clientId?: string;
+    clientSecret?: string;
+    userId?: string;
   };
-  zoomApiLogs.unshift(log);
+
+  if (accountKey !== 'A' && accountKey !== 'B') {
+    return res.status(400).json({ success: false, message: 'accountKey must be "A" or "B"' });
+  }
+
+  const prefix = `ZOOM_ACCOUNT_${accountKey}`;
+  // Whitelisted keys only - never forward the request body's own key names
+  // to updateEnvFile, so this can't be used to overwrite arbitrary env vars.
+  const keys: Record<string, string> = {};
+  if (label !== undefined) keys[`${prefix}_LABEL`] = label;
+  if (accountId !== undefined) keys[`${prefix}_ID`] = accountId;
+  if (clientId !== undefined) keys[`${prefix}_CLIENT_ID`] = clientId;
+  if (userId !== undefined) keys[`${prefix}_USER_ID`] = userId;
+  // Blank/omitted secret means "keep the existing one" - never blank it out
+  // just because the field was left empty in the edit form.
+  if (clientSecret) keys[`${prefix}_CLIENT_SECRET`] = clientSecret;
+
+  const saved = updateEnvFile(keys);
 
   res.json({
-    success: true,
-    status: 'connected',
-    latencyMs: pingMs,
-    authenticatedUser: {
-      id: 'usr_zm894201',
-      first_name: 'Sarah',
-      last_name: 'Jenkins',
-      email: 'sarah.jenkins@zoompartner.com',
-      type: 2, // Licensed / Enterprise
-      pmi: 84930194820,
-      timezone: 'America/New_York',
-      dept: 'Solutions Engineering',
-      status: 'active'
-    },
-    message: `Zoom REST API connection verified. Latency: ${pingMs}ms`
+    success: saved,
+    message: saved
+      ? `${getAccountLabel(accountKey)} credentials saved.`
+      : 'Saved to memory, but failed to write .env file to disk - changes will not survive a restart.',
+    data: getAccountAdminView(accountKey)
   });
 });
 
-app.get('/api/zoom/logs', (req, res) => {
+app.post('/api/zoom/test-connection', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+
+  const results: Array<{ key: ZoomAccountKey; label: string; connected: boolean; latencyMs?: number; error?: string }> = [];
+
+  for (const key of (['A', 'B'] as ZoomAccountKey[])) {
+    if (!isAccountConfigured(key)) {
+      results.push({ key, label: getAccountLabel(key), connected: false, error: 'Not configured' });
+      continue;
+    }
+    try {
+      const result = await getZoomUserProfile(key);
+      zoomApiLogs.unshift({
+        id: `zlog-${Date.now()}-${key}`,
+        timestamp: new Date().toISOString(),
+        method: 'GET',
+        endpoint: result.endpoint,
+        statusCode: result.statusCode,
+        responseTimeMs: result.responseTimeMs,
+        payloadSummary: `Ping test successful on ${getAccountLabel(key)}: authenticated as ${result.data.email || result.data.id}`
+      });
+      results.push({ key, label: getAccountLabel(key), connected: true, latencyMs: result.responseTimeMs });
+    } catch (err: any) {
+      results.push({ key, label: getAccountLabel(key), connected: false, error: err.message || 'Zoom API error' });
+    }
+  }
+  if (zoomApiLogs.length > 30) zoomApiLogs.length = 30;
+
+  const anyConnected = results.some((r) => r.connected);
+  zoomApiConfig.lastPingMs = results.find((r) => r.latencyMs)?.latencyMs || zoomApiConfig.lastPingMs;
+
+  res.json({
+    success: anyConnected || results.every((r) => !isAccountConfigured(r.key)),
+    accounts: results,
+    message: results.every((r) => !isAccountConfigured(r.key))
+      ? 'No Zoom accounts configured — running in demo mode with mock meeting data.'
+      : `Checked ${results.length} rotating Zoom accounts.`
+  });
+});
+
+app.get('/api/zoom/logs', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+
   res.json({
     success: true,
     data: zoomApiLogs
   });
+});
+
+// Real Zoom Event Webhook Listener.
+// Configure this URL (APP_URL + /api/zoom/webhooks) under your Zoom
+// Server-to-Server app's Feature > Event Subscriptions, subscribed to
+// Meeting > Started/Ended/Participant Joined. Set ZOOM_WEBHOOK_SECRET_TOKEN
+// to the "Secret Token" Zoom shows on that page, so requests can be verified.
+app.post('/api/zoom/webhooks', (req: any, res) => {
+  const body = req.body || {};
+  const secretToken = process.env.ZOOM_WEBHOOK_SECRET_TOKEN;
+
+  // 1. Zoom's one-time endpoint URL validation handshake.
+  if (body.event === 'endpoint.url_validation') {
+    const plainToken = body.payload?.plainToken;
+    if (!plainToken) {
+      return res.status(400).json({ success: false, message: 'Missing plainToken' });
+    }
+    if (!secretToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'ZOOM_WEBHOOK_SECRET_TOKEN is not configured on this server; cannot complete validation.'
+      });
+    }
+    const encryptedToken = crypto.createHmac('sha256', secretToken).update(plainToken).digest('hex');
+    return res.json({ plainToken, encryptedToken });
+  }
+
+  // 2. Verify Zoom's request signature (skipped, with a warning, if no
+  // secret is configured yet - matches the rest of the app's "works in
+  // demo mode without real credentials" behavior).
+  if (secretToken) {
+    const signature = req.headers['x-zm-signature'];
+    const timestamp = req.headers['x-zm-request-timestamp'];
+
+    // Reject stale/replayed requests - a captured valid payload should not
+    // stay valid forever. Zoom's own docs recommend a 5 minute window.
+    const timestampMs = Number(timestamp);
+    const isFreshTimestamp = Number.isFinite(timestampMs) && Math.abs(Date.now() - timestampMs) <= 5 * 60 * 1000;
+    if (!isFreshTimestamp) {
+      return res.status(401).json({ success: false, message: 'Missing or stale x-zm-request-timestamp' });
+    }
+
+    const rawBody = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(body);
+    const expected = `v0=${crypto
+      .createHmac('sha256', secretToken)
+      .update(`v0:${timestamp}:${rawBody}`)
+      .digest('hex')}`;
+
+    const signatureValid =
+      typeof signature === 'string' &&
+      signature.length === expected.length &&
+      crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+
+    if (!signatureValid) {
+      return res.status(401).json({ success: false, message: 'Invalid webhook signature' });
+    }
+  }
+
+  // 3. Handle the event.
+  const eventName = body.event as string | undefined;
+  const zoomObject = body.payload?.object;
+  const rawMeetingId = zoomObject?.id !== undefined ? String(zoomObject.id) : null;
+  const booking = rawMeetingId
+    ? bookings.find((b) => b.zoomDetails.meetingId.replace(/\s/g, '') === rawMeetingId)
+    : undefined;
+
+  let payloadSummary = `Received ${eventName || 'unknown event'}`;
+  if (eventName === 'meeting.started' && booking) {
+    booking.liveStatus = 'started';
+    payloadSummary = `Meeting started: "${booking.meetingTitle}" (${rawMeetingId})`;
+  } else if (eventName === 'meeting.ended' && booking) {
+    booking.liveStatus = 'ended';
+    payloadSummary = `Meeting ended: "${booking.meetingTitle}" (${rawMeetingId})`;
+  } else if (eventName === 'meeting.participant_joined' && booking) {
+    const participantName = zoomObject?.participant?.user_name || 'Unknown participant';
+    payloadSummary = `${participantName} joined "${booking.meetingTitle}" (${rawMeetingId})`;
+  } else if (rawMeetingId && !booking) {
+    payloadSummary = `${eventName || 'Event'} for meeting ${rawMeetingId} - no matching booking found`;
+  } else if (!secretToken) {
+    payloadSummary += ' (signature not verified - ZOOM_WEBHOOK_SECRET_TOKEN not configured)';
+  }
+
+  zoomApiLogs.unshift({
+    id: `zlog-webhook-${Date.now()}`,
+    timestamp: new Date().toISOString(),
+    method: 'POST',
+    endpoint: '/api/zoom/webhooks',
+    statusCode: 200,
+    responseTimeMs: 0,
+    payloadSummary
+  });
+  if (zoomApiLogs.length > 30) zoomApiLogs.pop();
+
+  res.status(200).json({ success: true });
 });
 
 // 8. Microsoft 365 Calendar & Graph API Sync
@@ -1792,15 +2271,24 @@ app.post('/api/m365/add-busy-slot', (req, res) => {
 });
 
 // 9. Reminder dispatch trigger endpoint
-app.post('/api/reminders/trigger', (req, res) => {
+app.post('/api/reminders/trigger', async (req, res) => {
+  const identity = await resolveIdentity(req);
+  if (!identity) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
+  }
+
   const { bookingId, reminderType } = req.body;
-  const booking = bookings.find((b) => b.id === bookingId) || bookings[0];
-  
+  const booking = bookings.find((b) => b.id === bookingId);
+  if (!booking || (!identity.isAdmin && !canAccessBooking(booking, identity.email))) {
+    return res.status(404).json({ success: false, error: 'Booking not found' });
+  }
+
   res.json({
     success: true,
     reminderSent: true,
     timestamp: new Date().toISOString(),
-    booking,
+    // Host-only fields (startUrl) are never handed back over this endpoint.
+    booking: { id: booking.id, meetingTitle: booking.meetingTitle, participantEmail: booking.participantEmail },
     reminderType: reminderType || '15-min-reminder',
     message: `Reminder sent to ${booking.participantEmail} for Zoom Meeting: ${booking.meetingTitle}`
   });

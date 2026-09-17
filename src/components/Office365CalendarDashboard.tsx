@@ -38,7 +38,73 @@ interface Office365CalendarDashboardProps {
   selectedTimezone?: string;
   userEmail?: string;
   userName?: string;
+  hideWelcomeCard?: boolean;
 }
+
+interface DashboardWelcomeCardProps {
+  authUser?: M365User | null;
+  m365State?: M365CalendarState;
+  selectedTimezone?: string;
+  userEmail?: string;
+  userName?: string;
+  onScheduleMeeting?: () => void;
+  onNavigateToSchedule?: () => void;
+}
+
+// Full-width account/greeting banner, shared between the standalone Dashboard
+// header and Office365CalendarDashboard's own layout (see hideWelcomeCard).
+export const DashboardWelcomeCard: React.FC<DashboardWelcomeCardProps> = ({
+  authUser,
+  m365State,
+  selectedTimezone = 'UTC+08:00 (Asia/Manila)',
+  userEmail,
+  userName,
+  onScheduleMeeting,
+  onNavigateToSchedule,
+}) => {
+  const accountEmail = authUser?.email || userEmail || m365State?.accountEmail || 'buhatar@gmail.com';
+  const accountName = authUser?.name || userName || 'Authorized User';
+
+  const handleSchedule = () => {
+    if (onScheduleMeeting) {
+      onScheduleMeeting();
+    } else if (onNavigateToSchedule) {
+      onNavigateToSchedule();
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl p-5 sm:p-6 border border-gray-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex items-center gap-4">
+        <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 shadow-2xs">
+          <CalendarIcon className="w-6 h-6 text-[#0b5cff]" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Welcome, {accountName}!</h1>
+          <p className="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="break-all">Email: <strong>{accountEmail}</strong></span>
+            <span className="hidden sm:inline">•</span>
+            <span>Timezone: {selectedTimezone}</span>
+            <span className="hidden sm:inline">•</span>
+            <span className="text-gray-400">Hours: 8:00 AM – 5:00 PM</span>
+          </p>
+        </div>
+      </div>
+
+      {/* Action */}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={handleSchedule}
+          className="group flex items-center gap-2 px-4 py-2 bg-[#0b5cff] hover:bg-[#094fd9] active:bg-[#0842b8] text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+        >
+          <Plus className="w-4 h-4 transition-transform duration-500 ease-in-out group-hover:rotate-180" />
+          <span>Schedule Meeting</span>
+        </button>
+      </div>
+    </div>
+  );
+};
 
 export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProps> = ({
   authUser,
@@ -52,6 +118,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
   selectedTimezone = 'UTC+08:00 (Asia/Manila)',
   userEmail,
   userName,
+  hideWelcomeCard = false,
 }) => {
   const accountEmail = authUser?.email || userEmail || m365State?.accountEmail || 'buhatar@gmail.com';
   const accountName = authUser?.name || userName || 'Authorized User';
@@ -306,36 +373,18 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
   return (
     <div className="space-y-6">
       
-      {/* 1. Office 365 Exchange Account Hub Card */}
-      <div className="bg-white rounded-2xl p-5 sm:p-6 border border-gray-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 shadow-2xs">
-            <CalendarIcon className="w-6 h-6 text-[#0b5cff]" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Office 365 Calendar Dashboard</h1>
-            <p className="text-xs text-gray-500 mt-1 flex items-center gap-2">
-              <span>Account: <strong>{accountEmail}</strong></span>
-              <span>•</span>
-              <span>Timezone: {selectedTimezone}</span>
-              <span>•</span>
-              <span className="text-gray-400">Hours: 8:00 AM – 5:00 PM</span>
-            </p>
-          </div>
-        </div>
-
-        {/* Action */}
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleSchedule}
-            className="group flex items-center gap-2 px-4 py-2 bg-[#0b5cff] hover:bg-[#094fd9] active:bg-[#0842b8] text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
-          >
-            <Plus className="w-4 h-4 transition-transform duration-500 ease-in-out group-hover:rotate-180" />
-            <span>Schedule Meeting</span>
-          </button>
-        </div>
-      </div>
+      {/* 1. Office 365 Exchange Account Hub Card (skipped when the caller renders it full-width itself) */}
+      {!hideWelcomeCard && (
+        <DashboardWelcomeCard
+          authUser={authUser}
+          m365State={m365State}
+          selectedTimezone={selectedTimezone}
+          userEmail={userEmail}
+          userName={userName}
+          onScheduleMeeting={onScheduleMeeting}
+          onNavigateToSchedule={onNavigateToSchedule}
+        />
+      )}
 
       {/* 2. Main Calendar Container */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">

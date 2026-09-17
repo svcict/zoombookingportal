@@ -1,7 +1,90 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
 
 let supabaseClient: SupabaseClient | null = null;
 let supabaseAdminClient: SupabaseClient | null = null;
+
+// Signs demo-account session tokens (see issueDemoSessionToken below). Falls
+// back to a per-process random secret so a restart simply requires
+// demo users to log back in, rather than ever using a guessable default.
+const DEMO_TOKEN_SECRET = process.env.DEMO_TOKEN_SECRET || crypto.randomBytes(32).toString('hex');
+const DEMO_TOKEN_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+
+function getDemoLoginEmails(): Set<string> {
+  return new Set(
+    (process.env.DEMO_LOGIN_EMAILS || '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
+/**
+ * Explicitly-allowlisted demo accounts (DEMO_LOGIN_EMAILS) can sign in
+ * without a real password, for demoing the app with seeded profiles that
+ * were never given a real Supabase Auth password. Unlike the old "any row
+ * in the profiles table" fallback this replaced, this requires an admin to
+ * opt an email in via env var - self-registering an account (which also
+ * creates a profiles row) does NOT grant this.
+ */
+export function isDemoLoginEmail(email: string): boolean {
+  return getDemoLoginEmails().has(email.trim().toLowerCase());
+}
+
+function base64UrlEncode(input: string): string {
+  return Buffer.from(input, 'utf8').toString('base64url');
+}
+
+function base64UrlDecode(input: string): string {
+  return Buffer.from(input, 'base64url').toString('utf8');
+}
+
+export function issueDemoSessionToken(email: string, isAdmin: boolean): string {
+  const payload = JSON.stringify({
+    email: email.toLowerCase().trim(),
+    isAdmin,
+    iat: Date.now(),
+    exp: Date.now() + DEMO_TOKEN_TTL_MS,
+  });
+  const encodedPayload = base64UrlEncode(payload);
+  const signature = crypto.createHmac('sha256', DEMO_TOKEN_SECRET).update(encodedPayload).digest('base64url');
+  return `demo_v1.${encodedPayload}.${signature}`;
+}
+
+/**
+ * Verifies a token issued by issueDemoSessionToken: correct signature, not
+ * expired, and the email is *still* on the DEMO_LOGIN_EMAILS allowlist right
+ * now - removing an email from that list immediately invalidates any
+ * outstanding demo token for it, even before it would otherwise expire.
+ */
+export function verifyDemoSessionToken(token: string): { email: string; isAdmin: boolean } | null {
+  if (!token.startsWith('demo_v1.')) return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  const [, encodedPayload, signature] = parts;
+
+  const expectedSignature = crypto
+    .createHmac('sha256', DEMO_TOKEN_SECRET)
+    .update(encodedPayload)
+    .digest('base64url');
+
+  if (
+    signature.length !== expectedSignature.length ||
+    !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))
+  ) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(base64UrlDecode(encodedPayload));
+    if (typeof payload.email !== 'string' || typeof payload.exp !== 'number') return null;
+    if (Date.now() > payload.exp) return null;
+    if (!isDemoLoginEmail(payload.email)) return null;
+    return { email: payload.email, isAdmin: Boolean(payload.isAdmin) };
+  } catch {
+    return null;
+  }
+}
 
 export function isSupabaseConfigured(): boolean {
   const url = process.env.SUPABASE_URL;
@@ -47,6 +130,50 @@ export function getSupabaseAdmin(): SupabaseClient | null {
   }
 
   return supabaseAdminClient;
+}
+
+export interface VerifiedSession {
+  email: string;
+  isAdmin: boolean;
+}
+
+/**
+ * Verifies a bearer token against Supabase Auth and resolves the real,
+ * server-checked identity behind it - used in place of trusting any
+ * client-supplied identity header. Returns null for a missing, expired,
+ * or otherwise invalid token, or if Supabase isn't configured.
+ */
+export async function verifySessionToken(token: string): Promise<VerifiedSession | null> {
+  const client = getSupabase();
+  if (!client || !token) return null;
+
+  try {
+    const { data, error } = await client.auth.getUser(token);
+    if (error || !data?.user?.email) return null;
+
+    const email = data.user.email.toLowerCase().trim();
+    const metadata = data.user.user_metadata || {};
+    let isAdmin = metadata.isAdmin === true || metadata.role === 'admin';
+
+    // Cross-check the profiles table (service-role, bypasses RLS) in case
+    // is_admin was granted/revoked there directly rather than in the JWT's
+    // own metadata, which only reflects state as of sign-in.
+    const adminClient = getSupabaseAdmin();
+    if (adminClient) {
+      const { data: profile } = await adminClient
+        .from('profiles')
+        .select('is_admin, role')
+        .eq('id', data.user.id)
+        .maybeSingle();
+      if (profile) {
+        isAdmin = isAdmin || profile.is_admin === true || profile.role === 'admin';
+      }
+    }
+
+    return { email, isAdmin };
+  } catch {
+    return null;
+  }
 }
 
 export interface SupabaseAuthResult {
@@ -225,43 +352,51 @@ export async function authenticateLocalUser(
       }
     }
 
-    // 2. Query Supabase 'profiles' table with admin client (bypasses RLS)
-    const targetClient = adminClient || client;
-    const { data: profileData, error: profileError } = await targetClient
-      .from('profiles')
-      .select('*')
-      .ilike('email', normalizedEmail)
-      .maybeSingle();
+    // 2. Passwordless sign-in for explicitly-allowlisted demo accounts only.
+    // This used to accept ANY email found in the profiles table with no
+    // password check at all - since self-registration also creates a
+    // profiles row, that meant anyone could log in as anyone just by
+    // knowing their email. Now it only ever applies to emails an admin has
+    // opted in via DEMO_LOGIN_EMAILS, and issues a signed, expiring,
+    // independently-revocable token rather than a fake one.
+    if (isDemoLoginEmail(normalizedEmail)) {
+      const targetClient = adminClient || client;
+      const { data: profileData, error: profileError } = await targetClient
+        .from('profiles')
+        .select('*')
+        .ilike('email', normalizedEmail)
+        .maybeSingle();
 
-    if (!profileError && profileData) {
-      const isExplicitAdmin =
-        profileData.is_admin === true ||
-        profileData.role === 'admin' ||
-        normalizedEmail.includes('admin');
+      if (!profileError && profileData) {
+        const isExplicitAdmin =
+          profileData.is_admin === true ||
+          profileData.role === 'admin' ||
+          normalizedEmail.includes('admin');
 
-      const name = profileData.full_name || profileData.name || normalizedEmail.split('@')[0];
+        const name = profileData.full_name || profileData.name || normalizedEmail.split('@')[0];
 
-      return {
-        success: true,
-        user: {
-          id: profileData.id || `sb-usr-${Date.now()}`,
-          name: name.charAt(0).toUpperCase() + name.slice(1),
-          email: profileData.email || normalizedEmail,
-          role: profileData.role || (isExplicitAdmin ? 'Administrator' : 'Staff Member'),
-          isAdmin: isExplicitAdmin,
-          department: profileData.department || 'Ayala Foundation Team',
-          avatar:
-            profileData.avatar_url ||
-            `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
-          tenantName: 'Ayala Foundation Supabase Workspace',
-          tenantId: 'supabase-db-auth',
-          scopes: isExplicitAdmin
-            ? ['User.Read', 'Calendars.ReadWrite', 'Directory.AccessAsUser.All']
-            : ['User.Read', 'Calendars.ReadWrite'],
-          accessToken: `sb_custom_${Date.now()}`,
-          provider: 'supabase',
-        },
-      };
+        return {
+          success: true,
+          user: {
+            id: profileData.id || `sb-usr-${Date.now()}`,
+            name: name.charAt(0).toUpperCase() + name.slice(1),
+            email: profileData.email || normalizedEmail,
+            role: profileData.role || (isExplicitAdmin ? 'Administrator' : 'Staff Member'),
+            isAdmin: isExplicitAdmin,
+            department: profileData.department || 'Ayala Foundation Team',
+            avatar:
+              profileData.avatar_url ||
+              `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
+            tenantName: 'Ayala Foundation Supabase Workspace',
+            tenantId: 'supabase-db-auth',
+            scopes: isExplicitAdmin
+              ? ['User.Read', 'Calendars.ReadWrite', 'Directory.AccessAsUser.All']
+              : ['User.Read', 'Calendars.ReadWrite'],
+            accessToken: issueDemoSessionToken(normalizedEmail, isExplicitAdmin),
+            provider: 'demo',
+          },
+        };
+      }
     }
 
     return {

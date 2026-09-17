@@ -11,13 +11,14 @@ import { M365SyncView } from './components/M365SyncView';
 import { ZoomApiIntegrationView } from './components/ZoomApiIntegrationView';
 import { AdminSecurityAuditView } from './components/AdminSecurityAuditView';
 import { TimezoneSelector } from './components/TimezoneSelector';
-import { Office365CalendarDashboard } from './components/Office365CalendarDashboard';
+import { Office365CalendarDashboard, DashboardWelcomeCard } from './components/Office365CalendarDashboard';
 import { ZoomMeetingDetailsModal } from './components/ZoomMeetingDetailsModal';
 import { MeetingType, TimeSlot, Booking, M365CalendarState, M365User, HostAccount, ZoomMeetingConfig } from './types';
 import { INITIAL_MEETING_TYPES, INITIAL_HOST_ACCOUNTS, INITIAL_M365_STATE } from './data/initialData';
 import { generateLocalAvailabilitySlots } from './utils/availability';
 import { getDetectedTimezone, formatDateInTimezone } from './utils/timezone';
 import { playZoomNotificationSound, sendBrowserPushNotification } from './utils/notifications';
+import { buildAuthHeaders } from './utils/auth';
 import { Video, ShieldCheck, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
 
 export default function App() {
@@ -42,8 +43,13 @@ export default function App() {
     );
   }, [authUser]);
 
+  // Identity headers sent with every API request - Authorization carries the
+  // Supabase session token the server actually verifies; X-User-Email is
+  // only a fallback the server uses when it has no Supabase configured.
+  const authHeaders = useMemo(() => buildAuthHeaders(authUser), [authUser]);
+
   // Navigation View State - Defaults to Office365 Dashboard when user logs in
-  const [currentView, setCurrentView] = useState<'dashboard' | 'booking' | 'bookings-list' | 'm365' | 'zoom-api' | 'security-logs'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'booking' | 'm365' | 'zoom-api' | 'security-logs'>('dashboard');
 
   // Selected Booking for Detailed Modal inspection
   const [selectedBookingForDetails, setSelectedBookingForDetails] = useState<Booking | null>(null);
@@ -95,7 +101,11 @@ export default function App() {
       try {
         const results = await Promise.allSettled([
           fetch('/api/meeting-types').then((r) => (r.ok ? r.json() : null)),
-          fetch('/api/bookings').then((r) => (r.ok ? r.json() : null)),
+          authUser?.email
+            ? fetch('/api/bookings', { headers: authHeaders }).then((r) =>
+                r.ok ? r.json() : null
+              )
+            : Promise.resolve(null),
           fetch('/api/m365/status').then((r) => (r.ok ? r.json() : null)),
           fetch('/api/auth/m365/accounts').then((r) => (r.ok ? r.json() : null)),
         ]);
@@ -132,7 +142,27 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [authUser?.email]);
+
+  // Periodically refresh bookings so live-meeting status (set by the Zoom
+  // webhook listener on the server) shows up without a manual reload.
+  useEffect(() => {
+    if (!authUser?.email) return;
+    const headers = authHeaders;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/bookings', { headers });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          setBookings(data.data);
+        }
+      } catch {
+        // Ignore transient network errors; next poll will retry
+      }
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [authUser?.email]);
 
   // Filter visible bookings according to RBAC:
   // Admin sees all organization meetings.
@@ -276,7 +306,10 @@ export default function App() {
   // Cancel Booking
   const handleCancelBooking = async (bookingId: string) => {
     try {
-      const res = await fetch(`/api/bookings/${bookingId}/cancel`, { method: 'POST' });
+      const res = await fetch(`/api/bookings/${bookingId}/cancel`, {
+        method: 'POST',
+        headers: authHeaders,
+      });
       const data = await res.json();
       if (data.success) {
         setBookings((prev) =>
@@ -350,7 +383,6 @@ export default function App() {
         onSignOut={handleSignOut}
         selectedTimezone={selectedTimezone}
         onOpenTimezoneModal={() => setIsTimezoneModalOpen(true)}
-        bookingCount={visibleBookings.filter((b) => b.status === 'confirmed').length}
       />
 
       {/* Floating System Notice Toast */}
@@ -362,27 +394,59 @@ export default function App() {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {/* VIEW 0: OFFICE 365 CALENDAR DASHBOARD (Default view on initial login) */}
         {currentView === 'dashboard' && (
-          <Office365CalendarDashboard
-            authUser={authUser}
-            m365State={m365State}
-            bookings={visibleBookings}
-            syncedEvents={m365State.events || []}
-            onScheduleMeeting={() => {
-              setCurrentView('booking');
-              setBookingStep('slots');
-              setSelectedSlot(null);
-            }}
-            onSelectBookingForDetails={(booking) => {
-              setSelectedBookingForDetails(booking);
-            }}
-            userEmail={authUser?.email || 'buhatar@gmail.com'}
-            userName={authUser?.name || 'Authorized User'}
-            selectedTimezone={selectedTimezone}
-          />
+          <div className="space-y-6">
+            {/* Full-width greeting banner shared by both columns below */}
+            <DashboardWelcomeCard
+              authUser={authUser}
+              m365State={m365State}
+              selectedTimezone={selectedTimezone}
+              userEmail={authUser?.email || 'buhatar@gmail.com'}
+              userName={authUser?.name || 'Authorized User'}
+              onScheduleMeeting={() => {
+                setCurrentView('booking');
+                setBookingStep('slots');
+                setSelectedSlot(null);
+              }}
+            />
+
+            <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 items-start">
+              <div className="xl:col-span-3">
+                <Office365CalendarDashboard
+                  authUser={authUser}
+                  m365State={m365State}
+                  bookings={visibleBookings}
+                  syncedEvents={m365State.events || []}
+                  hideWelcomeCard
+                  onScheduleMeeting={() => {
+                    setCurrentView('booking');
+                    setBookingStep('slots');
+                    setSelectedSlot(null);
+                  }}
+                  onSelectBookingForDetails={(booking) => {
+                    setSelectedBookingForDetails(booking);
+                  }}
+                  userEmail={authUser?.email || 'buhatar@gmail.com'}
+                  userName={authUser?.name || 'Authorized User'}
+                  selectedTimezone={selectedTimezone}
+                />
+              </div>
+
+              {/* Scheduled Meetings (User sees own meetings; Admin sees all) */}
+              <div className="xl:col-span-2 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto">
+                <HostBookingsView
+                  bookings={visibleBookings}
+                  isAdmin={isAdmin}
+                  onCancelBooking={handleCancelBooking}
+                  onSelectBookingForDetails={(booking) => setSelectedBookingForDetails(booking)}
+                  onNavigateToSchedule={() => setCurrentView('booking')}
+                />
+              </div>
+            </div>
+          </div>
         )}
 
         {/* VIEW 1: BOOKING SCHEDULER FLOW */}
@@ -522,6 +586,7 @@ export default function App() {
             {bookingStep === 'confirmed' && confirmedBooking && (
               <BookingConfirmation
                 booking={confirmedBooking}
+                authHeaders={authHeaders}
                 onBookAnother={() => {
                   setBookingStep('slots');
                   setSelectedSlot(null);
@@ -543,19 +608,9 @@ export default function App() {
           </div>
         )}
 
-        {/* VIEW 2: SCHEDULED MEETINGS (User sees own meetings; Admin sees all) */}
-        {currentView === 'bookings-list' && (
-          <HostBookingsView
-            bookings={visibleBookings}
-            isAdmin={isAdmin}
-            onCancelBooking={handleCancelBooking}
-            onNavigateToSchedule={() => setCurrentView('booking')}
-          />
-        )}
-
         {/* VIEW 3: ZOOM API INTEGRATION & DIAGNOSTICS (Admin Only) */}
         {currentView === 'zoom-api' && isAdmin && (
-          <ZoomApiIntegrationView />
+          <ZoomApiIntegrationView adminEmail={authUser?.email} authHeaders={authHeaders} />
         )}
 
         {/* VIEW 4: MICROSOFT 365 CALENDAR SYNC SETTINGS (Admin Only) */}
@@ -564,12 +619,18 @@ export default function App() {
             m365State={m365State}
             onToggleSync={handleToggleM365Sync}
             onAddBusySlot={handleAddM365BusySlot}
+            adminEmail={authUser?.email}
+            authHeaders={authHeaders}
           />
         )}
 
         {/* VIEW 5: SECURITY AUDITS & FAILED LOGINS (Admin Only) */}
         {currentView === 'security-logs' && isAdmin && (
-          <AdminSecurityAuditView onBackToSchedule={() => setCurrentView('booking')} />
+          <AdminSecurityAuditView
+            onBackToSchedule={() => setCurrentView('booking')}
+            adminEmail={authUser?.email}
+            authHeaders={authHeaders}
+          />
         )}
 
       </main>
@@ -584,7 +645,10 @@ export default function App() {
             try {
               const res = await fetch(`/api/bookings/${selectedBookingForDetails.id}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...authHeaders,
+                },
                 body: JSON.stringify({ zoomConfig: updatedConfig }),
               });
               if (res.ok) {
@@ -612,7 +676,7 @@ export default function App() {
 
       {/* Subtle Zoom Footer */}
       <footer className="bg-white border-t border-gray-200 py-6 mt-12 text-center text-xs text-gray-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="max-w-[1600px] mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <div className="w-5 h-5 rounded-md bg-[#0b5cff] text-white flex items-center justify-center text-[10px] font-bold">
               Z

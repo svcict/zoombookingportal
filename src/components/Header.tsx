@@ -6,10 +6,9 @@ import {
   Globe, 
   Bell, 
   BellRing, 
-  CheckCircle2, 
-  ShieldCheck, 
-  Layers, 
-  ExternalLink, 
+  CheckCircle2,
+  ShieldCheck,
+  ExternalLink,
   ChevronDown, 
   LogOut, 
   Cpu, 
@@ -28,14 +27,13 @@ import { requestPushPermission, playZoomNotificationSound } from '../utils/notif
 import { AyalaFoundationLogo } from './AyalaFoundationLogo';
 
 interface HeaderProps {
-  currentView: 'dashboard' | 'booking' | 'bookings-list' | 'm365' | 'zoom-api' | 'security-logs';
-  onViewChange: (view: 'dashboard' | 'booking' | 'bookings-list' | 'm365' | 'zoom-api' | 'security-logs') => void;
+  currentView: 'dashboard' | 'booking' | 'm365' | 'zoom-api' | 'security-logs';
+  onViewChange: (view: 'dashboard' | 'booking' | 'm365' | 'zoom-api' | 'security-logs') => void;
   m365State: M365CalendarState;
   authUser: M365User | null;
   onSignOut: () => void;
   selectedTimezone: string;
   onOpenTimezoneModal: () => void;
-  bookingCount: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -45,8 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
   authUser,
   onSignOut,
   selectedTimezone,
-  onOpenTimezoneModal,
-  bookingCount
+  onOpenTimezoneModal
 }) => {
   const [pushStatus, setPushStatus] = useState<string>('default');
   const [currentTimeStr, setCurrentTimeStr] = useState<string>('');
@@ -136,7 +133,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
       {/* Top Navigation Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           
           {/* Logo and Brand */}
@@ -178,24 +175,6 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <Video className="w-3.5 h-3.5" />
                 Schedule
-              </button>
-
-              {/* 2. Meetings Tab (Visible to all users & admin) */}
-              <button
-                onClick={() => onViewChange('bookings-list')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 relative cursor-pointer ${
-                  currentView === 'bookings-list'
-                    ? 'bg-blue-50 text-[#0b5cff] font-semibold'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                <Layers className="w-3.5 h-3.5" />
-                Meetings
-                {bookingCount > 0 && (
-                  <span className="ml-1 px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-[#0b5cff] text-white">
-                    {bookingCount}
-                  </span>
-                )}
               </button>
 
               {/* Admin-Only Tabs: Integration Dropdown & Security Audits */}
@@ -481,12 +460,6 @@ export const Header: React.FC<HeaderProps> = ({
             className={`py-1 px-2 rounded cursor-pointer ${currentView === 'booking' ? 'text-[#0b5cff] font-bold' : 'text-gray-600'}`}
           >
             Schedule
-          </button>
-          <button
-            onClick={() => onViewChange('bookings-list')}
-            className={`py-1 px-2 rounded cursor-pointer ${currentView === 'bookings-list' ? 'text-[#0b5cff] font-bold' : 'text-gray-600'}`}
-          >
-            Meetings ({bookingCount})
           </button>
           {isAdmin && (
             <>

@@ -1,28 +1,54 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Video, 
-  CheckCircle2, 
-  Activity, 
-  Send, 
-  ShieldCheck, 
-  Terminal, 
-  RefreshCw, 
-  Key, 
-  Webhook, 
-  Sparkles, 
-  Copy, 
+import {
+  Video,
+  CheckCircle2,
+  Activity,
+  Send,
+  ShieldCheck,
+  Terminal,
+  RefreshCw,
+  Key,
+  Webhook,
+  Sparkles,
   ExternalLink,
   Layers,
-  Cpu
+  Cpu,
+  Pencil,
+  X,
+  Save
 } from 'lucide-react';
 import { ZoomApiConfig, ZoomApiLog } from '../types';
 
-export const ZoomApiIntegrationView: React.FC = () => {
+interface ZoomAccountAdminView {
+  key: 'A' | 'B';
+  label: string;
+  accountId: string;
+  clientId: string;
+  userId: string;
+  hasClientSecret: boolean;
+  configured: boolean;
+}
+
+interface ZoomApiIntegrationViewProps {
+  adminEmail?: string;
+  authHeaders?: Record<string, string>;
+}
+
+const emptyAccountForm = { label: '', accountId: '', clientId: '', clientSecret: '', userId: '' };
+
+export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ adminEmail, authHeaders = {} }) => {
   const [config, setConfig] = useState<ZoomApiConfig | null>(null);
   const [logs, setLogs] = useState<ZoomApiLog[]>([]);
   const [isPinging, setIsPinging] = useState(false);
   const [pingResult, setPingResult] = useState<any | null>(null);
   const [activeRoomsCount, setActiveRoomsCount] = useState(0);
+
+  // Admin-editable rotating account credentials
+  const [adminAccounts, setAdminAccounts] = useState<ZoomAccountAdminView[]>([]);
+  const [editingKey, setEditingKey] = useState<'A' | 'B' | null>(null);
+  const [accountForm, setAccountForm] = useState(emptyAccountForm);
+  const [isSavingAccount, setIsSavingAccount] = useState(false);
+  const [accountNotice, setAccountNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Playground form state
   const [testTopic, setTestTopic] = useState('Enterprise Architecture Review');
@@ -31,13 +57,14 @@ export const ZoomApiIntegrationView: React.FC = () => {
   const [cloudRecording, setCloudRecording] = useState(true);
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
   const [createdMeetingResponse, setCreatedMeetingResponse] = useState<any | null>(null);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const fetchZoomStatus = async () => {
     try {
       const [cfgRes, logsRes] = await Promise.all([
         fetch('/api/zoom/config').then((r) => r.json()),
-        fetch('/api/zoom/logs').then((r) => r.json())
+        adminEmail
+          ? fetch('/api/zoom/logs', { headers: authHeaders }).then((r) => r.json())
+          : Promise.resolve({ success: false })
       ]);
 
       if (cfgRes.success) {
@@ -52,14 +79,78 @@ export const ZoomApiIntegrationView: React.FC = () => {
     }
   };
 
+  const fetchAdminAccounts = async () => {
+    if (!adminEmail) return;
+    try {
+      const res = await fetch('/api/admin/zoom/config', { headers: authHeaders });
+      const data = await res.json();
+      if (data.success) {
+        setAdminAccounts(data.data.accounts || []);
+      }
+    } catch (e) {
+      console.error('Failed to load Zoom admin account config', e);
+    }
+  };
+
+  const startEditingAccount = (acct: ZoomAccountAdminView) => {
+    setEditingKey(acct.key);
+    setAccountForm({
+      label: acct.label,
+      accountId: acct.accountId,
+      clientId: acct.clientId,
+      clientSecret: '',
+      userId: acct.userId
+    });
+    setAccountNotice(null);
+  };
+
+  const cancelEditingAccount = () => {
+    setEditingKey(null);
+    setAccountForm(emptyAccountForm);
+  };
+
+  const handleSaveAccount = async () => {
+    if (!editingKey || !adminEmail) return;
+    setIsSavingAccount(true);
+    setAccountNotice(null);
+    try {
+      const res = await fetch('/api/admin/zoom/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ accountKey: editingKey, ...accountForm })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAccountNotice({ type: 'success', message: data.message || 'Saved.' });
+        setEditingKey(null);
+        setAccountForm(emptyAccountForm);
+        await Promise.all([fetchAdminAccounts(), fetchZoomStatus()]);
+      } else {
+        setAccountNotice({ type: 'error', message: data.message || 'Failed to save credentials.' });
+      }
+    } catch (e: any) {
+      setAccountNotice({ type: 'error', message: e?.message || 'Error saving credentials.' });
+    } finally {
+      setIsSavingAccount(false);
+    }
+  };
+
   useEffect(() => {
     fetchZoomStatus();
-  }, []);
+  }, [adminEmail]);
+
+  useEffect(() => {
+    fetchAdminAccounts();
+  }, [adminEmail]);
 
   const handleTestConnection = async () => {
+    if (!adminEmail) return;
     setIsPinging(true);
     try {
-      const res = await fetch('/api/zoom/test-connection', { method: 'POST' });
+      const res = await fetch('/api/zoom/test-connection', {
+        method: 'POST',
+        headers: authHeaders
+      });
       const data = await res.json();
       setPingResult(data);
       fetchZoomStatus();
@@ -98,12 +189,6 @@ export const ZoomApiIntegrationView: React.FC = () => {
     } finally {
       setIsCreatingMeeting(false);
     }
-  };
-
-  const copyToClipboard = (text: string, keyName: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(keyName);
-    setTimeout(() => setCopiedKey(null), 2000);
   };
 
   return (
@@ -145,6 +230,39 @@ export const ZoomApiIntegrationView: React.FC = () => {
         </div>
       </div>
 
+      {/* Test Connection Results */}
+      {pingResult && (
+        <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-xs space-y-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-[#0b5cff]" />
+            <h3 className="font-bold text-gray-900 text-sm">Last Connection Test</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {(pingResult.accounts || []).map((acct: any) => (
+              <div
+                key={acct.key}
+                className={`p-3 rounded-xl border text-xs flex items-center justify-between ${
+                  acct.connected ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
+                }`}
+              >
+                <div>
+                  <div className="font-bold text-gray-800">{acct.label}</div>
+                  <div className="text-gray-500 text-[11px]">
+                    {acct.connected ? `Connected · ${acct.latencyMs}ms` : acct.error || 'Not connected'}
+                  </div>
+                </div>
+                {acct.connected ? (
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-gray-300" />
+                )}
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-gray-500">{pingResult.message}</p>
+        </div>
+      )}
+
       {/* 4-Stat Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
@@ -152,13 +270,15 @@ export const ZoomApiIntegrationView: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Status</span>
-            <span className="w-2 h-2 rounded-full bg-green-500" />
+            <span className={`w-2 h-2 rounded-full ${config?.mode === 'live' ? 'bg-green-500' : 'bg-amber-500'}`} />
           </div>
           <div className="text-xl font-extrabold text-gray-900 mt-2 flex items-center gap-1.5">
-            <CheckCircle2 className="w-5 h-5 text-green-600" />
-            Connected
+            <CheckCircle2 className={`w-5 h-5 ${config?.mode === 'live' ? 'text-green-600' : 'text-amber-500'}`} />
+            {config?.mode === 'live' ? 'Live' : 'Demo Mode'}
           </div>
-          <div className="text-[11px] text-gray-500 mt-1">OAuth Token Valid</div>
+          <div className="text-[11px] text-gray-500 mt-1">
+            {config?.mode === 'live' ? 'At least one account configured' : 'No Zoom credentials set'}
+          </div>
         </div>
 
         {/* Latency */}
@@ -170,19 +290,19 @@ export const ZoomApiIntegrationView: React.FC = () => {
           <div className="text-xl font-extrabold text-[#0b5cff] mt-2 font-mono">
             {config?.lastPingMs || 64} ms
           </div>
-          <div className="text-[11px] text-gray-500 mt-1">Direct endpoint roundtrip</div>
+          <div className="text-[11px] text-gray-500 mt-1">Last test-connection roundtrip</div>
         </div>
 
-        {/* Rate Limit */}
+        {/* Rotation */}
         <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Rate Quota</span>
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Rotation Pool</span>
             <Activity className="w-4 h-4 text-purple-500" />
           </div>
           <div className="text-xl font-extrabold text-gray-900 mt-2 font-mono">
-            {config?.rateLimit.remaining || 97} / {config?.rateLimit.limit || 100}
+            {(config?.accounts || []).filter((a) => a.configured).length} / 2
           </div>
-          <div className="text-[11px] text-gray-500 mt-1">Requests / sec remaining</div>
+          <div className="text-[11px] text-gray-500 mt-1">Zoom accounts configured</div>
         </div>
 
         {/* Active Rooms */}
@@ -210,39 +330,130 @@ export const ZoomApiIntegrationView: React.FC = () => {
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div className="flex items-center gap-2">
                 <Key className="w-4 h-4 text-[#0b5cff]" />
-                <h3 className="font-bold text-gray-900 text-sm">Zoom App Credentials</h3>
+                <h3 className="font-bold text-gray-900 text-sm">Rotating Zoom Accounts</h3>
               </div>
-              <span className="text-[11px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
-                Verified
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                config?.mode === 'live'
+                  ? 'text-green-700 bg-green-50 border-green-200'
+                  : 'text-amber-700 bg-amber-50 border-amber-200'
+              }`}>
+                {config?.mode === 'live' ? 'Live' : 'Demo Mode'}
               </span>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block text-gray-500 font-semibold mb-1">Account ID</label>
-                <div className="p-2.5 bg-[#F7F9FA] rounded-xl border border-gray-200 font-mono text-gray-800 flex items-center justify-between">
-                  <span>{config?.accountId || 'zm_acct_84920184'}</span>
-                  <button
-                    onClick={() => copyToClipboard(config?.accountId || 'zm_acct_84920184', 'accId')}
-                    className="text-[#0b5cff] hover:underline font-sans font-bold text-[11px]"
-                  >
-                    {copiedKey === 'accId' ? 'Copied!' : 'Copy'}
-                  </button>
-                </div>
-              </div>
+            <p className="text-xs text-gray-600">
+              Bookings are provisioned by alternating between two Zoom Server-to-Server OAuth credentials, so
+              overlapping meetings never collide on the same account's concurrent-meeting limit. Changes here
+              are written to the server's <code className="bg-gray-100 px-1 py-0.5 rounded text-[10px]">.env</code> file,
+              so they survive a restart &mdash; use this when swapping in a new Zoom account.
+            </p>
 
-              <div>
-                <label className="block text-gray-500 font-semibold mb-1">Client ID</label>
-                <div className="p-2.5 bg-[#F7F9FA] rounded-xl border border-gray-200 font-mono text-gray-800 flex items-center justify-between">
-                  <span>{config?.clientId || 'zm_cli_993821049281'}</span>
-                  <button
-                    onClick={() => copyToClipboard(config?.clientId || 'zm_cli_993821049281', 'cliId')}
-                    className="text-[#0b5cff] hover:underline font-sans font-bold text-[11px]"
-                  >
-                    {copiedKey === 'cliId' ? 'Copied!' : 'Copy'}
-                  </button>
-                </div>
+            {accountNotice && (
+              <div className={`p-2.5 rounded-lg text-[11px] font-medium flex items-center justify-between gap-2 ${
+                accountNotice.type === 'success'
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                  : 'bg-red-50 text-red-800 border border-red-200'
+              }`}>
+                <span>{accountNotice.message}</span>
+                <button type="button" onClick={() => setAccountNotice(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer">&times;</button>
               </div>
+            )}
+
+            <div className="space-y-3 text-xs">
+              {(adminAccounts.length > 0 ? adminAccounts : (['A', 'B'] as const).map((key) => ({
+                key, label: `Zoom Account ${key}`, accountId: '', clientId: '', userId: '', hasClientSecret: false, configured: false
+              }))).map((acct) => (
+                <div key={acct.key} className="p-3 bg-[#F7F9FA] rounded-xl border border-gray-200">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-bold text-gray-800">{acct.label}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                        acct.configured
+                          ? 'text-green-700 bg-green-50 border-green-200'
+                          : 'text-gray-500 bg-gray-100 border-gray-200'
+                      }`}>
+                        {acct.configured ? 'Configured' : 'Not configured'}
+                      </span>
+                      {editingKey !== acct.key && (
+                        <button
+                          type="button"
+                          onClick={() => startEditingAccount(acct)}
+                          className="p-1 rounded-md border border-gray-200 hover:border-[#0b5cff] hover:text-[#0b5cff] text-gray-500 transition-colors cursor-pointer"
+                          title={`Edit ${acct.label}`}
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {editingKey === acct.key ? (
+                    <div className="space-y-2 pt-1.5">
+                      <input
+                        type="text"
+                        placeholder="Label (e.g. Sales Team Zoom)"
+                        value={accountForm.label}
+                        onChange={(e) => setAccountForm((f) => ({ ...f, label: e.target.value }))}
+                        className="w-full px-2.5 py-1.5 bg-white rounded-lg border border-gray-300 text-[11px] focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Account ID"
+                        value={accountForm.accountId}
+                        onChange={(e) => setAccountForm((f) => ({ ...f, accountId: e.target.value }))}
+                        className="w-full px-2.5 py-1.5 bg-white rounded-lg border border-gray-300 text-[11px] font-mono focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Client ID"
+                        value={accountForm.clientId}
+                        onChange={(e) => setAccountForm((f) => ({ ...f, clientId: e.target.value }))}
+                        className="w-full px-2.5 py-1.5 bg-white rounded-lg border border-gray-300 text-[11px] font-mono focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+                      />
+                      <input
+                        type="password"
+                        placeholder={acct.hasClientSecret ? 'Client Secret (leave blank to keep existing)' : 'Client Secret'}
+                        value={accountForm.clientSecret}
+                        onChange={(e) => setAccountForm((f) => ({ ...f, clientSecret: e.target.value }))}
+                        className="w-full px-2.5 py-1.5 bg-white rounded-lg border border-gray-300 text-[11px] font-mono focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Host User ID / email (e.g. host@company.com)"
+                        value={accountForm.userId}
+                        onChange={(e) => setAccountForm((f) => ({ ...f, userId: e.target.value }))}
+                        className="w-full px-2.5 py-1.5 bg-white rounded-lg border border-gray-300 text-[11px] font-mono focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+                      />
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleSaveAccount}
+                          disabled={isSavingAccount}
+                          className="px-3 py-1.5 rounded-lg bg-[#0b5cff] hover:bg-[#0049d1] disabled:bg-gray-300 text-white text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
+                        >
+                          {isSavingAccount ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                          <span>Save</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEditingAccount}
+                          disabled={isSavingAccount}
+                          className="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-100 text-gray-600 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <X className="w-3 h-3" />
+                          <span>Cancel</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="font-mono text-gray-500 text-[11px]">
+                      {acct.configured
+                        ? `${acct.accountId} · ${acct.userId}`
+                        : `Not configured yet — click edit to set this account's credentials`}
+                    </div>
+                  )}
+                </div>
+              ))}
 
               <div>
                 <label className="block text-gray-500 font-semibold mb-1">REST API Base Endpoint</label>
@@ -254,13 +465,14 @@ export const ZoomApiIntegrationView: React.FC = () => {
 
             {/* Scopes */}
             <div className="pt-3 border-t border-gray-100">
-              <label className="block text-xs font-bold text-gray-700 mb-2">Granted OAuth Scopes</label>
+              <label className="block text-xs font-bold text-gray-700 mb-2">Required OAuth Scopes (per app)</label>
               <div className="flex flex-wrap gap-1.5">
                 {(config?.scopes || [
-                  'meeting:write:admin',
-                  'meeting:read:admin',
-                  'user:read:admin',
-                  'recording:read:admin'
+                  'meeting:write:meeting',
+                  'meeting:read:meeting',
+                  'meeting:update:meeting',
+                  'meeting:delete:meeting',
+                  'user:read:user'
                 ]).map((s) => (
                   <span
                     key={s}
@@ -276,16 +488,32 @@ export const ZoomApiIntegrationView: React.FC = () => {
 
           {/* Webhooks Card */}
           <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-xs space-y-3">
-            <div className="flex items-center gap-2">
-              <Webhook className="w-4 h-4 text-purple-600" />
-              <h3 className="font-bold text-gray-900 text-sm">Zoom Event Webhook Listener</h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Webhook className="w-4 h-4 text-purple-600" />
+                <h3 className="font-bold text-gray-900 text-sm">Zoom Event Webhook Listener</h3>
+              </div>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                config?.webhookSecretConfigured
+                  ? 'text-green-700 bg-green-50 border-green-200'
+                  : 'text-amber-700 bg-amber-50 border-amber-200'
+              }`}>
+                {config?.webhookSecretConfigured ? 'Signature Verified' : 'Secret Not Set'}
+              </span>
             </div>
             <p className="text-xs text-gray-600">
-              Subscribed to real-time events: <code className="bg-gray-100 px-1 py-0.5 rounded text-[11px]">meeting.started</code>, <code className="bg-gray-100 px-1 py-0.5 rounded text-[11px]">meeting.ended</code>, <code className="bg-gray-100 px-1 py-0.5 rounded text-[11px]">participant_joined</code>.
+              Listens for real-time events: <code className="bg-gray-100 px-1 py-0.5 rounded text-[11px]">meeting.started</code>, <code className="bg-gray-100 px-1 py-0.5 rounded text-[11px]">meeting.ended</code>, <code className="bg-gray-100 px-1 py-0.5 rounded text-[11px]">meeting.participant_joined</code> and
+              matches them to a booking by Zoom meeting ID.
             </p>
             <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-200 font-mono text-[11px] text-gray-700 truncate">
               {config?.webhookUrl || '/api/zoom/webhooks'}
             </div>
+            {!config?.webhookSecretConfigured && (
+              <p className="text-[11px] text-amber-700">
+                Set <code className="bg-amber-50 px-1 py-0.5 rounded">ZOOM_WEBHOOK_SECRET_TOKEN</code> (from your Zoom app's
+                Event Subscriptions page) so incoming events are verified as genuinely from Zoom.
+              </p>
+            )}
           </div>
 
         </div>

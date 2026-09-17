@@ -140,6 +140,7 @@ export interface Booking {
   hostEmail: string;
   hostAvatar: string;
   hostAccountId?: string;
+  zoomAccountKey?: 'A' | 'B' | null;
   participantName: string;
   participantEmail: string;
   participantPhone?: string;
@@ -156,6 +157,7 @@ export interface Booking {
   m365EventId?: string;
   answers: Record<string, any>;
   status: 'confirmed' | 'rescheduled' | 'cancelled';
+  liveStatus?: 'started' | 'ended';
   reminders: {
     emailSent: boolean;
     emailSentAt?: string;
@@ -209,6 +211,14 @@ export interface ZoomApiConfig {
   scopes: string[];
   webhookUrl: string;
   lastPingMs: number;
+  mode?: 'live' | 'demo_mode';
+  webhookSecretConfigured?: boolean;
+  accounts?: Array<{
+    key: 'A' | 'B';
+    label: string;
+    configured: boolean;
+    accountIdMasked: string | null;
+  }>;
 }
 
 export interface ZoomApiLog {
