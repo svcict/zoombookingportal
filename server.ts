@@ -4,12 +4,13 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import { createServer as createViteServer } from 'vite';
-import { 
-  authenticateLocalUser, 
+import {
+  authenticateLocalUser,
   registerSupabaseUser,
   testSupabaseConnection,
-  isSupabaseConfigured, 
-  getSupabase 
+  isSupabaseConfigured,
+  getSupabase,
+  verifySessionToken
 } from './src/lib/supabase';
 import {
   ZoomAccountKey,
@@ -1063,7 +1064,7 @@ async function validateMicrosoftEntraLive(tenantId?: string, clientId?: string, 
 }
 
 app.get('/api/admin/m365/config', async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!(await requireAdmin(req, res))) return;
 
   const tenantId = process.env.MICROSOFT_TENANT_ID || '';
   const clientId = process.env.MICROSOFT_CLIENT_ID || '';
@@ -1109,7 +1110,7 @@ const M365_CONFIG_KEYS = new Set([
 ]);
 
 app.post('/api/admin/m365/config', async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!(await requireAdmin(req, res))) return;
 
   const { keys } = req.body;
   if (!keys || typeof keys !== 'object') {
@@ -1163,7 +1164,7 @@ app.post('/api/admin/m365/config', async (req, res) => {
 });
 
 app.post('/api/admin/m365/test-connection', async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!(await requireAdmin(req, res))) return;
 
   const tenantId = req.body?.tenantId || process.env.MICROSOFT_TENANT_ID || '';
   const clientId = req.body?.clientId || process.env.MICROSOFT_CLIENT_ID || '';
@@ -1408,24 +1409,23 @@ app.post('/api/auth/m365/login', async (req, res) => {
 });
 
 // Admin Security Audits & IP Management
-// Requires the same X-User-Email identity header used by the bookings API;
-// getRequestUserEmail/isAdminEmail are declared further down but hoisted,
-// since these are function declarations evaluated before any request runs.
-function requireAdmin(req: express.Request, res: express.Response): string | null {
-  const email = getRequestUserEmail(req);
-  if (!email) {
-    res.status(401).json({ success: false, message: 'Missing X-User-Email identity header' });
+// resolveIdentity/requireAdmin are declared further down but hoisted, since
+// these are function declarations evaluated before any request runs.
+async function requireAdmin(req: express.Request, res: express.Response): Promise<string | null> {
+  const identity = await resolveIdentity(req);
+  if (!identity) {
+    res.status(401).json({ success: false, message: 'Not authenticated' });
     return null;
   }
-  if (!isAdminEmail(email)) {
+  if (!identity.isAdmin) {
     res.status(403).json({ success: false, message: 'Admin access required' });
     return null;
   }
-  return email;
+  return identity.email;
 }
 
-app.get('/api/admin/failed-logins', (req, res) => {
-  if (!requireAdmin(req, res)) return;
+app.get('/api/admin/failed-logins', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
 
   const rateLimits = Array.from(rateLimitStore.values()).map((r) => {
     resetExpiredLockout(r);
@@ -1453,8 +1453,8 @@ app.get('/api/admin/failed-logins', (req, res) => {
   });
 });
 
-app.post('/api/admin/unblock-ip', (req, res) => {
-  if (!requireAdmin(req, res)) return;
+app.post('/api/admin/unblock-ip', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
 
   const { ip } = req.body;
   if (!ip) {
@@ -1476,8 +1476,8 @@ app.post('/api/admin/unblock-ip', (req, res) => {
   });
 });
 
-app.post('/api/admin/clear-failed-logs', (req, res) => {
-  if (!requireAdmin(req, res)) return;
+app.post('/api/admin/clear-failed-logs', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
 
   failedLoginLogs.length = 0;
   res.json({
@@ -1700,18 +1700,35 @@ app.get('/api/availability', (req, res) => {
 
 // 6. Bookings Endpoints
 
-// Identity of the caller, asserted by the logged-in frontend via this header.
-// (Best-effort, not a cryptographically verified session — see Supabase Auth
-// migration notes in README for hardening this further.)
-function getRequestUserEmail(req: any): string | null {
+interface RequestIdentity {
+  email: string;
+  isAdmin: boolean;
+}
+
+// Resolves who is actually making this request. When Supabase is
+// configured, this is a real, server-verified identity: the client sends
+// its Supabase session token, and we ask Supabase to vouch for it - the
+// client's own claim of who it is (or whether it's an admin) is never
+// trusted. Only when Supabase itself isn't configured anywhere in this
+// deployment (pure local/demo mode) do we fall back to trusting a
+// self-asserted X-User-Email header, matching this app's "still works
+// without real credentials" pattern elsewhere — that fallback provides no
+// real security guarantee and is not meant for production use.
+async function resolveIdentity(req: express.Request): Promise<RequestIdentity | null> {
+  if (isSupabaseConfigured()) {
+    const authHeader = req.headers['authorization'];
+    const token = typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')
+      ? authHeader.slice(7).trim()
+      : null;
+    if (!token) return null;
+    return verifySessionToken(token);
+  }
+
   const raw = req.headers['x-user-email'];
   const value = Array.isArray(raw) ? raw[0] : raw;
   const email = value ? value.toString().toLowerCase().trim() : '';
-  return email || null;
-}
-
-function isAdminEmail(email: string): boolean {
-  return email.includes('admin') || email === 'sarah.jenkins@zoompartner.com';
+  if (!email) return null;
+  return { email, isAdmin: email.includes('admin') || email === 'sarah.jenkins@zoompartner.com' };
 }
 
 function canAccessBooking(booking: any, email: string): boolean {
@@ -1732,13 +1749,13 @@ function redactStartUrlForParticipant(booking: any): any {
   return { ...booking, zoomDetails: restZoomDetails };
 }
 
-app.get('/api/bookings', (req, res) => {
+app.get('/api/bookings', async (req, res) => {
   try {
-    const email = getRequestUserEmail(req);
-    if (!email) {
-      return res.status(401).json({ success: false, error: 'Missing X-User-Email identity header' });
+    const identity = await resolveIdentity(req);
+    if (!identity) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
     }
-    const isAdmin = isAdminEmail(email);
+    const { email, isAdmin } = identity;
     const visible = isAdmin ? bookings : bookings.filter((b) => canAccessBooking(b, email));
     res.json({ success: true, data: isAdmin ? visible : visible.map(redactStartUrlForParticipant) });
   } catch (err: any) {
@@ -1746,13 +1763,13 @@ app.get('/api/bookings', (req, res) => {
   }
 });
 
-app.get('/api/bookings/:id', (req, res) => {
-  const email = getRequestUserEmail(req);
-  if (!email) {
-    return res.status(401).json({ success: false, error: 'Missing X-User-Email identity header' });
+app.get('/api/bookings/:id', async (req, res) => {
+  const identity = await resolveIdentity(req);
+  if (!identity) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
   }
+  const { email, isAdmin } = identity;
   const booking = bookings.find((b) => b.id === req.params.id);
-  const isAdmin = isAdminEmail(email);
   if (!booking || (!isAdmin && !canAccessBooking(booking, email))) {
     return res.status(404).json({ success: false, error: 'Booking not found' });
   }
@@ -1889,12 +1906,12 @@ app.post('/api/bookings', async (req, res) => {
 });
 
 app.patch('/api/bookings/:id', async (req, res) => {
-  const email = getRequestUserEmail(req);
-  if (!email) {
-    return res.status(401).json({ success: false, error: 'Missing X-User-Email identity header' });
+  const identity = await resolveIdentity(req);
+  if (!identity) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
   }
   const booking = bookings.find((b) => b.id === req.params.id);
-  if (!booking || (!isAdminEmail(email) && !canAccessBooking(booking, email))) {
+  if (!booking || (!identity.isAdmin && !canAccessBooking(booking, identity.email))) {
     return res.status(404).json({ success: false, error: 'Booking not found' });
   }
 
@@ -1956,12 +1973,12 @@ app.patch('/api/bookings/:id', async (req, res) => {
 });
 
 app.post('/api/bookings/:id/cancel', async (req, res) => {
-  const email = getRequestUserEmail(req);
-  if (!email) {
-    return res.status(401).json({ success: false, error: 'Missing X-User-Email identity header' });
+  const identity = await resolveIdentity(req);
+  if (!identity) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
   }
   const booking = bookings.find((b) => b.id === req.params.id);
-  if (!booking || (!isAdminEmail(email) && !canAccessBooking(booking, email))) {
+  if (!booking || (!identity.isAdmin && !canAccessBooking(booking, identity.email))) {
     return res.status(404).json({ success: false, error: 'Booking not found' });
   }
 
@@ -2030,15 +2047,15 @@ app.get('/api/zoom/config', (req, res) => {
 // Admin-only: view/edit the two rotating Zoom credentials, persisted to .env
 // so they survive a restart. The client secret is write-only - GET never
 // returns it, only whether one is currently set.
-app.get('/api/admin/zoom/config', (req, res) => {
-  if (!requireAdmin(req, res)) return;
+app.get('/api/admin/zoom/config', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
 
   const accounts = (['A', 'B'] as ZoomAccountKey[]).map((key) => getAccountAdminView(key));
   res.json({ success: true, data: { accounts } });
 });
 
-app.post('/api/admin/zoom/config', (req, res) => {
-  if (!requireAdmin(req, res)) return;
+app.post('/api/admin/zoom/config', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
 
   const { accountKey, label, accountId, clientId, clientSecret, userId } = req.body as {
     accountKey?: string;
@@ -2077,7 +2094,7 @@ app.post('/api/admin/zoom/config', (req, res) => {
 });
 
 app.post('/api/zoom/test-connection', async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!(await requireAdmin(req, res))) return;
 
   const results: Array<{ key: ZoomAccountKey; label: string; connected: boolean; latencyMs?: number; error?: string }> = [];
 
@@ -2116,8 +2133,8 @@ app.post('/api/zoom/test-connection', async (req, res) => {
   });
 });
 
-app.get('/api/zoom/logs', (req, res) => {
-  if (!requireAdmin(req, res)) return;
+app.get('/api/zoom/logs', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
 
   res.json({
     success: true,
@@ -2249,15 +2266,15 @@ app.post('/api/m365/add-busy-slot', (req, res) => {
 });
 
 // 9. Reminder dispatch trigger endpoint
-app.post('/api/reminders/trigger', (req, res) => {
-  const email = getRequestUserEmail(req);
-  if (!email) {
-    return res.status(401).json({ success: false, error: 'Missing X-User-Email identity header' });
+app.post('/api/reminders/trigger', async (req, res) => {
+  const identity = await resolveIdentity(req);
+  if (!identity) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
   }
 
   const { bookingId, reminderType } = req.body;
   const booking = bookings.find((b) => b.id === bookingId);
-  if (!booking || (!isAdminEmail(email) && !canAccessBooking(booking, email))) {
+  if (!booking || (!identity.isAdmin && !canAccessBooking(booking, identity.email))) {
     return res.status(404).json({ success: false, error: 'Booking not found' });
   }
 

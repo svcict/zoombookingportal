@@ -31,11 +31,12 @@ interface ZoomAccountAdminView {
 
 interface ZoomApiIntegrationViewProps {
   adminEmail?: string;
+  authHeaders?: Record<string, string>;
 }
 
 const emptyAccountForm = { label: '', accountId: '', clientId: '', clientSecret: '', userId: '' };
 
-export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ adminEmail }) => {
+export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ adminEmail, authHeaders = {} }) => {
   const [config, setConfig] = useState<ZoomApiConfig | null>(null);
   const [logs, setLogs] = useState<ZoomApiLog[]>([]);
   const [isPinging, setIsPinging] = useState(false);
@@ -62,7 +63,7 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
       const [cfgRes, logsRes] = await Promise.all([
         fetch('/api/zoom/config').then((r) => r.json()),
         adminEmail
-          ? fetch('/api/zoom/logs', { headers: { 'X-User-Email': adminEmail } }).then((r) => r.json())
+          ? fetch('/api/zoom/logs', { headers: authHeaders }).then((r) => r.json())
           : Promise.resolve({ success: false })
       ]);
 
@@ -81,9 +82,7 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
   const fetchAdminAccounts = async () => {
     if (!adminEmail) return;
     try {
-      const res = await fetch('/api/admin/zoom/config', {
-        headers: { 'X-User-Email': adminEmail }
-      });
+      const res = await fetch('/api/admin/zoom/config', { headers: authHeaders });
       const data = await res.json();
       if (data.success) {
         setAdminAccounts(data.data.accounts || []);
@@ -117,7 +116,7 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
     try {
       const res = await fetch('/api/admin/zoom/config', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-User-Email': adminEmail },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({ accountKey: editingKey, ...accountForm })
       });
       const data = await res.json();
@@ -138,7 +137,7 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
 
   useEffect(() => {
     fetchZoomStatus();
-  }, []);
+  }, [adminEmail]);
 
   useEffect(() => {
     fetchAdminAccounts();
@@ -150,7 +149,7 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
     try {
       const res = await fetch('/api/zoom/test-connection', {
         method: 'POST',
-        headers: { 'X-User-Email': adminEmail }
+        headers: authHeaders
       });
       const data = await res.json();
       setPingResult(data);

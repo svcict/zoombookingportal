@@ -18,6 +18,7 @@ import { INITIAL_MEETING_TYPES, INITIAL_HOST_ACCOUNTS, INITIAL_M365_STATE } from
 import { generateLocalAvailabilitySlots } from './utils/availability';
 import { getDetectedTimezone, formatDateInTimezone } from './utils/timezone';
 import { playZoomNotificationSound, sendBrowserPushNotification } from './utils/notifications';
+import { buildAuthHeaders } from './utils/auth';
 import { Video, ShieldCheck, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
 
 export default function App() {
@@ -41,6 +42,11 @@ export default function App() {
       authUser.email === 'sarah.jenkins@zoompartner.com'
     );
   }, [authUser]);
+
+  // Identity headers sent with every API request - Authorization carries the
+  // Supabase session token the server actually verifies; X-User-Email is
+  // only a fallback the server uses when it has no Supabase configured.
+  const authHeaders = useMemo(() => buildAuthHeaders(authUser), [authUser]);
 
   // Navigation View State - Defaults to Office365 Dashboard when user logs in
   const [currentView, setCurrentView] = useState<'dashboard' | 'booking' | 'm365' | 'zoom-api' | 'security-logs'>('dashboard');
@@ -96,7 +102,7 @@ export default function App() {
         const results = await Promise.allSettled([
           fetch('/api/meeting-types').then((r) => (r.ok ? r.json() : null)),
           authUser?.email
-            ? fetch('/api/bookings', { headers: { 'X-User-Email': authUser.email } }).then((r) =>
+            ? fetch('/api/bookings', { headers: authHeaders }).then((r) =>
                 r.ok ? r.json() : null
               )
             : Promise.resolve(null),
@@ -142,10 +148,10 @@ export default function App() {
   // webhook listener on the server) shows up without a manual reload.
   useEffect(() => {
     if (!authUser?.email) return;
-    const email = authUser.email;
+    const headers = authHeaders;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch('/api/bookings', { headers: { 'X-User-Email': email } });
+        const res = await fetch('/api/bookings', { headers });
         if (!res.ok) return;
         const data = await res.json();
         if (data.success && Array.isArray(data.data)) {
@@ -302,7 +308,7 @@ export default function App() {
     try {
       const res = await fetch(`/api/bookings/${bookingId}/cancel`, {
         method: 'POST',
-        headers: authUser?.email ? { 'X-User-Email': authUser.email } : undefined,
+        headers: authHeaders,
       });
       const data = await res.json();
       if (data.success) {
@@ -580,6 +586,7 @@ export default function App() {
             {bookingStep === 'confirmed' && confirmedBooking && (
               <BookingConfirmation
                 booking={confirmedBooking}
+                authHeaders={authHeaders}
                 onBookAnother={() => {
                   setBookingStep('slots');
                   setSelectedSlot(null);
@@ -603,7 +610,7 @@ export default function App() {
 
         {/* VIEW 3: ZOOM API INTEGRATION & DIAGNOSTICS (Admin Only) */}
         {currentView === 'zoom-api' && isAdmin && (
-          <ZoomApiIntegrationView adminEmail={authUser?.email} />
+          <ZoomApiIntegrationView adminEmail={authUser?.email} authHeaders={authHeaders} />
         )}
 
         {/* VIEW 4: MICROSOFT 365 CALENDAR SYNC SETTINGS (Admin Only) */}
@@ -613,12 +620,17 @@ export default function App() {
             onToggleSync={handleToggleM365Sync}
             onAddBusySlot={handleAddM365BusySlot}
             adminEmail={authUser?.email}
+            authHeaders={authHeaders}
           />
         )}
 
         {/* VIEW 5: SECURITY AUDITS & FAILED LOGINS (Admin Only) */}
         {currentView === 'security-logs' && isAdmin && (
-          <AdminSecurityAuditView onBackToSchedule={() => setCurrentView('booking')} adminEmail={authUser?.email} />
+          <AdminSecurityAuditView
+            onBackToSchedule={() => setCurrentView('booking')}
+            adminEmail={authUser?.email}
+            authHeaders={authHeaders}
+          />
         )}
 
       </main>
@@ -635,7 +647,7 @@ export default function App() {
                 method: 'PATCH',
                 headers: {
                   'Content-Type': 'application/json',
-                  ...(authUser?.email ? { 'X-User-Email': authUser.email } : {}),
+                  ...authHeaders,
                 },
                 body: JSON.stringify({ zoomConfig: updatedConfig }),
               });

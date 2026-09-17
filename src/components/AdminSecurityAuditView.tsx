@@ -19,9 +19,10 @@ import { LoginSecurityAudit, FailedLoginRecord, SecurityRateLimitInfo } from '..
 interface AdminSecurityAuditViewProps {
   onBackToSchedule?: () => void;
   adminEmail?: string;
+  authHeaders?: Record<string, string>;
 }
 
-export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ onBackToSchedule, adminEmail }) => {
+export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ onBackToSchedule, adminEmail, authHeaders = {} }) => {
   const [auditData, setAuditData] = useState<LoginSecurityAudit>({
     totalFailedAttempts: 0,
     activeLockoutsCount: 0,
@@ -39,9 +40,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
     if (!adminEmail) return;
     setIsLoading(true);
     try {
-      const res = await fetch('/api/admin/failed-logins', {
-        headers: { 'X-User-Email': adminEmail }
-      });
+      const res = await fetch('/api/admin/failed-logins', { headers: authHeaders });
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
@@ -68,7 +67,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
     try {
       const res = await fetch('/api/admin/unblock-ip', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-User-Email': adminEmail },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({ ip })
       });
       const data = await res.json();
@@ -92,7 +91,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
     try {
       const res = await fetch('/api/admin/clear-failed-logs', {
         method: 'POST',
-        headers: { 'X-User-Email': adminEmail }
+        headers: authHeaders
       });
       const data = await res.json();
       if (res.ok && data.success) {

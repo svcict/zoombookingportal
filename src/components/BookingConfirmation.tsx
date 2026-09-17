@@ -34,6 +34,7 @@ interface BookingConfirmationProps {
   onViewMeetings?: () => void;
   onCancelMeeting?: (bookingId: string) => void;
   onUpdateBookingConfig?: (updatedConfig: ZoomMeetingConfig) => Promise<void> | void;
+  authHeaders?: Record<string, string>;
 }
 
 export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
@@ -42,6 +43,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
   onViewMeetings,
   onCancelMeeting,
   onUpdateBookingConfig,
+  authHeaders = {},
 }) => {
   const [activeTab, setActiveTab] = useState<'details' | 'credentials'>('details');
   const [currentBooking, setCurrentBooking] = useState<Booking>(booking);
@@ -217,7 +219,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
                     method: 'PATCH',
                     headers: {
                       'Content-Type': 'application/json',
-                      'X-User-Email': currentBooking.participantEmail,
+                      ...authHeaders,
                     },
                     body: JSON.stringify({ zoomConfig: updatedConfig }),
                   });

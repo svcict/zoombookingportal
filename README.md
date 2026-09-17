@@ -19,6 +19,26 @@ View your app in AI Studio: https://ai.studio/apps/a9af5e83-f90d-401a-a09f-0f01d
 3. Run the app:
    `npm run dev`
 
+## Identity & Session Auth
+
+The API server resolves "who is making this request" one of two ways, depending on whether
+Supabase is configured (`SUPABASE_URL` + `SUPABASE_ANON_KEY` in `.env`):
+
+- **Supabase configured (production mode):** every protected endpoint requires an
+  `Authorization: Bearer <token>` header carrying the Supabase session token issued at login.
+  The server verifies it directly against Supabase (`auth.getUser`) and resolves admin status
+  from the verified user's metadata / `profiles.is_admin` — never from anything the client
+  claims about itself. An `X-User-Email` header alone is ignored entirely in this mode.
+- **Supabase not configured (local/demo mode):** since there's no real identity provider to
+  verify against, the server falls back to trusting a self-asserted `X-User-Email` header sent
+  by the logged-in frontend, and derives admin status from an email-substring heuristic. This
+  keeps the app usable for local development without a Supabase project, but provides **no
+  real security guarantee** — anyone can set that header to anything. Don't run this mode
+  against real user data.
+
+The frontend always sends both headers (see `src/utils/auth.ts`); which one the server actually
+honors depends entirely on its own Supabase configuration, not anything the client requests.
+
 ## Zoom API Setup (Two Rotating Server-to-Server OAuth Accounts)
 
 This portal creates real Zoom meetings via the [Zoom REST API](https://developers.zoom.us/docs/api/)

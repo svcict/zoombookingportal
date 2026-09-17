@@ -21,6 +21,7 @@ interface M365SyncViewProps {
   onToggleSync: () => Promise<void>;
   onAddBusySlot: (date: string, time: string, title: string) => Promise<void>;
   adminEmail?: string;
+  authHeaders?: Record<string, string>;
 }
 
 export const M365SyncView: React.FC<M365SyncViewProps> = ({
@@ -28,6 +29,7 @@ export const M365SyncView: React.FC<M365SyncViewProps> = ({
   onToggleSync,
   onAddBusySlot,
   adminEmail,
+  authHeaders,
 }) => {
   const [newBusyDate, setNewBusyDate] = useState('2026-08-26');
   const [newBusyTime, setNewBusyTime] = useState('14:00');
@@ -49,7 +51,7 @@ export const M365SyncView: React.FC<M365SyncViewProps> = ({
     <div className="max-w-5xl mx-auto space-y-6">
       
       {/* 1. O365 / AZURE ENTRA ID LOGIN SETTINGS DROPDOWN (Direct .env sync & Green Validator) */}
-      <M365LoginSettingsConfig adminEmail={adminEmail} />
+      <M365LoginSettingsConfig adminEmail={adminEmail} authHeaders={authHeaders} />
 
       {/* 2. Overview Banner */}
       <div className="bg-white p-6 sm:p-8 rounded-2xl border border-gray-200 shadow-xs">

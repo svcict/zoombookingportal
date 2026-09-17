@@ -87,9 +87,10 @@ const FIELD_TOOLTIPS: Record<string, TooltipInfo> = {
 
 interface M365LoginSettingsConfigProps {
   adminEmail?: string;
+  authHeaders?: Record<string, string>;
 }
 
-export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = ({ adminEmail }) => {
+export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = ({ adminEmail, authHeaders = {} }) => {
   const [isOpen, setIsOpen] = useState(true);
   const [config, setConfig] = useState<M365SettingsConfig>({
     tenantId: '',
@@ -125,9 +126,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
     if (!adminEmail) return;
     setIsLoading(true);
     try {
-      const res = await fetch('/api/admin/m365/config', {
-        headers: { 'X-User-Email': adminEmail }
-      });
+      const res = await fetch('/api/admin/m365/config', { headers: authHeaders });
       const data = await res.json();
       if (data.success && data.data) {
         setConfig(data.data);
@@ -150,7 +149,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
     try {
       const res = await fetch('/api/admin/m365/config', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-User-Email': adminEmail },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
           keys: {
             [keyName]: value
@@ -192,7 +191,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
     try {
       const res = await fetch('/api/admin/m365/test-connection', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-User-Email': adminEmail },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
           tenantId: config.tenantId,
           clientId: config.clientId,

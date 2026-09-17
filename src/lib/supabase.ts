@@ -49,6 +49,50 @@ export function getSupabaseAdmin(): SupabaseClient | null {
   return supabaseAdminClient;
 }
 
+export interface VerifiedSession {
+  email: string;
+  isAdmin: boolean;
+}
+
+/**
+ * Verifies a bearer token against Supabase Auth and resolves the real,
+ * server-checked identity behind it - used in place of trusting any
+ * client-supplied identity header. Returns null for a missing, expired,
+ * or otherwise invalid token, or if Supabase isn't configured.
+ */
+export async function verifySessionToken(token: string): Promise<VerifiedSession | null> {
+  const client = getSupabase();
+  if (!client || !token) return null;
+
+  try {
+    const { data, error } = await client.auth.getUser(token);
+    if (error || !data?.user?.email) return null;
+
+    const email = data.user.email.toLowerCase().trim();
+    const metadata = data.user.user_metadata || {};
+    let isAdmin = metadata.isAdmin === true || metadata.role === 'admin';
+
+    // Cross-check the profiles table (service-role, bypasses RLS) in case
+    // is_admin was granted/revoked there directly rather than in the JWT's
+    // own metadata, which only reflects state as of sign-in.
+    const adminClient = getSupabaseAdmin();
+    if (adminClient) {
+      const { data: profile } = await adminClient
+        .from('profiles')
+        .select('is_admin, role')
+        .eq('id', data.user.id)
+        .maybeSingle();
+      if (profile) {
+        isAdmin = isAdmin || profile.is_admin === true || profile.role === 'admin';
+      }
+    }
+
+    return { email, isAdmin };
+  } catch {
+    return null;
+  }
+}
+
 export interface SupabaseAuthResult {
   success: boolean;
   user?: {
