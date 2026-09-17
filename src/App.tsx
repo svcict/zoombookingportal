@@ -138,6 +138,26 @@ export default function App() {
     };
   }, [authUser?.email]);
 
+  // Periodically refresh bookings so live-meeting status (set by the Zoom
+  // webhook listener on the server) shows up without a manual reload.
+  useEffect(() => {
+    if (!authUser?.email) return;
+    const email = authUser.email;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/bookings', { headers: { 'X-User-Email': email } });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          setBookings(data.data);
+        }
+      } catch {
+        // Ignore transient network errors; next poll will retry
+      }
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [authUser?.email]);
+
   // Filter visible bookings according to RBAC:
   // Admin sees all organization meetings.
   // Standard user only sees their own booked meetings (by email or name or guest email).

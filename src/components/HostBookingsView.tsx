@@ -175,6 +175,12 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
                             <XCircle className="w-3 h-3" /> Cancelled
                           </span>
                         )}
+                        {booking.liveStatus === 'started' && (
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-red-600 text-white flex items-center gap-1.5 animate-pulse">
+                            <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                            LIVE
+                          </span>
+                        )}
                         <span className="text-xs text-gray-500">• {booking.duration} mins</span>
                       </div>
 
