@@ -153,15 +153,38 @@ export async function createZoomMeeting(key: ZoomAccountKey, input: CreateMeetin
   });
 }
 
-export async function updateZoomMeeting(
-  key: ZoomAccountKey,
-  meetingId: string,
-  input: Partial<CreateMeetingInput> & { passcode?: string }
-) {
+// Zoom's `audio` meeting setting values, mapped from the portal's own
+// ZoomMeetingConfig.audioOption vocabulary.
+const AUDIO_OPTION_MAP: Record<string, string> = {
+  telephone: 'telephony',
+  computer: 'voip',
+  both: 'both',
+  third_party: 'thirdParty'
+};
+
+export interface UpdateMeetingInput extends Partial<CreateMeetingInput> {
+  passcode?: string;
+  hostVideo?: boolean;
+  participantVideo?: boolean;
+  audioOption?: 'telephone' | 'computer' | 'both' | 'third_party';
+  muteOnEntry?: boolean;
+  joinBeforeHost?: boolean;
+  meetingAuthentication?: boolean;
+  usePmi?: boolean;
+}
+
+export async function updateZoomMeeting(key: ZoomAccountKey, meetingId: string, input: UpdateMeetingInput) {
   const settings: Record<string, unknown> = {};
   if (input.waitingRoom !== undefined) settings.waiting_room = input.waitingRoom;
   if (input.autoRecording !== undefined) settings.auto_recording = input.autoRecording ? 'cloud' : 'none';
   if (input.alternativeHosts !== undefined) settings.alternative_hosts = input.alternativeHosts;
+  if (input.hostVideo !== undefined) settings.host_video = input.hostVideo;
+  if (input.participantVideo !== undefined) settings.participant_video = input.participantVideo;
+  if (input.audioOption !== undefined) settings.audio = AUDIO_OPTION_MAP[input.audioOption] || 'both';
+  if (input.muteOnEntry !== undefined) settings.mute_upon_entry = input.muteOnEntry;
+  if (input.joinBeforeHost !== undefined) settings.join_before_host = input.joinBeforeHost;
+  if (input.meetingAuthentication !== undefined) settings.meeting_authentication = input.meetingAuthentication;
+  if (input.usePmi !== undefined) settings.use_pmi = input.usePmi;
 
   return zoomRequest(key, 'PATCH', `/meetings/${encodeURIComponent(meetingId)}`, {
     ...(input.topic ? { topic: input.topic } : {}),

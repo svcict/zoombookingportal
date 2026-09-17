@@ -1830,7 +1830,14 @@ app.patch('/api/bookings/:id', async (req, res) => {
         passcode: zoomConfig?.passcode,
         waitingRoom: zoomConfig?.waitingRoom,
         autoRecording: zoomConfig?.autoRecord,
-        alternativeHosts: zoomConfig?.alternativeHosts
+        alternativeHosts: zoomConfig?.alternativeHosts,
+        hostVideo: zoomConfig?.hostVideo,
+        participantVideo: zoomConfig?.participantVideo,
+        audioOption: zoomConfig?.audioOption,
+        muteOnEntry: zoomConfig?.muteOnEntry,
+        joinBeforeHost: zoomConfig?.joinAnytime,
+        meetingAuthentication: zoomConfig?.requireAuth,
+        usePmi: zoomConfig ? zoomConfig.meetingIdType === 'pmi' : undefined
       });
       zoomApiLogs.unshift({
         id: `zlog-${Date.now()}`,
