@@ -8,9 +8,8 @@ import {
   Terminal, 
   RefreshCw, 
   Key, 
-  Webhook, 
-  Sparkles, 
-  Copy, 
+  Webhook,
+  Sparkles,
   ExternalLink,
   Layers,
   Cpu
@@ -31,7 +30,6 @@ export const ZoomApiIntegrationView: React.FC = () => {
   const [cloudRecording, setCloudRecording] = useState(true);
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
   const [createdMeetingResponse, setCreatedMeetingResponse] = useState<any | null>(null);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const fetchZoomStatus = async () => {
     try {
@@ -100,12 +98,6 @@ export const ZoomApiIntegrationView: React.FC = () => {
     }
   };
 
-  const copyToClipboard = (text: string, keyName: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(keyName);
-    setTimeout(() => setCopiedKey(null), 2000);
-  };
-
   return (
     <div className="space-y-6">
       
@@ -145,6 +137,39 @@ export const ZoomApiIntegrationView: React.FC = () => {
         </div>
       </div>
 
+      {/* Test Connection Results */}
+      {pingResult && (
+        <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-xs space-y-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-[#0b5cff]" />
+            <h3 className="font-bold text-gray-900 text-sm">Last Connection Test</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {(pingResult.accounts || []).map((acct: any) => (
+              <div
+                key={acct.key}
+                className={`p-3 rounded-xl border text-xs flex items-center justify-between ${
+                  acct.connected ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
+                }`}
+              >
+                <div>
+                  <div className="font-bold text-gray-800">{acct.label}</div>
+                  <div className="text-gray-500 text-[11px]">
+                    {acct.connected ? `Connected · ${acct.latencyMs}ms` : acct.error || 'Not connected'}
+                  </div>
+                </div>
+                {acct.connected ? (
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-gray-300" />
+                )}
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-gray-500">{pingResult.message}</p>
+        </div>
+      )}
+
       {/* 4-Stat Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
@@ -152,13 +177,15 @@ export const ZoomApiIntegrationView: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Status</span>
-            <span className="w-2 h-2 rounded-full bg-green-500" />
+            <span className={`w-2 h-2 rounded-full ${config?.mode === 'live' ? 'bg-green-500' : 'bg-amber-500'}`} />
           </div>
           <div className="text-xl font-extrabold text-gray-900 mt-2 flex items-center gap-1.5">
-            <CheckCircle2 className="w-5 h-5 text-green-600" />
-            Connected
+            <CheckCircle2 className={`w-5 h-5 ${config?.mode === 'live' ? 'text-green-600' : 'text-amber-500'}`} />
+            {config?.mode === 'live' ? 'Live' : 'Demo Mode'}
           </div>
-          <div className="text-[11px] text-gray-500 mt-1">OAuth Token Valid</div>
+          <div className="text-[11px] text-gray-500 mt-1">
+            {config?.mode === 'live' ? 'At least one account configured' : 'No Zoom credentials set'}
+          </div>
         </div>
 
         {/* Latency */}
@@ -170,19 +197,19 @@ export const ZoomApiIntegrationView: React.FC = () => {
           <div className="text-xl font-extrabold text-[#0b5cff] mt-2 font-mono">
             {config?.lastPingMs || 64} ms
           </div>
-          <div className="text-[11px] text-gray-500 mt-1">Direct endpoint roundtrip</div>
+          <div className="text-[11px] text-gray-500 mt-1">Last test-connection roundtrip</div>
         </div>
 
-        {/* Rate Limit */}
+        {/* Rotation */}
         <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Rate Quota</span>
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Rotation Pool</span>
             <Activity className="w-4 h-4 text-purple-500" />
           </div>
           <div className="text-xl font-extrabold text-gray-900 mt-2 font-mono">
-            {config?.rateLimit.remaining || 97} / {config?.rateLimit.limit || 100}
+            {(config?.accounts || []).filter((a) => a.configured).length} / 2
           </div>
-          <div className="text-[11px] text-gray-500 mt-1">Requests / sec remaining</div>
+          <div className="text-[11px] text-gray-500 mt-1">Zoom accounts configured</div>
         </div>
 
         {/* Active Rooms */}
@@ -210,39 +237,43 @@ export const ZoomApiIntegrationView: React.FC = () => {
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div className="flex items-center gap-2">
                 <Key className="w-4 h-4 text-[#0b5cff]" />
-                <h3 className="font-bold text-gray-900 text-sm">Zoom App Credentials</h3>
+                <h3 className="font-bold text-gray-900 text-sm">Rotating Zoom Accounts</h3>
               </div>
-              <span className="text-[11px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
-                Verified
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                config?.mode === 'live'
+                  ? 'text-green-700 bg-green-50 border-green-200'
+                  : 'text-amber-700 bg-amber-50 border-amber-200'
+              }`}>
+                {config?.mode === 'live' ? 'Live' : 'Demo Mode'}
               </span>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block text-gray-500 font-semibold mb-1">Account ID</label>
-                <div className="p-2.5 bg-[#F7F9FA] rounded-xl border border-gray-200 font-mono text-gray-800 flex items-center justify-between">
-                  <span>{config?.accountId || 'zm_acct_84920184'}</span>
-                  <button
-                    onClick={() => copyToClipboard(config?.accountId || 'zm_acct_84920184', 'accId')}
-                    className="text-[#0b5cff] hover:underline font-sans font-bold text-[11px]"
-                  >
-                    {copiedKey === 'accId' ? 'Copied!' : 'Copy'}
-                  </button>
-                </div>
-              </div>
+            <p className="text-xs text-gray-600">
+              Bookings are provisioned by alternating between two Zoom Server-to-Server OAuth credentials, so
+              overlapping meetings never collide on the same account's concurrent-meeting limit.
+            </p>
 
-              <div>
-                <label className="block text-gray-500 font-semibold mb-1">Client ID</label>
-                <div className="p-2.5 bg-[#F7F9FA] rounded-xl border border-gray-200 font-mono text-gray-800 flex items-center justify-between">
-                  <span>{config?.clientId || 'zm_cli_993821049281'}</span>
-                  <button
-                    onClick={() => copyToClipboard(config?.clientId || 'zm_cli_993821049281', 'cliId')}
-                    className="text-[#0b5cff] hover:underline font-sans font-bold text-[11px]"
-                  >
-                    {copiedKey === 'cliId' ? 'Copied!' : 'Copy'}
-                  </button>
+            <div className="space-y-3 text-xs">
+              {(config?.accounts || [
+                { key: 'A', label: 'Zoom Account A', configured: false, accountIdMasked: null },
+                { key: 'B', label: 'Zoom Account B', configured: false, accountIdMasked: null }
+              ]).map((acct) => (
+                <div key={acct.key} className="p-3 bg-[#F7F9FA] rounded-xl border border-gray-200">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-bold text-gray-800">{acct.label}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                      acct.configured
+                        ? 'text-green-700 bg-green-50 border-green-200'
+                        : 'text-gray-500 bg-gray-100 border-gray-200'
+                    }`}>
+                      {acct.configured ? 'Configured' : 'Not configured'}
+                    </span>
+                  </div>
+                  <div className="font-mono text-gray-500 text-[11px]">
+                    {acct.accountIdMasked || `Set ZOOM_ACCOUNT_${acct.key}_ID / _CLIENT_ID / _CLIENT_SECRET / _USER_ID`}
+                  </div>
                 </div>
-              </div>
+              ))}
 
               <div>
                 <label className="block text-gray-500 font-semibold mb-1">REST API Base Endpoint</label>
@@ -254,13 +285,14 @@ export const ZoomApiIntegrationView: React.FC = () => {
 
             {/* Scopes */}
             <div className="pt-3 border-t border-gray-100">
-              <label className="block text-xs font-bold text-gray-700 mb-2">Granted OAuth Scopes</label>
+              <label className="block text-xs font-bold text-gray-700 mb-2">Required OAuth Scopes (per app)</label>
               <div className="flex flex-wrap gap-1.5">
                 {(config?.scopes || [
-                  'meeting:write:admin',
-                  'meeting:read:admin',
-                  'user:read:admin',
-                  'recording:read:admin'
+                  'meeting:write:meeting',
+                  'meeting:read:meeting',
+                  'meeting:update:meeting',
+                  'meeting:delete:meeting',
+                  'user:read:user'
                 ]).map((s) => (
                   <span
                     key={s}

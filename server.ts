@@ -10,6 +10,18 @@ import {
   isSupabaseConfigured, 
   getSupabase 
 } from './src/lib/supabase';
+import {
+  ZoomAccountKey,
+  getConfiguredAccountKeys,
+  isAccountConfigured,
+  getAccountLabel,
+  getMaskedAccountId,
+  createZoomMeeting,
+  updateZoomMeeting,
+  deleteZoomMeeting,
+  getZoomUserProfile,
+  mapZoomMeetingResponse
+} from './src/lib/zoomApi';
 
 const app = express();
 const PORT = 3000;
@@ -561,9 +573,72 @@ function generateZoomDetails(meetingTitle: string, hostName: string = 'Sarah Jen
     sipAddress: `${rawId}@zoomcrc.com`,
     h323Address: `162.255.37.11##${rawId}#${passcode}`,
     encryption: 'Enhanced (AES-256)' as const,
-    apiGenerated: true,
+    apiGenerated: false,
     zoomApiEndpoint: 'https://api.zoom.us/v2/users/me/meetings'
   };
+}
+
+// Rotation state: which account was assigned last when both were free
+let lastAssignedZoomAccount: ZoomAccountKey | null = null;
+
+// Picks a Zoom account for a new meeting, favoring whichever configured
+// account (A or B) has no overlapping booking at the requested time.
+// Falls back to round-robin between the two when both are free.
+function pickZoomAccount(startIso: string, endIso: string): ZoomAccountKey | null {
+  const configured = getConfiguredAccountKeys();
+  if (configured.length === 0) return null;
+  if (configured.length === 1) return configured[0];
+
+  const overlaps = (key: ZoomAccountKey) =>
+    bookings.some((b) => {
+      if (b.status === 'cancelled' || b.zoomAccountKey !== key) return false;
+      return b.startTimeIso < endIso && startIso < b.endTimeIso;
+    });
+
+  const free = configured.filter((key) => !overlaps(key));
+  if (free.length === 0) return null;
+  if (free.length === 1) return free[0];
+
+  const next = free.find((key) => key !== lastAssignedZoomAccount) || free[0];
+  lastAssignedZoomAccount = next;
+  return next;
+}
+
+// Creates a meeting on the given Zoom account via the real REST API, falling
+// back to the local mock generator when that account has no credentials configured.
+async function provisionZoomMeeting(
+  accountKey: ZoomAccountKey | null,
+  meetingTitle: string,
+  hostName: string,
+  startIso: string,
+  durationMinutes: number,
+  timezone: string,
+  agenda?: string
+) {
+  if (!accountKey || !isAccountConfigured(accountKey)) {
+    return { zoomDetails: generateZoomDetails(meetingTitle, hostName), accountKey };
+  }
+
+  const result = await createZoomMeeting(accountKey, {
+    topic: meetingTitle,
+    startTimeIso: startIso,
+    durationMinutes,
+    timezone,
+    agenda
+  });
+
+  zoomApiLogs.unshift({
+    id: `zlog-${Date.now()}`,
+    timestamp: new Date().toISOString(),
+    method: 'POST',
+    endpoint: result.endpoint,
+    statusCode: result.statusCode,
+    responseTimeMs: result.responseTimeMs,
+    payloadSummary: `Created Zoom meeting ${result.data.id} on ${getAccountLabel(accountKey)} for "${meetingTitle}"`
+  });
+  if (zoomApiLogs.length > 30) zoomApiLogs.pop();
+
+  return { zoomDetails: mapZoomMeetingResponse(result.data), accountKey };
 }
 
 // ----------------------------------------------------
@@ -1560,7 +1635,7 @@ app.get('/api/bookings/:id', (req, res) => {
   res.json({ success: true, data: booking });
 });
 
-app.post('/api/bookings', (req, res) => {
+app.post('/api/bookings', async (req, res) => {
   try {
     const {
       meetingTypeId,
@@ -1611,8 +1686,35 @@ app.post('/api/bookings', (req, res) => {
     const endMin = endMinutes % 60;
     const endIso = `${date}T${pad(endHour)}:${pad(endMin)}:00.000Z`;
 
-    // Generate Unique Zoom Meeting ID & Passcode via Zoom REST API format
-    const zoomDetails = generateZoomDetails(finalMeetingTitle, assignedHost.name);
+    // Assign one of the two rotating Zoom accounts and provision the meeting
+    // (real Zoom REST API call when that account has credentials configured,
+    // otherwise a local mock so the app still works in dev without them).
+    const zoomAccountKey = pickZoomAccount(startIso, endIso);
+    if (getConfiguredAccountKeys().length > 0 && !zoomAccountKey) {
+      return res.status(409).json({
+        success: false,
+        error: 'Both rotating Zoom accounts already have a meeting at this time. Please choose a different slot.'
+      });
+    }
+
+    let zoomDetails;
+    try {
+      ({ zoomDetails } = await provisionZoomMeeting(
+        zoomAccountKey,
+        finalMeetingTitle,
+        assignedHost.name,
+        startIso,
+        meetingType.duration || 30,
+        timezone,
+        notes
+      ));
+    } catch (zoomErr: any) {
+      console.error('Zoom API error while creating meeting:', zoomErr);
+      return res.status(502).json({
+        success: false,
+        error: `Failed to create the Zoom meeting: ${zoomErr.message || 'Zoom API error'}`
+      });
+    }
 
     const newBooking = {
       id: `zm-${Math.floor(100000 + Math.random() * 900000)}`,
@@ -1623,6 +1725,7 @@ app.post('/api/bookings', (req, res) => {
       hostEmail: assignedHost.email,
       hostAvatar: assignedHost.avatar,
       hostAccountId: assignedHost.id,
+      zoomAccountKey,
       participantName,
       participantEmail,
       participantPhone,
@@ -1661,11 +1764,43 @@ app.post('/api/bookings', (req, res) => {
   }
 });
 
-app.patch('/api/bookings/:id', (req, res) => {
+app.patch('/api/bookings/:id', async (req, res) => {
   const booking = bookings.find((b) => b.id === req.params.id);
   if (!booking) return res.status(404).json({ success: false, error: 'Booking not found' });
 
   const { zoomConfig, meetingTitle, notes, guestEmails } = req.body;
+
+  const accountKey = booking.zoomAccountKey as ZoomAccountKey | undefined;
+  if (booking.zoomDetails.apiGenerated && accountKey && isAccountConfigured(accountKey)) {
+    try {
+      const rawMeetingId = booking.zoomDetails.meetingId.replace(/\s/g, '');
+      const result = await updateZoomMeeting(accountKey, rawMeetingId, {
+        topic: meetingTitle,
+        agenda: notes,
+        passcode: zoomConfig?.passcode,
+        waitingRoom: zoomConfig?.waitingRoom,
+        autoRecording: zoomConfig?.autoRecord,
+        alternativeHosts: zoomConfig?.alternativeHosts
+      });
+      zoomApiLogs.unshift({
+        id: `zlog-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        method: 'PATCH',
+        endpoint: result.endpoint,
+        statusCode: result.statusCode,
+        responseTimeMs: result.responseTimeMs,
+        payloadSummary: `Updated Zoom meeting ${rawMeetingId} on ${getAccountLabel(accountKey)}`
+      });
+      if (zoomApiLogs.length > 30) zoomApiLogs.pop();
+    } catch (zoomErr: any) {
+      console.error('Zoom API error while updating meeting:', zoomErr);
+      return res.status(502).json({
+        success: false,
+        error: `Failed to update the Zoom meeting: ${zoomErr.message || 'Zoom API error'}`
+      });
+    }
+  }
+
   if (zoomConfig) booking.zoomConfig = zoomConfig;
   if (meetingTitle) booking.meetingTitle = meetingTitle;
   if (notes !== undefined) booking.notes = notes;
@@ -1683,75 +1818,106 @@ app.patch('/api/bookings/:id', (req, res) => {
   });
 });
 
-app.post('/api/bookings/:id/cancel', (req, res) => {
+app.post('/api/bookings/:id/cancel', async (req, res) => {
   const booking = bookings.find((b) => b.id === req.params.id);
   if (!booking) return res.status(404).json({ success: false, error: 'Booking not found' });
+
+  const accountKey = booking.zoomAccountKey as ZoomAccountKey | undefined;
+  const rawMeetingId = booking.zoomDetails.meetingId.replace(/\s/g, '');
+
+  if (booking.zoomDetails.apiGenerated && accountKey && isAccountConfigured(accountKey)) {
+    try {
+      const result = await deleteZoomMeeting(accountKey, rawMeetingId);
+      zoomApiLogs.unshift({
+        id: `zlog-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        method: 'DELETE',
+        endpoint: result.endpoint,
+        statusCode: result.statusCode,
+        responseTimeMs: result.responseTimeMs,
+        payloadSummary: `Cancelled Zoom meeting ${rawMeetingId} on ${getAccountLabel(accountKey)}`
+      });
+      if (zoomApiLogs.length > 30) zoomApiLogs.pop();
+    } catch (zoomErr: any) {
+      console.error('Zoom API error while cancelling meeting:', zoomErr);
+      return res.status(502).json({
+        success: false,
+        error: `Failed to cancel the Zoom meeting: ${zoomErr.message || 'Zoom API error'}`
+      });
+    }
+  } else {
+    zoomApiLogs.unshift({
+      id: `zlog-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      method: 'DELETE',
+      endpoint: `https://api.zoom.us/v2/meetings/${rawMeetingId}`,
+      statusCode: 204,
+      responseTimeMs: 95,
+      payloadSummary: `Cancelled Zoom meeting ${booking.zoomDetails.meetingId} via Zoom REST API`
+    });
+  }
+
   booking.status = 'cancelled';
   booking.m365SyncStatus = 'synced'; // M365 event removed
-
-  // Log cancellation to Zoom API log
-  zoomApiLogs.unshift({
-    id: `zlog-${Date.now()}`,
-    timestamp: new Date().toISOString(),
-    method: 'DELETE',
-    endpoint: `https://api.zoom.us/v2/meetings/${booking.zoomDetails.meetingId.replace(/\s/g, '')}`,
-    statusCode: 204,
-    responseTimeMs: 95,
-    payloadSummary: `Cancelled Zoom meeting ${booking.zoomDetails.meetingId} via Zoom REST API`
-  });
 
   res.json({ success: true, message: 'Meeting cancelled and removed from Microsoft 365 calendar and Zoom.', data: booking });
 });
 
 // 7. Zoom REST API Integration Endpoints
 app.get('/api/zoom/config', (req, res) => {
+  const accounts = (['A', 'B'] as ZoomAccountKey[]).map((key) => ({
+    key,
+    label: getAccountLabel(key),
+    configured: isAccountConfigured(key),
+    accountIdMasked: getMaskedAccountId(key)
+  }));
+
   res.json({
     success: true,
-    data: zoomApiConfig,
+    data: {
+      ...zoomApiConfig,
+      accounts,
+      mode: accounts.some((a) => a.configured) ? 'live' : 'demo_mode'
+    },
     activeRoomsCount: bookings.filter((b) => b.status !== 'cancelled').length
   });
 });
 
-app.post('/api/zoom/config', (req, res) => {
-  const { accountId, clientId } = req.body;
-  if (accountId) zoomApiConfig.accountId = accountId;
-  if (clientId) zoomApiConfig.clientId = clientId;
-  zoomApiConfig.lastPingMs = Math.floor(45 + Math.random() * 40);
-  res.json({ success: true, data: zoomApiConfig, message: 'Zoom API settings updated successfully.' });
-});
+app.post('/api/zoom/test-connection', async (req, res) => {
+  const results: Array<{ key: ZoomAccountKey; label: string; connected: boolean; latencyMs?: number; error?: string }> = [];
 
-app.post('/api/zoom/test-connection', (req, res) => {
-  const pingMs = Math.floor(52 + Math.random() * 35);
-  zoomApiConfig.lastPingMs = pingMs;
-  zoomApiConfig.rateLimit.remaining = Math.max(1, zoomApiConfig.rateLimit.remaining - 1);
+  for (const key of (['A', 'B'] as ZoomAccountKey[])) {
+    if (!isAccountConfigured(key)) {
+      results.push({ key, label: getAccountLabel(key), connected: false, error: 'Not configured' });
+      continue;
+    }
+    try {
+      const result = await getZoomUserProfile(key);
+      zoomApiLogs.unshift({
+        id: `zlog-${Date.now()}-${key}`,
+        timestamp: new Date().toISOString(),
+        method: 'GET',
+        endpoint: result.endpoint,
+        statusCode: result.statusCode,
+        responseTimeMs: result.responseTimeMs,
+        payloadSummary: `Ping test successful on ${getAccountLabel(key)}: authenticated as ${result.data.email || result.data.id}`
+      });
+      results.push({ key, label: getAccountLabel(key), connected: true, latencyMs: result.responseTimeMs });
+    } catch (err: any) {
+      results.push({ key, label: getAccountLabel(key), connected: false, error: err.message || 'Zoom API error' });
+    }
+  }
+  if (zoomApiLogs.length > 30) zoomApiLogs.length = 30;
 
-  const log: ZoomApiLog = {
-    id: `zlog-${Date.now()}`,
-    timestamp: new Date().toISOString(),
-    method: 'GET',
-    endpoint: 'https://api.zoom.us/v2/users/me',
-    statusCode: 200,
-    responseTimeMs: pingMs,
-    payloadSummary: 'Ping test successful: Zoom REST API authenticated (200 OK)'
-  };
-  zoomApiLogs.unshift(log);
+  const anyConnected = results.some((r) => r.connected);
+  zoomApiConfig.lastPingMs = results.find((r) => r.latencyMs)?.latencyMs || zoomApiConfig.lastPingMs;
 
   res.json({
-    success: true,
-    status: 'connected',
-    latencyMs: pingMs,
-    authenticatedUser: {
-      id: 'usr_zm894201',
-      first_name: 'Sarah',
-      last_name: 'Jenkins',
-      email: 'sarah.jenkins@zoompartner.com',
-      type: 2, // Licensed / Enterprise
-      pmi: 84930194820,
-      timezone: 'America/New_York',
-      dept: 'Solutions Engineering',
-      status: 'active'
-    },
-    message: `Zoom REST API connection verified. Latency: ${pingMs}ms`
+    success: anyConnected || results.every((r) => !isAccountConfigured(r.key)),
+    accounts: results,
+    message: results.every((r) => !isAccountConfigured(r.key))
+      ? 'No Zoom accounts configured — running in demo mode with mock meeting data.'
+      : `Checked ${results.length} rotating Zoom accounts.`
   });
 });
 
