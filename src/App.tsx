@@ -43,7 +43,7 @@ export default function App() {
   }, [authUser]);
 
   // Navigation View State - Defaults to Office365 Dashboard when user logs in
-  const [currentView, setCurrentView] = useState<'dashboard' | 'booking' | 'bookings-list' | 'm365' | 'zoom-api' | 'security-logs'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'booking' | 'm365' | 'zoom-api' | 'security-logs'>('dashboard');
 
   // Selected Booking for Detailed Modal inspection
   const [selectedBookingForDetails, setSelectedBookingForDetails] = useState<Booking | null>(null);
@@ -350,7 +350,6 @@ export default function App() {
         onSignOut={handleSignOut}
         selectedTimezone={selectedTimezone}
         onOpenTimezoneModal={() => setIsTimezoneModalOpen(true)}
-        bookingCount={visibleBookings.filter((b) => b.status === 'confirmed').length}
       />
 
       {/* Floating System Notice Toast */}
@@ -366,23 +365,34 @@ export default function App() {
         
         {/* VIEW 0: OFFICE 365 CALENDAR DASHBOARD (Default view on initial login) */}
         {currentView === 'dashboard' && (
-          <Office365CalendarDashboard
-            authUser={authUser}
-            m365State={m365State}
-            bookings={visibleBookings}
-            syncedEvents={m365State.events || []}
-            onScheduleMeeting={() => {
-              setCurrentView('booking');
-              setBookingStep('slots');
-              setSelectedSlot(null);
-            }}
-            onSelectBookingForDetails={(booking) => {
-              setSelectedBookingForDetails(booking);
-            }}
-            userEmail={authUser?.email || 'buhatar@gmail.com'}
-            userName={authUser?.name || 'Authorized User'}
-            selectedTimezone={selectedTimezone}
-          />
+          <div className="space-y-6">
+            <Office365CalendarDashboard
+              authUser={authUser}
+              m365State={m365State}
+              bookings={visibleBookings}
+              syncedEvents={m365State.events || []}
+              onScheduleMeeting={() => {
+                setCurrentView('booking');
+                setBookingStep('slots');
+                setSelectedSlot(null);
+              }}
+              onSelectBookingForDetails={(booking) => {
+                setSelectedBookingForDetails(booking);
+              }}
+              userEmail={authUser?.email || 'buhatar@gmail.com'}
+              userName={authUser?.name || 'Authorized User'}
+              selectedTimezone={selectedTimezone}
+            />
+
+            {/* Scheduled Meetings (User sees own meetings; Admin sees all) */}
+            <HostBookingsView
+              bookings={visibleBookings}
+              isAdmin={isAdmin}
+              onCancelBooking={handleCancelBooking}
+              onSelectBookingForDetails={(booking) => setSelectedBookingForDetails(booking)}
+              onNavigateToSchedule={() => setCurrentView('booking')}
+            />
+          </div>
         )}
 
         {/* VIEW 1: BOOKING SCHEDULER FLOW */}
@@ -541,16 +551,6 @@ export default function App() {
             )}
 
           </div>
-        )}
-
-        {/* VIEW 2: SCHEDULED MEETINGS (User sees own meetings; Admin sees all) */}
-        {currentView === 'bookings-list' && (
-          <HostBookingsView
-            bookings={visibleBookings}
-            isAdmin={isAdmin}
-            onCancelBooking={handleCancelBooking}
-            onNavigateToSchedule={() => setCurrentView('booking')}
-          />
         )}
 
         {/* VIEW 3: ZOOM API INTEGRATION & DIAGNOSTICS (Admin Only) */}
