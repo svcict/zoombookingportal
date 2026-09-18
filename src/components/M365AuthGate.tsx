@@ -115,10 +115,6 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated }) =
       setAuthError('Please enter your email or username.');
       return;
     }
-    if (!password.trim()) {
-      setAuthError('Please enter your password.');
-      return;
-    }
 
     setIsAuthenticating(true);
     setAuthError(null);
@@ -325,11 +321,10 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated }) =
                 <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   type="password"
-                  required
                   disabled={isIpBlocked || (isLockedOut && lockoutRemaining > 0) || isAuthenticating}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
+                  placeholder="Enter your password (leave blank for demo accounts)"
                   className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#0b5cff] focus:border-[#0b5cff] transition-all disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
                 />
               </div>
