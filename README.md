@@ -136,6 +136,23 @@ A demo login gets its own short-lived, signed token (12 hours), verified indepen
 Supabase — not a real Supabase session. Removing an email from `DEMO_LOGIN_EMAILS` immediately
 invalidates any outstanding token for it, even before it would otherwise expire.
 
+The login form's password field also has no client-side `required` validation, so demo accounts
+(and the two hardcoded `admin@local.test`/`user@local.test` local-testing accounts above) can
+submit a blank password. This is only a UX convenience, not a security boundary — the real gate
+is entirely server-side (`authenticateLocalUser`), which only ever accepts a blank password for
+an email explicitly listed in `DEMO_LOGIN_EMAILS`. Client-side validation can always be bypassed
+by anyone calling the API directly, so it was never providing real protection either way.
+
+## Before Going to Production
+
+- **Set `DEMO_LOGIN_EMAILS` to empty/unset.** This is what actually closes the passwordless
+  login path, regardless of what the login form's HTML allows — do this even if you also restore
+  `required` on the password field.
+- Confirm `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` point at your real
+  production project, not a test one.
+- (Optional, UX only) Re-add `required` to the password `<input>` in `M365AuthGate.tsx` for a
+  nicer inline error message on empty submission — doesn't change security either way.
+
 ## Zoom API Setup (Two Rotating Server-to-Server OAuth Accounts)
 
 This portal creates real Zoom meetings via the [Zoom REST API](https://developers.zoom.us/docs/api/)
