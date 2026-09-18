@@ -84,13 +84,6 @@ export const INITIAL_MEETING_TYPES: MeetingType[] = [
         placeholder: 'Please describe what you would like to achieve or specific questions you have...',
         required: true,
         helpText: 'Helps us prepare relevant technical documentation in advance.'
-      },
-      {
-        id: 'q2',
-        label: 'Company or Organization Name',
-        type: 'text',
-        placeholder: 'Acme Corp / Startup Studio',
-        required: false,
       }
     ]
   },

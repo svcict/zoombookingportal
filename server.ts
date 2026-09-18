@@ -174,13 +174,6 @@ let meetingTypes: SeedMeetingType[] = [
         placeholder: 'Please describe what you would like to achieve or specific questions you have...',
         required: true,
         helpText: 'Helps us prepare relevant technical documentation in advance.'
-      },
-      {
-        id: 'q2',
-        label: 'Company or Organization Name',
-        type: 'text',
-        placeholder: 'Acme Corp / Startup Studio',
-        required: false,
       }
     ]
   },
@@ -352,8 +345,7 @@ let bookings: any[] = [
     m365SyncStatus: 'synced',
     m365EventId: 'AAMkADk3MGMwMTEtNGQ5YS00MjY1LT...M365',
     answers: {
-      q1: 'Reviewing quarterly cloud migration timeline and security compliance on Zoom infrastructure.',
-      q2: 'Ayala Foundation'
+      q1: 'Reviewing quarterly cloud migration timeline and security compliance on Zoom infrastructure.'
     },
     status: 'confirmed',
     reminders: {
@@ -404,8 +396,7 @@ let bookings: any[] = [
     m365SyncStatus: 'synced',
     m365EventId: 'AAMkADk3MGMwMTEtNGQ5YS00MjY1LT...M365',
     answers: {
-      q1: 'Reviewing quarterly cloud migration timeline and security compliance on Zoom infrastructure.',
-      q2: 'Enterprise IO'
+      q1: 'Reviewing quarterly cloud migration timeline and security compliance on Zoom infrastructure.'
     },
     status: 'confirmed',
     reminders: {
@@ -813,7 +804,8 @@ function persistFailedLogin(record: FailedAttemptRecord): void {
 // without needing direct database access.
 const DEPRECATED_CUSTOM_QUESTION_LABELS = new Set([
   'Do you require Screen Sharing / Live Demo capabilities?',
-  'Zoom Audio Preference'
+  'Zoom Audio Preference',
+  'Company or Organization Name'
 ]);
 
 async function removeDeprecatedCustomQuestions(): Promise<void> {
