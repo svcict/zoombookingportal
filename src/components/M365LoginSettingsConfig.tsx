@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Key, 
   ShieldCheck, 
@@ -119,7 +119,6 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [lastSavedToast, setLastSavedToast] = useState<string | null>(null);
   const [activeHoverField, setActiveHoverField] = useState<string | null>(null);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load initial config and perform real live validation against Microsoft servers
   const fetchConfig = async () => {
@@ -169,20 +168,16 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
     }
   };
 
-  // Handle Field Value Change with direct write to .env
+  // Updates local form state only - saving happens explicitly via the
+  // "Force Sync All to .env" button below. Auto-saving per keystroke used
+  // to write to .env on every pause, which the dev server's file watcher
+  // picks up as an env change and forces a full page reload for - typing
+  // would keep getting interrupted by the page reloading itself.
   const handleFieldChange = (keyName: string, fieldStateProp: keyof M365SettingsConfig, value: string) => {
     setConfig(prev => ({
       ...prev,
       [fieldStateProp]: value
     }));
-
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    saveTimeoutRef.current = setTimeout(() => {
-      saveKeyToEnv(keyName, value);
-    }, 450);
   };
 
   const handleTestConnection = async () => {
@@ -425,7 +420,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                 <span className="font-mono text-gray-400">MICROSOFT_TENANT_ID</span>
                 <span className="text-green-700 font-bold flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                  Auto-writes to .env
+                  Saved via button below
                 </span>
               </div>
 
@@ -483,7 +478,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                 <span className="font-mono text-gray-400">MICROSOFT_CLIENT_ID</span>
                 <span className="text-green-700 font-bold flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                  Auto-writes to .env
+                  Saved via button below
                 </span>
               </div>
 
@@ -541,7 +536,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                 <span className="font-mono text-gray-400">MICROSOFT_CLIENT_SECRET</span>
                 <span className="text-green-700 font-bold flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                  Auto-writes to .env
+                  Saved via button below
                 </span>
               </div>
 
@@ -597,7 +592,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                 <span className="font-mono text-gray-400">MICROSOFT_REDIRECT_URI</span>
                 <span className="text-green-700 font-bold flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                  Auto-writes to .env
+                  Saved via button below
                 </span>
               </div>
 
@@ -653,7 +648,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                 <span className="font-mono text-gray-400">MICROSOFT_GRAPH_SCOPES</span>
                 <span className="text-green-700 font-bold flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                  Auto-writes to .env
+                  Saved via button below
                 </span>
               </div>
 
@@ -708,7 +703,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                 <span className="font-mono text-gray-400">MICROSOFT_ORGANIZATION_DOMAIN</span>
                 <span className="text-green-700 font-bold flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                  Auto-writes to .env
+                  Saved via button below
                 </span>
               </div>
 
