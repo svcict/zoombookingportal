@@ -1,22 +1,18 @@
 import React, { useState } from 'react';
-import { 
-  Video, 
-  Clock, 
-  Calendar, 
-  Globe, 
-  ShieldCheck, 
-  User, 
-  Mail, 
-  Building, 
-  Phone, 
-  Users, 
-  Plus, 
-  X, 
-  ArrowLeft, 
-  CheckCircle2, 
+import {
+  Video,
+  Clock,
+  Calendar,
+  Globe,
+  ShieldCheck,
+  User,
+  Mail,
+  Users,
+  Plus,
+  X,
+  ArrowLeft,
+  CheckCircle2,
   Lock,
-  Mic,
-  Monitor
 } from 'lucide-react';
 import { MeetingType, TimeSlot, M365User } from '../types';
 
@@ -33,8 +29,6 @@ interface ZoomIntakeFormProps {
   onSubmit: (formData: {
     participantName: string;
     participantEmail: string;
-    participantPhone?: string;
-    participantCompany?: string;
     guestEmails: string[];
     answers: Record<string, any>;
     notes?: string;
@@ -61,8 +55,6 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   const [firstName, setFirstName] = useState(initialNames[0] || '');
   const [lastName, setLastName] = useState(initialNames.slice(1).join(' ') || (initialNames[0] ? 'User' : ''));
   const [email, setEmail] = useState(authUser?.email || '');
-  const [phone, setPhone] = useState('');
-  const [company, setCompany] = useState(authUser?.tenantName?.split(' ')[0] || authUser?.department || '');
   const [guestEmailInput, setGuestEmailInput] = useState('');
   const [guestEmails, setGuestEmails] = useState<string[]>([]);
   const [answers, setAnswers] = useState<Record<string, any>>({});
@@ -115,8 +107,6 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
     await onSubmit({
       participantName: `${firstName.trim()} ${lastName.trim()}`,
       participantEmail: email.trim(),
-      participantPhone: phone.trim() || undefined,
-      participantCompany: company.trim() || undefined,
       guestEmails,
       answers,
       notes: `Registered for Zoom session via Zoom Scheduler Portal. Host: ${meetingType.hostName}`,
@@ -249,7 +239,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
             </div>
 
             {/* Email */}
-            <div>
+            <div className="sm:col-span-2">
               <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">
                 Work Email Address <span className="text-red-500">*</span>
               </label>
@@ -267,40 +257,6 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
               </div>
               <p className="text-[11px] text-gray-400 mt-1 font-medium">Zoom join links and Microsoft 365 calendar invite sent here.</p>
               {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-            </div>
-
-            {/* Phone */}
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">
-                Phone Number (Optional)
-              </label>
-              <div className="relative">
-                <Phone className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+1 (555) 000-0000"
-                  className="w-full pl-10 pr-4 py-3 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Company */}
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">
-                Organization / Company Name (Optional)
-              </label>
-              <div className="relative">
-                <Building className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={company}
-                  onChange={(e) => setCompany(e.target.value)}
-                  placeholder="e.g. Acme Tech Solutions"
-                  className="w-full pl-10 pr-4 py-3 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] transition-all"
-                />
-              </div>
             </div>
           </div>
         </div>

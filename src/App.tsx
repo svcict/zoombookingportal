@@ -252,8 +252,6 @@ export default function App() {
   const handleSubmitBooking = async (formData: {
     participantName: string;
     participantEmail: string;
-    participantPhone?: string;
-    participantCompany?: string;
     guestEmails: string[];
     answers: Record<string, any>;
     notes?: string;
