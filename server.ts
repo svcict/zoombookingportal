@@ -804,6 +804,30 @@ function persistFailedLogin(record: FailedAttemptRecord): void {
   upsertRow('failed_login_logs', record.id, record).catch(() => {});
 }
 
+// One-time self-healing cleanup: a Supabase project seeded before the
+// Screen Sharing / Zoom Audio Preference intake questions were removed
+// from the code still has them saved in its meeting_types rows, and
+// loading from the database (by design) takes priority over the current
+// in-code defaults. Strips them from whatever was just loaded and writes
+// the cleaned version back, so this runs itself right on the next boot
+// without needing direct database access.
+const DEPRECATED_CUSTOM_QUESTION_LABELS = new Set([
+  'Do you require Screen Sharing / Live Demo capabilities?',
+  'Zoom Audio Preference'
+]);
+
+async function removeDeprecatedCustomQuestions(): Promise<void> {
+  for (const meetingType of meetingTypes) {
+    const before = meetingType.customQuestions.length;
+    meetingType.customQuestions = meetingType.customQuestions.filter(
+      (q) => !DEPRECATED_CUSTOM_QUESTION_LABELS.has(q.label)
+    );
+    if (meetingType.customQuestions.length !== before) {
+      await upsertRow('meeting_types', meetingType.id, meetingType);
+    }
+  }
+}
+
 async function initPersistence(): Promise<void> {
   if (!persistenceEnabled()) {
     console.log('[persistence] Supabase not configured - running in-memory only (data resets on restart).');
@@ -817,7 +841,10 @@ async function initPersistence(): Promise<void> {
   if (loadedHosts && loadedHosts.length > 0) hostAccounts = loadedHosts;
 
   const loadedMeetingTypes = await loadTable<SeedMeetingType>('meeting_types');
-  if (loadedMeetingTypes && loadedMeetingTypes.length > 0) meetingTypes = loadedMeetingTypes;
+  if (loadedMeetingTypes && loadedMeetingTypes.length > 0) {
+    meetingTypes = loadedMeetingTypes;
+    await removeDeprecatedCustomQuestions();
+  }
 
   const loadedBookings = await loadTable<any>('bookings');
   if (loadedBookings) bookings = loadedBookings;
