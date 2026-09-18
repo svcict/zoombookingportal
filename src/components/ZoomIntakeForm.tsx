@@ -327,10 +327,10 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
         {/* Section: Add Guests / Multi-Participant */}
         <div className="pt-4 border-t border-gray-100">
           <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
-            Add Additional Guests / Team Members (Optional)
+            Invitees (Optional)
           </label>
           <p className="text-xs text-gray-400 mb-2">
-            Guests will automatically receive the Zoom join link, passcode, and calendar invite.
+            Invitees will automatically receive the Zoom join link, passcode, and calendar invite.
           </p>
 
           <div className="flex gap-2">
