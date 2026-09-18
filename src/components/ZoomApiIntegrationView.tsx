@@ -53,8 +53,6 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
   // Playground form state
   const [testTopic, setTestTopic] = useState('Enterprise Architecture Review');
   const [testDuration, setTestDuration] = useState('30');
-  const [waitingRoom, setWaitingRoom] = useState(true);
-  const [cloudRecording, setCloudRecording] = useState(true);
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
   const [createdMeetingResponse, setCreatedMeetingResponse] = useState<any | null>(null);
 
@@ -557,29 +555,6 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
               </div>
             </div>
 
-            {/* Toggle Settings */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <label className="flex items-center gap-2.5 p-3 rounded-xl bg-[#F7F9FA] border border-gray-200 cursor-pointer text-xs">
-                <input
-                  type="checkbox"
-                  checked={waitingRoom}
-                  onChange={(e) => setWaitingRoom(e.target.checked)}
-                  className="rounded text-[#0b5cff] focus:ring-[#0b5cff]"
-                />
-                <span className="font-medium text-gray-800">Enable Waiting Room</span>
-              </label>
-
-              <label className="flex items-center gap-2.5 p-3 rounded-xl bg-[#F7F9FA] border border-gray-200 cursor-pointer text-xs">
-                <input
-                  type="checkbox"
-                  checked={cloudRecording}
-                  onChange={(e) => setCloudRecording(e.target.checked)}
-                  className="rounded text-[#0b5cff] focus:ring-[#0b5cff]"
-                />
-                <span className="font-medium text-gray-800">Automated Cloud Recording</span>
-              </label>
-            </div>
-
             <button
               type="button"
               disabled={isCreatingMeeting}
@@ -616,13 +591,12 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
   timezone: createdMeetingResponse.timezone,
   password: createdMeetingResponse.zoomDetails.passcode,
   join_url: createdMeetingResponse.zoomDetails.joinUrl,
-  start_url: createdMeetingResponse.zoomDetails.startUrl,
   settings: {
-    host_video: true,
-    participant_video: true,
-    waiting_room: waitingRoom,
-    auto_recording: cloudRecording ? 'cloud' : 'none',
-    encryption_type: 'enhanced_encryption'
+    host_video: createdMeetingResponse.zoomConfig?.hostVideo ?? true,
+    participant_video: createdMeetingResponse.zoomConfig?.participantVideo ?? true,
+    waiting_room: createdMeetingResponse.zoomConfig?.waitingRoom ?? true,
+    auto_recording: createdMeetingResponse.zoomConfig?.autoRecord ? 'local' : 'none',
+    encryption_type: createdMeetingResponse.zoomDetails.encryption
   }
 }, null, 2)}
                 </pre>
