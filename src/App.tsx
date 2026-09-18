@@ -117,8 +117,13 @@ export default function App() {
 
         // 1. Meeting Types
         if (typesResult.status === 'fulfilled' && typesResult.value?.success && typesResult.value.data?.length > 0) {
-          setMeetingTypes(typesResult.value.data);
-          setSelectedMeetingType((curr) => curr || typesResult.value.data[0]);
+          const freshTypes: MeetingType[] = typesResult.value.data;
+          setMeetingTypes(freshTypes);
+          // Swap in the freshly-fetched version of whatever's currently
+          // selected (initially the hardcoded placeholder from
+          // INITIAL_MEETING_TYPES) so it doesn't stay stuck showing
+          // pre-fetch data (e.g. outdated custom questions) forever.
+          setSelectedMeetingType((curr) => freshTypes.find((m) => m.id === curr?.id) || freshTypes[0]);
         }
 
         // 2. Bookings

@@ -91,20 +91,6 @@ export const INITIAL_MEETING_TYPES: MeetingType[] = [
         type: 'text',
         placeholder: 'Acme Corp / Startup Studio',
         required: false,
-      },
-      {
-        id: 'q3',
-        label: 'Do you require Screen Sharing / Live Demo capabilities?',
-        type: 'radio',
-        required: true,
-        options: ['Yes, I want to share my screen/demo', 'No, audio & webcam discussion is sufficient', 'Not sure yet'],
-      },
-      {
-        id: 'q4',
-        label: 'Zoom Audio Preference',
-        type: 'select',
-        required: false,
-        options: ['Computer Audio (VoIP)', 'Telephone Dial-In', 'Both / Either'],
       }
     ]
   },
