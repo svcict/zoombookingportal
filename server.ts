@@ -26,6 +26,7 @@ import {
   getZoomUserProfile,
   mapZoomMeetingResponse
 } from './src/lib/zoomApi';
+import { persistenceEnabled, loadTable, upsertRow, seedTableIfEmpty, clearTable } from './src/lib/db';
 
 const app = express();
 const PORT = 3000;
@@ -569,6 +570,7 @@ function generateZoomDetails(meetingTitle: string, hostName: string = 'Sarah Jen
   };
   zoomApiLogs.unshift(log);
   if (zoomApiLogs.length > 30) zoomApiLogs.pop();
+  persistZoomLog(log);
 
   return {
     meetingId,
@@ -642,7 +644,7 @@ async function provisionZoomMeeting(
     agenda
   });
 
-  zoomApiLogs.unshift({
+  const provisionLog: ZoomApiLog = {
     id: `zlog-${Date.now()}`,
     timestamp: new Date().toISOString(),
     method: 'POST',
@@ -650,8 +652,10 @@ async function provisionZoomMeeting(
     statusCode: result.statusCode,
     responseTimeMs: result.responseTimeMs,
     payloadSummary: `Created Zoom meeting ${result.data.id} on ${getAccountLabel(accountKey)} for "${meetingTitle}"`
-  });
+  };
+  zoomApiLogs.unshift(provisionLog);
   if (zoomApiLogs.length > 30) zoomApiLogs.pop();
+  persistZoomLog(provisionLog);
 
   return { zoomDetails: mapZoomMeetingResponse(result.data), accountKey };
 }
@@ -786,6 +790,52 @@ interface RateLimitEntry {
 
 const failedLoginLogs: FailedAttemptRecord[] = [];
 const rateLimitStore = new Map<string, RateLimitEntry>();
+
+// ----------------------------------------------------
+// PERSISTENCE BOOTSTRAP
+// ----------------------------------------------------
+// Without Supabase configured, this is a no-op and the app runs exactly as
+// before (pure in-memory, reset on every restart). With it configured,
+// host accounts and meeting types are seeded into the database once (if
+// empty) and then reloaded from it on every boot; bookings and logs are
+// loaded as-is (empty on a fresh project, which is correct for real
+// usage - no fake demo data seeded into a real deployment).
+function persistZoomLog(log: ZoomApiLog): void {
+  upsertRow('zoom_api_logs', log.id, log).catch(() => {});
+}
+
+function persistFailedLogin(record: FailedAttemptRecord): void {
+  upsertRow('failed_login_logs', record.id, record).catch(() => {});
+}
+
+async function initPersistence(): Promise<void> {
+  if (!persistenceEnabled()) {
+    console.log('[persistence] Supabase not configured - running in-memory only (data resets on restart).');
+    return;
+  }
+
+  await seedTableIfEmpty('host_accounts', hostAccounts);
+  await seedTableIfEmpty('meeting_types', meetingTypes);
+
+  const loadedHosts = await loadTable<HostAccount>('host_accounts');
+  if (loadedHosts && loadedHosts.length > 0) hostAccounts = loadedHosts;
+
+  const loadedMeetingTypes = await loadTable<SeedMeetingType>('meeting_types');
+  if (loadedMeetingTypes && loadedMeetingTypes.length > 0) meetingTypes = loadedMeetingTypes;
+
+  const loadedBookings = await loadTable<any>('bookings');
+  if (loadedBookings) bookings = loadedBookings;
+
+  const loadedZoomLogs = await loadTable<ZoomApiLog>('zoom_api_logs');
+  if (loadedZoomLogs) zoomApiLogs = loadedZoomLogs;
+
+  const loadedFailedLogins = await loadTable<FailedAttemptRecord>('failed_login_logs');
+  if (loadedFailedLogins) failedLoginLogs.push(...loadedFailedLogins);
+
+  console.log(
+    `[persistence] Loaded from Supabase: ${hostAccounts.length} host accounts, ${meetingTypes.length} meeting types, ${bookings.length} bookings, ${zoomApiLogs.length} Zoom API logs, ${failedLoginLogs.length} failed login logs.`
+  );
+}
 
 function getClientIp(req: express.Request): string {
   // Only trust X-Forwarded-For when explicitly running behind a trusted
@@ -1243,14 +1293,16 @@ app.post('/api/auth/m365/login', async (req, res) => {
 
   // 0. Check Permanent IP Block
   if (entry.isPermanentlyBlocked) {
-    failedLoginLogs.unshift({
+    const blockedLog: FailedAttemptRecord = {
       id: `fail-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
       ip: clientIp,
       emailAttempted: rawInput || 'empty',
       timestamp: new Date().toISOString(),
       reason: 'Rejected: IP is permanently blocked due to repeated login failures',
       userAgent
-    });
+    };
+    failedLoginLogs.unshift(blockedLog);
+    persistFailedLogin(blockedLog);
     return res.status(403).json({
       success: false,
       blocked: true,
@@ -1318,14 +1370,16 @@ app.post('/api/auth/m365/login', async (req, res) => {
     entry.consecutiveFails++;
     entry.lastAttemptAt = new Date().toISOString();
 
-    failedLoginLogs.unshift({
+    const failedLog: FailedAttemptRecord = {
       id: `fail-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
       ip: clientIp,
       emailAttempted: rawInput,
       timestamp: new Date().toISOString(),
       reason: sbResult.error || 'Invalid credentials or user not found in Supabase Auth/DB',
       userAgent
-    });
+    };
+    failedLoginLogs.unshift(failedLog);
+    persistFailedLogin(failedLog);
 
     if (failedLoginLogs.length > 250) {
       failedLoginLogs.length = 250;
@@ -1481,6 +1535,7 @@ app.post('/api/admin/clear-failed-logs', async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
 
   failedLoginLogs.length = 0;
+  await clearTable('failed_login_logs');
   res.json({
     success: true,
     message: 'Failed login security logs have been cleared.'
@@ -1527,6 +1582,7 @@ app.post('/api/meeting-types', (req, res) => {
     customQuestions: req.body.customQuestions || []
   };
   meetingTypes.push(newType);
+  upsertRow('meeting_types', newType.id, newType).catch(() => {});
   res.status(201).json({ success: true, data: newType });
 });
 
@@ -1898,6 +1954,7 @@ app.post('/api/bookings', async (req, res) => {
     };
 
     bookings.unshift(newBooking);
+    await upsertRow('bookings', newBooking.id, newBooking);
 
     res.status(201).json({
       success: true,
@@ -1941,7 +1998,7 @@ app.patch('/api/bookings/:id', async (req, res) => {
         meetingAuthentication: zoomConfig?.requireAuth,
         usePmi: zoomConfig ? zoomConfig.meetingIdType === 'pmi' : undefined
       });
-      zoomApiLogs.unshift({
+      const updateLog: ZoomApiLog = {
         id: `zlog-${Date.now()}`,
         timestamp: new Date().toISOString(),
         method: 'PATCH',
@@ -1949,8 +2006,10 @@ app.patch('/api/bookings/:id', async (req, res) => {
         statusCode: result.statusCode,
         responseTimeMs: result.responseTimeMs,
         payloadSummary: `Updated Zoom meeting ${rawMeetingId} on ${getAccountLabel(accountKey)}`
-      });
+      };
+      zoomApiLogs.unshift(updateLog);
       if (zoomApiLogs.length > 30) zoomApiLogs.pop();
+      persistZoomLog(updateLog);
     } catch (zoomErr: any) {
       console.error('Zoom API error while updating meeting:', zoomErr);
       return res.status(502).json({
@@ -1969,6 +2028,8 @@ app.patch('/api/bookings/:id', async (req, res) => {
   if (zoomConfig?.passcode) {
     booking.zoomDetails.passcode = zoomConfig.passcode;
   }
+
+  await upsertRow('bookings', booking.id, booking);
 
   res.json({
     success: true,
@@ -1993,7 +2054,7 @@ app.post('/api/bookings/:id/cancel', async (req, res) => {
   if (booking.zoomDetails.apiGenerated && accountKey && isAccountConfigured(accountKey)) {
     try {
       const result = await deleteZoomMeeting(accountKey, rawMeetingId);
-      zoomApiLogs.unshift({
+      const cancelLog: ZoomApiLog = {
         id: `zlog-${Date.now()}`,
         timestamp: new Date().toISOString(),
         method: 'DELETE',
@@ -2001,8 +2062,10 @@ app.post('/api/bookings/:id/cancel', async (req, res) => {
         statusCode: result.statusCode,
         responseTimeMs: result.responseTimeMs,
         payloadSummary: `Cancelled Zoom meeting ${rawMeetingId} on ${getAccountLabel(accountKey)}`
-      });
+      };
+      zoomApiLogs.unshift(cancelLog);
       if (zoomApiLogs.length > 30) zoomApiLogs.pop();
+      persistZoomLog(cancelLog);
     } catch (zoomErr: any) {
       console.error('Zoom API error while cancelling meeting:', zoomErr);
       return res.status(502).json({
@@ -2011,7 +2074,7 @@ app.post('/api/bookings/:id/cancel', async (req, res) => {
       });
     }
   } else {
-    zoomApiLogs.unshift({
+    const mockCancelLog: ZoomApiLog = {
       id: `zlog-${Date.now()}`,
       timestamp: new Date().toISOString(),
       method: 'DELETE',
@@ -2019,11 +2082,14 @@ app.post('/api/bookings/:id/cancel', async (req, res) => {
       statusCode: 204,
       responseTimeMs: 95,
       payloadSummary: `Cancelled Zoom meeting ${booking.zoomDetails.meetingId} via Zoom REST API`
-    });
+    };
+    zoomApiLogs.unshift(mockCancelLog);
+    persistZoomLog(mockCancelLog);
   }
 
   booking.status = 'cancelled';
   booking.m365SyncStatus = 'synced'; // M365 event removed
+  await upsertRow('bookings', booking.id, booking);
 
   res.json({ success: true, message: 'Meeting cancelled and removed from Microsoft 365 calendar and Zoom.', data: booking });
 });
@@ -2110,7 +2176,7 @@ app.post('/api/zoom/test-connection', async (req, res) => {
     }
     try {
       const result = await getZoomUserProfile(key);
-      zoomApiLogs.unshift({
+      const pingLog: ZoomApiLog = {
         id: `zlog-${Date.now()}-${key}`,
         timestamp: new Date().toISOString(),
         method: 'GET',
@@ -2118,7 +2184,9 @@ app.post('/api/zoom/test-connection', async (req, res) => {
         statusCode: result.statusCode,
         responseTimeMs: result.responseTimeMs,
         payloadSummary: `Ping test successful on ${getAccountLabel(key)}: authenticated as ${result.data.email || result.data.id}`
-      });
+      };
+      zoomApiLogs.unshift(pingLog);
+      persistZoomLog(pingLog);
       results.push({ key, label: getAccountLabel(key), connected: true, latencyMs: result.responseTimeMs });
     } catch (err: any) {
       results.push({ key, label: getAccountLabel(key), connected: false, error: err.message || 'Zoom API error' });
@@ -2215,9 +2283,11 @@ app.post('/api/zoom/webhooks', (req: any, res) => {
   if (eventName === 'meeting.started' && booking) {
     booking.liveStatus = 'started';
     payloadSummary = `Meeting started: "${booking.meetingTitle}" (${rawMeetingId})`;
+    upsertRow('bookings', booking.id, booking).catch(() => {});
   } else if (eventName === 'meeting.ended' && booking) {
     booking.liveStatus = 'ended';
     payloadSummary = `Meeting ended: "${booking.meetingTitle}" (${rawMeetingId})`;
+    upsertRow('bookings', booking.id, booking).catch(() => {});
   } else if (eventName === 'meeting.participant_joined' && booking) {
     const participantName = zoomObject?.participant?.user_name || 'Unknown participant';
     payloadSummary = `${participantName} joined "${booking.meetingTitle}" (${rawMeetingId})`;
@@ -2227,7 +2297,7 @@ app.post('/api/zoom/webhooks', (req: any, res) => {
     payloadSummary += ' (signature not verified - ZOOM_WEBHOOK_SECRET_TOKEN not configured)';
   }
 
-  zoomApiLogs.unshift({
+  const webhookLog: ZoomApiLog = {
     id: `zlog-webhook-${Date.now()}`,
     timestamp: new Date().toISOString(),
     method: 'POST',
@@ -2235,8 +2305,10 @@ app.post('/api/zoom/webhooks', (req: any, res) => {
     statusCode: 200,
     responseTimeMs: 0,
     payloadSummary
-  });
+  };
+  zoomApiLogs.unshift(webhookLog);
   if (zoomApiLogs.length > 30) zoomApiLogs.pop();
+  persistZoomLog(webhookLog);
 
   res.status(200).json({ success: true });
 });
@@ -2298,6 +2370,8 @@ app.post('/api/reminders/trigger', async (req, res) => {
 // VITE / STATIC SERVING
 // ----------------------------------------------------
 async function startServer() {
+  await initPersistence();
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },

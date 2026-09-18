@@ -78,6 +78,38 @@ Supabase is configured (`SUPABASE_URL` + `SUPABASE_ANON_KEY` in `.env`):
 The frontend always sends both headers (see `src/utils/auth.ts`); which one the server actually
 honors depends entirely on its own Supabase configuration, not anything the client requests.
 
+## Data Persistence
+
+Booking data, host accounts, meeting types, Zoom API logs, and failed-login logs used to live
+**only** in plain in-memory arrays in `server.ts` — a server restart or redeploy wiped every
+booking, account, and audit log. This is now backed by Supabase Postgres when it's configured
+(same `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` used for auth):
+
+1. Run `supabase/migrations/0001_app_data_tables.sql` once against your Supabase project (SQL
+   Editor → paste → Run) to create the `host_accounts`, `meeting_types`, `bookings`,
+   `zoom_api_logs`, and `failed_login_logs` tables.
+2. Make sure `SUPABASE_SERVICE_ROLE_KEY` is set in `.env` — the server writes through this
+   service-role key (bypassing RLS), since these tables aren't meant to be queried directly by
+   end users, only through the API.
+3. Restart the server. On boot it logs either:
+   - `[persistence] Supabase not configured - running in-memory only (data resets on restart).`
+     — same behavior as before, useful for quick local demos, or
+   - `[persistence] Loaded from Supabase: N host accounts, N meeting types, ...` — everything is
+     now durable across restarts.
+
+Each table stores one row per record as an `{ id, data: jsonb }` pair rather than a fully
+normalized schema — a pragmatic match for the app's existing loosely-typed shapes (nested
+`zoomDetails`/`zoomConfig`/`customQuestions` objects) without a separate normalization effort.
+`host_accounts` and `meeting_types` are seeded once from the app's built-in defaults the first
+time the tables are empty (so there's something to edit from); `bookings` and the log tables
+start empty on a fresh project — no fake demo data is seeded into a real deployment.
+
+The in-memory arrays are still the source of truth for the running process (routes read/write
+them exactly as before); Supabase is a write-through durability layer underneath, kept in sync
+on every create/update. `rateLimitStore` (login rate limiting) and the mock Microsoft 365 sync
+state remain in-memory-only by design — they're either meant to reset on restart or are simulated
+data with no real backing integration.
+
 ### Demo accounts (signing in without a real password)
 
 Logging in normally requires a real Supabase Auth password (`auth.signInWithPassword`). For
