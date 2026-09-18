@@ -127,12 +127,6 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
   const [enableAdditionalDataCenters, setEnableAdditionalDataCenters] = useState<boolean>(
     initialConfig?.enableAdditionalDataCenters ?? false
   );
-  const [approveOrBlockRegions, setApproveOrBlockRegions] = useState<boolean>(
-    initialConfig?.approveOrBlockRegions ?? false
-  );
-  const [preventScreenCapture, setPreventScreenCapture] = useState<boolean>(
-    initialConfig?.preventScreenCapture ?? false
-  );
   const [alternativeHosts, setAlternativeHosts] = useState<string>(
     initialConfig?.alternativeHosts || ''
   );
@@ -174,8 +168,6 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
       setAutoRecord(cfg.autoRecord ?? false);
       setAutoAddCloudRecordingToChannel(cfg.autoAddCloudRecordingToChannel ?? false);
       setEnableAdditionalDataCenters(cfg.enableAdditionalDataCenters ?? false);
-      setApproveOrBlockRegions(cfg.approveOrBlockRegions ?? false);
-      setPreventScreenCapture(cfg.preventScreenCapture ?? false);
       setAlternativeHosts(cfg.alternativeHosts || '');
       setManageAssetsSummary(cfg.manageAssetsSummary ?? true);
       setManageAssetsRecording(cfg.manageAssetsRecording ?? true);
@@ -234,8 +226,6 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
       autoRecord,
       autoAddCloudRecordingToChannel,
       enableAdditionalDataCenters,
-      approveOrBlockRegions,
-      preventScreenCapture,
       alternativeHosts,
       manageAssetsSummary,
       manageAssetsRecording,
@@ -844,37 +834,6 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 <span>Enable additional data center regions for this meeting</span>
               </label>
 
-              {/* Approve or block entry for users from specific countries/regions */}
-              <label className="flex items-center gap-2.5 cursor-pointer select-none text-gray-800">
-                <input
-                  type="checkbox"
-                  checked={approveOrBlockRegions}
-                  onChange={(e) => setApproveOrBlockRegions(e.target.checked)}
-                  disabled={readOnly}
-                  className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
-                />
-                <span>Approve or block entry for users from specific countries/regions</span>
-              </label>
-
-              {/* Prevent screen capture of meeting content */}
-              <div className="flex items-center gap-2.5">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none text-gray-800">
-                  <input
-                    type="checkbox"
-                    checked={preventScreenCapture}
-                    onChange={(e) => setPreventScreenCapture(e.target.checked)}
-                    disabled={readOnly}
-                    className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
-                  />
-                  <span>Prevent screen capture of meeting content</span>
-                </label>
-                <div className="group relative">
-                  <Info className="w-3.5 h-3.5 text-gray-400 cursor-pointer" />
-                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:block w-56 p-2 bg-gray-900 text-white text-[11px] rounded shadow-lg z-30">
-                    Blocks unauthorized screenshots or window captures during the Zoom call
-                  </div>
-                </div>
-              </div>
 
               {/* Alternative hosts (Image 4) */}
               <div className="pt-2 space-y-2">

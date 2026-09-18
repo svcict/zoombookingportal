@@ -34,8 +34,6 @@ type IntakeZoomConfig = Pick<
   | 'joinAnytime'
   | 'muteOnEntry'
   | 'autoRecord'
-  | 'approveOrBlockRegions'
-  | 'preventScreenCapture'
 >;
 
 function generateDefaultPasscode(): string {
@@ -105,8 +103,6 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   const [joinAnytime, setJoinAnytime] = useState(false);
   const [muteOnEntry, setMuteOnEntry] = useState(true);
   const [autoRecord, setAutoRecord] = useState(false);
-  const [approveOrBlockRegions, setApproveOrBlockRegions] = useState(false);
-  const [preventScreenCapture, setPreventScreenCapture] = useState(false);
 
   const handleAddGuest = () => {
     if (!guestEmailInput.trim() || !guestEmailInput.includes('@')) return;
@@ -171,8 +167,6 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
         joinAnytime,
         muteOnEntry,
         autoRecord,
-        approveOrBlockRegions,
-        preventScreenCapture,
       },
     });
   };
@@ -643,24 +637,6 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                 className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
               />
               <span>Automatically record meeting on the local computer</span>
-            </label>
-            <label className="flex items-center gap-2.5 cursor-pointer select-none text-sm text-gray-800">
-              <input
-                type="checkbox"
-                checked={approveOrBlockRegions}
-                onChange={(e) => setApproveOrBlockRegions(e.target.checked)}
-                className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
-              />
-              <span>Approve or block entry for users from specific countries/regions</span>
-            </label>
-            <label className="flex items-center gap-2.5 cursor-pointer select-none text-sm text-gray-800">
-              <input
-                type="checkbox"
-                checked={preventScreenCapture}
-                onChange={(e) => setPreventScreenCapture(e.target.checked)}
-                className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
-              />
-              <span>Prevent screen capture of meeting content</span>
             </label>
           </div>
         </div>

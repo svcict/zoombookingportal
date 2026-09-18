@@ -345,8 +345,6 @@ let bookings: any[] = [
       autoRecord: false,
       autoAddCloudRecordingToChannel: false,
       enableAdditionalDataCenters: false,
-      approveOrBlockRegions: false,
-      preventScreenCapture: false,
       alternativeHosts: 'alex.rivera@zoompartner.com',
       manageAssetsSummary: true,
       manageAssetsRecording: true
@@ -1962,8 +1960,6 @@ app.post('/api/bookings', async (req, res) => {
         autoRecord: zoomConfig?.autoRecord ?? false,
         autoAddCloudRecordingToChannel: false,
         enableAdditionalDataCenters: false,
-        approveOrBlockRegions: zoomConfig?.approveOrBlockRegions ?? false,
-        preventScreenCapture: zoomConfig?.preventScreenCapture ?? false,
         alternativeHosts: '',
         manageAssetsSummary: true,
         manageAssetsRecording: true,

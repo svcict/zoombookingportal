@@ -124,8 +124,6 @@ export interface ZoomMeetingConfig {
   autoRecord: boolean;
   autoAddCloudRecordingToChannel: boolean;
   enableAdditionalDataCenters: boolean;
-  approveOrBlockRegions: boolean;
-  preventScreenCapture: boolean;
   alternativeHosts: string;
   manageAssetsSummary: boolean;
   manageAssetsRecording: boolean;
