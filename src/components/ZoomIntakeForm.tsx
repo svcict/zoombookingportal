@@ -76,9 +76,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   isSubmitting = false,
 }) => {
   const [topic, setTopic] = useState(meetingTopic || meetingType.title || 'Zoom Video Meeting');
-  const initialNames = authUser?.name ? authUser.name.split(' ') : ['', ''];
-  const [firstName, setFirstName] = useState(initialNames[0] || '');
-  const [lastName, setLastName] = useState(initialNames.slice(1).join(' ') || (initialNames[0] ? 'User' : ''));
+  const [fullName, setFullName] = useState(authUser?.name || '');
   const [email, setEmail] = useState(authUser?.email || '');
   const [guestEmailInput, setGuestEmailInput] = useState('');
   const [guestEmails, setGuestEmails] = useState<string[]>([]);
@@ -126,8 +124,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
-    if (!firstName.trim()) newErrors.firstName = 'First name is required';
-    if (!lastName.trim()) newErrors.lastName = 'Last name is required';
+    if (!fullName.trim()) newErrors.fullName = 'Full name is required';
     if (!email.trim() || !email.includes('@')) newErrors.email = 'Valid work email is required';
 
     // Validate required custom questions
@@ -146,7 +143,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
     if (!validate()) return;
 
     await onSubmit({
-      participantName: `${firstName.trim()} ${lastName.trim()}`,
+      participantName: fullName.trim(),
       participantEmail: email.trim(),
       guestEmails,
       answers,
@@ -257,38 +254,21 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* First Name */}
+            {/* Full Name */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">
-                First Name <span className="text-red-500">*</span>
+                Full Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="e.g. Alex"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="e.g. Alex Morgan"
                 className={`w-full px-4 py-3 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] transition-all ${
-                  errors.firstName ? 'ring-2 ring-red-400 bg-red-50/50' : ''
+                  errors.fullName ? 'ring-2 ring-red-400 bg-red-50/50' : ''
                 }`}
               />
-              {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>}
-            </div>
-
-            {/* Last Name */}
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">
-                Last Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="e.g. Morgan"
-                className={`w-full px-4 py-3 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] transition-all ${
-                  errors.lastName ? 'ring-2 ring-red-400 bg-red-50/50' : ''
-                }`}
-              />
-              {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>}
+              {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>}
             </div>
 
             {/* Email */}
