@@ -36,6 +36,7 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated }) =
 
   const [m365Configured, setM365Configured] = useState(false);
   const [showM365ConfigModal, setShowM365ConfigModal] = useState(false);
+  const [supabaseConfigured, setSupabaseConfigured] = useState(false);
 
   // Fetch initial rate limit status and M365 config
   const fetchRateLimitStatus = async () => {
@@ -70,6 +71,13 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated }) =
       .then((r) => r.json())
       .then((data) => {
         setM365Configured(Boolean(data.configured));
+      })
+      .catch(() => {});
+
+    fetch('/api/auth/supabase/status')
+      .then((r) => r.json())
+      .then((data) => {
+        setSupabaseConfigured(Boolean(data.configured));
       })
       .catch(() => {});
   }, []);
@@ -445,10 +453,16 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated }) =
 
         </div>
 
-        {/* Security & Authentication Footnote */}
+        {/* Security & Authentication Footnote - reflects what's actually
+            configured, rather than always claiming Supabase regardless of
+            whether it's set up or the user is signing in via M365 SSO. */}
         <div className="flex items-center justify-center gap-1.5 text-xs text-gray-600 text-center">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-          <span>Brute-force Protected • Supabase Database Authentication</span>
+          <span>
+            Brute-force Protected
+            {supabaseConfigured && ' • Supabase Database Authentication'}
+            {m365Configured && ' • Microsoft Entra ID SSO'}
+          </span>
         </div>
 
       </div>
