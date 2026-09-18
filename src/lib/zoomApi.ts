@@ -144,40 +144,6 @@ async function zoomRequest<T = any>(
   return { data, statusCode: res.status, responseTimeMs, endpoint, method };
 }
 
-export interface CreateMeetingInput {
-  topic: string;
-  startTimeIso: string;
-  durationMinutes: number;
-  timezone: string;
-  agenda?: string;
-  waitingRoom?: boolean;
-  autoRecording?: boolean;
-  alternativeHosts?: string;
-}
-
-export async function createZoomMeeting(key: ZoomAccountKey, input: CreateMeetingInput) {
-  const creds = readCredentials(key);
-  if (!creds) throw new Error(`Zoom account ${key} is not configured`);
-
-  return zoomRequest(key, 'POST', `/users/${encodeURIComponent(creds.userId)}/meetings`, {
-    topic: input.topic,
-    type: 2, // scheduled meeting
-    start_time: input.startTimeIso,
-    duration: input.durationMinutes,
-    timezone: input.timezone,
-    agenda: input.agenda,
-    settings: {
-      host_video: true,
-      participant_video: true,
-      join_before_host: false,
-      waiting_room: input.waitingRoom ?? true,
-      auto_recording: input.autoRecording ? 'cloud' : 'none',
-      alternative_hosts: input.alternativeHosts || '',
-      encryption_type: 'enhanced_encryption'
-    }
-  });
-}
-
 // Zoom's `audio` meeting setting values, mapped from the portal's own
 // ZoomMeetingConfig.audioOption vocabulary.
 const AUDIO_OPTION_MAP: Record<string, string> = {
@@ -187,8 +153,17 @@ const AUDIO_OPTION_MAP: Record<string, string> = {
   third_party: 'thirdParty'
 };
 
-export interface UpdateMeetingInput extends Partial<CreateMeetingInput> {
+export interface CreateMeetingInput {
+  topic: string;
+  startTimeIso: string;
+  durationMinutes: number;
+  timezone: string;
+  agenda?: string;
   passcode?: string;
+  waitingRoom?: boolean;
+  autoRecording?: boolean;
+  autoRecordTo?: 'local' | 'cloud';
+  alternativeHosts?: string;
   hostVideo?: boolean;
   participantVideo?: boolean;
   audioOption?: 'telephone' | 'computer' | 'both' | 'third_party';
@@ -198,10 +173,40 @@ export interface UpdateMeetingInput extends Partial<CreateMeetingInput> {
   usePmi?: boolean;
 }
 
+export async function createZoomMeeting(key: ZoomAccountKey, input: CreateMeetingInput) {
+  const creds = readCredentials(key);
+  if (!creds) throw new Error(`Zoom account ${key} is not configured`);
+
+  return zoomRequest(key, 'POST', `/users/${encodeURIComponent(creds.userId)}/meetings`, {
+    topic: input.topic,
+    type: input.usePmi ? 1 : 2, // 1 = instant meeting using PMI, 2 = scheduled with a generated ID
+    start_time: input.startTimeIso,
+    duration: input.durationMinutes,
+    timezone: input.timezone,
+    agenda: input.agenda,
+    ...(input.passcode ? { password: input.passcode } : {}),
+    settings: {
+      host_video: input.hostVideo ?? true,
+      participant_video: input.participantVideo ?? true,
+      join_before_host: input.joinBeforeHost ?? false,
+      waiting_room: input.waitingRoom ?? true,
+      mute_upon_entry: input.muteOnEntry ?? true,
+      audio: AUDIO_OPTION_MAP[input.audioOption || 'both'] || 'both',
+      auto_recording: input.autoRecording ? (input.autoRecordTo || 'cloud') : 'none',
+      alternative_hosts: input.alternativeHosts || '',
+      meeting_authentication: input.meetingAuthentication ?? false,
+      use_pmi: input.usePmi ?? false,
+      encryption_type: 'enhanced_encryption'
+    }
+  });
+}
+
+export interface UpdateMeetingInput extends Partial<CreateMeetingInput> {}
+
 export async function updateZoomMeeting(key: ZoomAccountKey, meetingId: string, input: UpdateMeetingInput) {
   const settings: Record<string, unknown> = {};
   if (input.waitingRoom !== undefined) settings.waiting_room = input.waitingRoom;
-  if (input.autoRecording !== undefined) settings.auto_recording = input.autoRecording ? 'cloud' : 'none';
+  if (input.autoRecording !== undefined) settings.auto_recording = input.autoRecording ? (input.autoRecordTo || 'cloud') : 'none';
   if (input.alternativeHosts !== undefined) settings.alternative_hosts = input.alternativeHosts;
   if (input.hostVideo !== undefined) settings.host_video = input.hostVideo;
   if (input.participantVideo !== undefined) settings.participant_video = input.participantVideo;

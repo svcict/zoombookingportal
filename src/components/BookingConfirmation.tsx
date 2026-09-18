@@ -1,31 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
-import { 
-  CheckCircle2, 
-  Video, 
-  Calendar, 
-  Clock, 
-  Globe, 
-  Copy, 
-  Check, 
-  ExternalLink, 
-  Mail, 
-  Bell, 
-  BellRing, 
-  Download, 
-  Phone, 
-  ShieldCheck, 
-  Share2, 
+import {
+  CheckCircle2,
+  Video,
+  Clock,
+  Copy,
+  Check,
+  ExternalLink,
+  Download,
+  Phone,
+  ShieldCheck,
   RotateCcw,
   Sparkles,
   Layers,
   ChevronDown,
   ChevronUp,
-  SlidersHorizontal
+  Eye,
+  EyeOff,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import { Booking, ZoomMeetingConfig } from '../types';
 import { downloadIcsFile, getOutlookWebCalendarUrl, getM365EnterpriseCalendarUrl, getGoogleCalendarUrl } from '../utils/calendar';
-import { sendBrowserPushNotification, playZoomNotificationSound, requestPushPermission } from '../utils/notifications';
 import { ZoomMeetingDetailsModal } from './ZoomMeetingDetailsModal';
 
 interface BookingConfirmationProps {
@@ -45,12 +41,11 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
   onUpdateBookingConfig,
   authHeaders = {},
 }) => {
-  const [activeTab, setActiveTab] = useState<'details' | 'credentials'>('details');
   const [currentBooking, setCurrentBooking] = useState<Booking>(booking);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [showEmailPreview, setShowEmailPreview] = useState(false);
   const [showDialIn, setShowDialIn] = useState(false);
-  const [reminderFired, setReminderFired] = useState(false);
+  const [showPasscode, setShowPasscode] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [countdown, setCountdown] = useState<string>('');
 
   useEffect(() => {
@@ -96,20 +91,56 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  const handleTestPushReminder = async () => {
-    const permission = await requestPushPermission();
-    if (permission === 'granted') {
-      sendBrowserPushNotification(`Zoom Meeting in 15 Minutes: ${booking.meetingTitle}`, {
-        body: `Host: ${booking.hostName} • ID: ${booking.zoomDetails.meetingId}\nClick to join directly.`,
+  const handleSaveConfig = async (updatedConfig: ZoomMeetingConfig) => {
+    try {
+      const res = await fetch(`/api/bookings/${currentBooking.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+        body: JSON.stringify({ zoomConfig: updatedConfig, guestEmails: updatedConfig.invitees }),
       });
-      setReminderFired(true);
-      setTimeout(() => setReminderFired(false), 5000);
-    } else {
-      // In-app alert fallback
-      playZoomNotificationSound('chime');
-      setReminderFired(true);
-      setTimeout(() => setReminderFired(false), 5000);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.data) {
+          setCurrentBooking(data.data);
+        }
+      }
+      if (onUpdateBookingConfig) {
+        await onUpdateBookingConfig(updatedConfig);
+      }
+      setIsEditModalOpen(false);
+    } catch (e) {
+      console.error('Failed to update booking config:', e);
     }
+  };
+
+  // Org members (same email domain as the host) get a direct deep link into
+  // the organization's own Outlook/Exchange calendar (outlook.office.com);
+  // everyone else gets the generic public Outlook Web compose link instead.
+  const participantDomain = currentBooking.participantEmail.split('@')[1]?.toLowerCase();
+  const hostDomain = currentBooking.hostEmail.split('@')[1]?.toLowerCase();
+  const isOrgMember = Boolean(participantDomain && hostDomain && participantDomain === hostDomain);
+  const outlookCalendarUrl = isOrgMember
+    ? getM365EnterpriseCalendarUrl(currentBooking)
+    : getOutlookWebCalendarUrl(currentBooking);
+
+  const copyInvitation = () => {
+    const cfg = currentBooking.zoomConfig;
+    const lines = [
+      `${currentBooking.hostName} is inviting you to a scheduled Zoom meeting.`,
+      '',
+      `Topic: ${currentBooking.meetingTitle}`,
+      `Time: ${currentBooking.date} ${currentBooking.timeSlot} (${currentBooking.timezone})`,
+      '',
+      `Join Zoom Meeting`,
+      currentBooking.zoomDetails.joinUrl,
+      '',
+      `Meeting ID: ${currentBooking.zoomDetails.formattedMeetingId}`,
+      cfg?.passcodeEnabled !== false ? `Passcode: ${currentBooking.zoomDetails.passcode}` : undefined,
+    ].filter(Boolean);
+    copyToClipboard(lines.join('\n'), 'invitation');
   };
 
   return (
@@ -174,296 +205,261 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           </div>
         </div>
 
-        {/* View Tabs: Zoom Meeting Details (Replicating User Images) vs Quick Access */}
-        <div className="flex border-b border-gray-200 bg-[#f8fafc] px-6 sm:px-8 pt-3 gap-3">
-          <button
-            type="button"
-            onClick={() => setActiveTab('details')}
-            className={`pb-3 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
-              activeTab === 'details'
-                ? 'border-[#0b5cff] text-[#0b5cff]'
-                : 'border-transparent text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span>Meeting Details (Zoom Web UI)</span>
-            <span className="px-1.5 py-0.2 rounded bg-blue-100 text-[#0b5cff] text-[10px] font-bold">
-              Configured
-            </span>
-          </button>
+        {/* Read-only Manage Meeting summary - matches Zoom's own post-schedule view */}
+        <div className="divide-y divide-gray-100">
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('credentials')}
-            className={`pb-3 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
-              activeTab === 'credentials'
-                ? 'border-[#0b5cff] text-[#0b5cff]'
-                : 'border-transparent text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            <Video className="w-3.5 h-3.5" />
-            <span>Join Credentials &amp; Calendars</span>
-          </button>
-        </div>
-
-        {/* TAB 1: Zoom Meeting Details (Replicated Exactly from Images 1-4) */}
-        {activeTab === 'details' ? (
-          <div className="p-4 sm:p-6 bg-white">
-            <ZoomMeetingDetailsModal
-              isInlineCard={true}
-              booking={currentBooking}
-              initialConfig={currentBooking.zoomConfig}
-              onSave={async (updatedConfig) => {
-                try {
-                  const res = await fetch(`/api/bookings/${currentBooking.id}`, {
-                    method: 'PATCH',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      ...authHeaders,
-                    },
-                    body: JSON.stringify({ zoomConfig: updatedConfig, guestEmails: updatedConfig.invitees }),
-                  });
-                  if (res.ok) {
-                    const data = await res.json();
-                    if (data.data) {
-                      setCurrentBooking(data.data);
-                    }
-                  }
-                  if (onUpdateBookingConfig) {
-                    await onUpdateBookingConfig(updatedConfig);
-                  }
-                } catch (e) {
-                  console.error('Failed to update booking config:', e);
-                }
-              }}
-            />
+          <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
+            <span className="text-gray-500 font-medium">Topic</span>
+            <span className="text-gray-900 font-semibold">{currentBooking.meetingTitle}</span>
           </div>
-        ) : (
-          /* TAB 2: Quick Credentials & Calendar Links */
-          <div className="p-6 sm:p-8 space-y-6">
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-6 border-b border-gray-100 text-sm">
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gray-100 text-gray-700 flex items-center justify-center shrink-0">
-                  <Calendar className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500 font-bold uppercase tracking-wider">Date &amp; Time</div>
-                  <div className="font-bold text-gray-900">{currentBooking.date}</div>
-                  <div className="text-xs text-[#0b5cff] font-bold">{currentBooking.timeSlot}</div>
-                </div>
-              </div>
 
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gray-100 text-gray-700 flex items-center justify-center shrink-0">
-                  <Globe className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500 font-bold uppercase tracking-wider">Time Zone</div>
-                  <div className="font-bold text-gray-900 truncate max-w-[170px]">
-                    {currentBooking.timezone}
-                  </div>
-                  <div className="text-xs text-gray-500">Auto-converted seamlessly</div>
-                </div>
-              </div>
+          <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
+            <span className="text-gray-500 font-medium">Time</span>
+            <span className="text-gray-900">
+              {currentBooking.date} {currentBooking.timeSlot} <span className="text-gray-500">({currentBooking.timezone})</span>
+            </span>
+          </div>
 
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-green-50 text-green-700 flex items-center justify-center shrink-0">
-                  <ShieldCheck className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500 font-bold uppercase tracking-wider">Microsoft 365 Sync</div>
-                  <div className="font-bold text-green-700 flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-green-500" />
-                    Synced with Exchange
-                  </div>
-                  <div className="text-xs text-gray-500">Conflicts actively blocked</div>
-                </div>
-              </div>
-            </div>
+          <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
+            <span className="text-gray-500 font-medium">Meeting ID</span>
+            <span className="text-gray-900 font-mono">{currentBooking.zoomDetails.formattedMeetingId}</span>
+          </div>
 
-            {/* Zoom Meeting Credentials Box */}
-            <div className="bg-[#F7F9FA] rounded-2xl p-5 border border-gray-200 space-y-4">
-              
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                  Zoom Video Access Credentials
-                </span>
-                <span className="text-xs text-green-700 bg-green-100/80 px-2.5 py-0.5 rounded-full font-semibold">
-                  {currentBooking.zoomDetails.encryption}
-                </span>
-              </div>
-
-              {/* Direct 1-Click Join URL */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">
-                  One-Click Direct Join URL
-                </label>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs font-mono text-gray-800 truncate select-all">
-                    {currentBooking.zoomDetails.joinUrl}
-                  </div>
+          <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
+            <span className="text-gray-500 font-medium">Security</span>
+            <div className="space-y-1.5">
+              {currentBooking.zoomConfig?.passcodeEnabled !== false && (
+                <div className="flex items-center gap-2 text-gray-900">
+                  <Check className="w-3.5 h-3.5 text-green-600 shrink-0" />
+                  <span>Passcode</span>
+                  <span className="font-mono">{showPasscode ? currentBooking.zoomDetails.passcode : '•'.repeat(currentBooking.zoomDetails.passcode.length)}</span>
                   <button
-                    onClick={() => copyToClipboard(currentBooking.zoomDetails.joinUrl, 'joinUrl')}
-                    className="px-3.5 py-2.5 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-xs font-semibold text-gray-700 flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer"
+                    type="button"
+                    onClick={() => setShowPasscode(!showPasscode)}
+                    className="text-[#0b5cff] hover:underline text-xs font-semibold flex items-center gap-1 cursor-pointer"
                   >
-                    {copiedField === 'joinUrl' ? (
-                      <>
-                        <Check className="w-4 h-4 text-green-600" />
-                        <span className="text-green-600">Copied</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-4 h-4" />
-                        <span>Copy Link</span>
-                      </>
-                    )}
-                  </button>
-
-                  <a
-                    href={currentBooking.zoomDetails.joinUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-4 py-2.5 rounded-xl bg-[#0b5cff] hover:bg-[#0049d1] text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer"
-                  >
-                    <span>Launch Zoom</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                </div>
-              </div>
-
-              {/* Meeting ID & Passcode Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="bg-white p-3 rounded-xl border border-gray-200 flex items-center justify-between">
-                  <div>
-                    <div className="text-[11px] text-gray-500 font-medium">Meeting ID</div>
-                    <div className="font-mono font-bold text-base text-gray-900 tracking-wider">
-                      {currentBooking.zoomDetails.formattedMeetingId}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => copyToClipboard(currentBooking.zoomDetails.meetingId, 'meetingId')}
-                    className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                  >
-                    {copiedField === 'meetingId' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                    {showPasscode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    {showPasscode ? 'Hide' : 'Show'}
                   </button>
                 </div>
-
-                <div className="bg-white p-3 rounded-xl border border-gray-200 flex items-center justify-between">
-                  <div>
-                    <div className="text-[11px] text-gray-500 font-medium">Passcode (Encrypted)</div>
-                    <div className="font-mono font-bold text-base text-gray-900 tracking-wider">
-                      {currentBooking.zoomDetails.passcode}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => copyToClipboard(currentBooking.zoomDetails.passcode, 'passcode')}
-                    className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                  >
-                    {copiedField === 'passcode' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-                  </button>
+              )}
+              {currentBooking.zoomConfig?.waitingRoom !== false && (
+                <div className="flex items-center gap-2 text-gray-900">
+                  <Check className="w-3.5 h-3.5 text-green-600 shrink-0" />
+                  <span>Everyone goes into the waiting room</span>
                 </div>
-              </div>
-
-            </div>
-
-            {/* Add to Calendar Actions */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                Add to your Calendar
-              </h3>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <a
-                  href={getOutlookWebCalendarUrl(currentBooking)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="p-3 bg-white border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 rounded-xl flex items-center gap-2.5 transition-all text-xs font-semibold text-gray-800 cursor-pointer"
-                >
-                  <div className="w-6 h-6 rounded-lg bg-[#0078D4] text-white flex items-center justify-center text-[10px] font-bold">
-                    O
-                  </div>
-                  <span>Outlook 365 Web</span>
-                </a>
-
-                <a
-                  href={getGoogleCalendarUrl(currentBooking)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="p-3 bg-white border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 rounded-xl flex items-center gap-2.5 transition-all text-xs font-semibold text-gray-800 cursor-pointer"
-                >
-                  <div className="w-6 h-6 rounded-lg bg-red-500 text-white flex items-center justify-center text-[10px] font-bold">
-                    G
-                  </div>
-                  <span>Google Calendar</span>
-                </a>
-
-                <button
-                  onClick={() => downloadIcsFile(currentBooking)}
-                  className="p-3 bg-white border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 rounded-xl flex items-center gap-2.5 transition-all text-xs font-semibold text-gray-800 cursor-pointer"
-                >
-                  <Download className="w-4 h-4 text-gray-600" />
-                  <span>Download .ICS File</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Dial-in numbers collapsible */}
-            <div className="border border-gray-200 rounded-xl overflow-hidden">
-              <button
-                onClick={() => setShowDialIn(!showDialIn)}
-                className="w-full p-3.5 bg-gray-50 hover:bg-gray-100 flex items-center justify-between text-xs font-bold text-gray-700 transition-colors cursor-pointer"
-              >
-                <span className="flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-[#0b5cff]" />
-                  International Phone Dial-in &amp; SIP/H.323 System Addresses
-                </span>
-                {showDialIn ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-
-              {showDialIn && (
-                <div className="p-4 bg-white border-t border-gray-200 text-xs space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {currentBooking.zoomDetails.dialInNumbers.map((d, i) => (
-                      <div key={i} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                        <span className="font-semibold text-gray-700">{d.city} ({d.country})</span>
-                        <span className="font-mono text-gray-900">{d.number}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="p-2.5 bg-blue-50 rounded-lg text-gray-700 font-mono text-[11px] space-y-1">
-                    <div><strong>SIP:</strong> {currentBooking.zoomDetails.sipAddress}</div>
-                    <div><strong>H.323:</strong> {currentBooking.zoomDetails.h323Address}</div>
-                  </div>
+              )}
+              {currentBooking.zoomConfig?.requireAuth && (
+                <div className="flex items-center gap-2 text-gray-900">
+                  <Check className="w-3.5 h-3.5 text-green-600 shrink-0" />
+                  <span>Only authenticated users can join: Sign in to Zoom</span>
                 </div>
               )}
             </div>
-
           </div>
-        )}
 
-        {/* Bottom Actions Bar */}
-        <div className="p-6 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <button
-            onClick={onBookAnother}
-            className="w-full sm:w-auto px-5 py-2.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-gray-600" />
-            <span>Schedule Another Meeting</span>
-          </button>
+          <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
+            <span className="text-gray-500 font-medium">Invitees</span>
+            <span className="text-gray-900">
+              {currentBooking.guestEmails.length > 0 ? currentBooking.guestEmails.join(', ') : <span className="text-gray-400">None</span>}
+            </span>
+          </div>
 
-          {onViewMeetings && (
-            <button
-              onClick={onViewMeetings}
-              className="w-full sm:w-auto px-5 py-2.5 bg-[#0b5cff] hover:bg-[#0049d1] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer"
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>View My Scheduled Meetings</span>
-            </button>
+          <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
+            <span className="text-gray-500 font-medium">Invite Link</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <a
+                href={currentBooking.zoomDetails.joinUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[#0b5cff] hover:underline font-mono text-xs truncate"
+              >
+                {currentBooking.zoomDetails.joinUrl}
+              </a>
+              <button
+                onClick={() => copyToClipboard(currentBooking.zoomDetails.joinUrl, 'joinUrl')}
+                className="text-gray-400 hover:text-gray-700 shrink-0 cursor-pointer"
+                title="Copy invite link"
+              >
+                {copiedField === 'joinUrl' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
+            <span className="text-gray-500 font-medium">Add to</span>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <a
+                href={outlookCalendarUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 rounded-lg text-xs font-semibold text-gray-800 cursor-pointer"
+              >
+                <div className="w-4 h-4 rounded bg-[#0078D4] text-white flex items-center justify-center text-[9px] font-bold">O</div>
+                <span>Outlook Calendar {isOrgMember && <span className="text-[#0b5cff]">(Organization)</span>}</span>
+              </a>
+              <a
+                href={getGoogleCalendarUrl(currentBooking)}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 rounded-lg text-xs font-semibold text-gray-800 cursor-pointer"
+              >
+                <div className="w-4 h-4 rounded bg-red-500 text-white flex items-center justify-center text-[9px] font-bold">G</div>
+                <span>Google Calendar</span>
+              </a>
+              <button
+                onClick={() => downloadIcsFile(currentBooking)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 rounded-lg text-xs font-semibold text-gray-800 cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5 text-gray-600" />
+                <span>Other (.ics)</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
+            <span className="text-gray-500 font-medium">Encryption</span>
+            <span className="text-green-700 font-medium flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              {currentBooking.zoomDetails.encryption}
+            </span>
+          </div>
+
+          <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
+            <span className="text-gray-500 font-medium">Video</span>
+            <span className="text-gray-900">
+              Host <span className="font-semibold">{currentBooking.zoomConfig?.hostVideo === false ? 'off' : 'on'}</span>
+              {', '}Participant <span className="font-semibold">{currentBooking.zoomConfig?.participantVideo === false ? 'off' : 'on'}</span>
+            </span>
+          </div>
+
+          <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
+            <span className="text-gray-500 font-medium">Audio</span>
+            <span className="text-gray-900">
+              {{
+                telephone: 'Telephone',
+                computer: 'Computer Audio',
+                both: 'Telephone and Computer Audio',
+                third_party: '3rd Party Audio',
+              }[currentBooking.zoomConfig?.audioOption || 'both']}
+            </span>
+          </div>
+
+          {(currentBooking.zoomConfig?.joinAnytime ||
+            currentBooking.zoomConfig?.muteOnEntry ||
+            currentBooking.zoomConfig?.autoRecord) && (
+            <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
+              <span className="text-gray-500 font-medium">Options</span>
+              <div className="space-y-1 text-gray-900">
+                {currentBooking.zoomConfig?.joinAnytime && <div>Allow participants to join anytime</div>}
+                {currentBooking.zoomConfig?.muteOnEntry && <div>Mute participants upon entry</div>}
+                {currentBooking.zoomConfig?.autoRecord && <div>Automatically record meeting on the local computer</div>}
+              </div>
+            </div>
           )}
+
+          {/* Dial-in numbers collapsible */}
+          <div>
+            <button
+              onClick={() => setShowDialIn(!showDialIn)}
+              className="w-full px-6 sm:px-8 py-3.5 bg-gray-50 hover:bg-gray-100 flex items-center justify-between text-xs font-bold text-gray-700 transition-colors cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <Phone className="w-4 h-4 text-[#0b5cff]" />
+                International Phone Dial-in &amp; SIP/H.323 System Addresses
+              </span>
+              {showDialIn ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+
+            {showDialIn && (
+              <div className="p-4 sm:px-8 bg-white text-xs space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {currentBooking.zoomDetails.dialInNumbers.map((d, i) => (
+                    <div key={i} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                      <span className="font-semibold text-gray-700">{d.city} ({d.country})</span>
+                      <span className="font-mono text-gray-900">{d.number}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="p-2.5 bg-blue-50 rounded-lg text-gray-700 font-mono text-[11px] space-y-1">
+                  <div><strong>SIP:</strong> {currentBooking.zoomDetails.sipAddress}</div>
+                  <div><strong>H.323:</strong> {currentBooking.zoomDetails.h323Address}</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom Actions Bar - matches Zoom's Start / Copy Invitation / Edit / Delete */}
+        <div className="p-6 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-2.5">
+            <a
+              href={currentBooking.zoomDetails.joinUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="px-5 py-2.5 bg-[#0b5cff] hover:bg-[#0049d1] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+            >
+              <Video className="w-3.5 h-3.5" />
+              <span>Start</span>
+            </a>
+            <button
+              onClick={copyInvitation}
+              className="px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              {copiedField === 'invitation' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedField === 'invitation' ? 'Copied' : 'Copy Invitation'}</span>
+            </button>
+            {currentBooking.status !== 'cancelled' && (
+              <button
+                onClick={() => setIsEditModalOpen(true)}
+                className="px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                <span>Edit</span>
+              </button>
+            )}
+            {onCancelMeeting && currentBooking.status !== 'cancelled' && (
+              <button
+                onClick={() => onCancelMeeting(currentBooking.id)}
+                className="px-4 py-2.5 bg-white border border-gray-300 hover:bg-red-50 hover:border-red-300 text-red-600 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete</span>
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-2.5">
+            <button
+              onClick={onBookAnother}
+              className="px-5 py-2.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-gray-600" />
+              <span>Schedule Another Meeting</span>
+            </button>
+
+            {onViewMeetings && (
+              <button
+                onClick={onViewMeetings}
+                className="px-5 py-2.5 bg-[#0b5cff] hover:bg-[#0049d1] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>View My Scheduled Meetings</span>
+              </button>
+            )}
+          </div>
         </div>
 
       </div>
+
+      {isEditModalOpen && (
+        <ZoomMeetingDetailsModal
+          booking={currentBooking}
+          initialConfig={currentBooking.zoomConfig}
+          onClose={() => setIsEditModalOpen(false)}
+          onSave={handleSaveConfig}
+        />
+      )}
 
     </div>
   );

@@ -27,6 +27,7 @@ import {
   mapZoomMeetingResponse
 } from './src/lib/zoomApi';
 import { persistenceEnabled, loadTable, upsertRow, seedTableIfEmpty, clearTable } from './src/lib/db';
+import type { ZoomMeetingConfig } from './src/types';
 
 const app = express();
 const PORT = 3000;
@@ -523,17 +524,19 @@ let zoomApiConfig = {
 };
 
 // Helper: Generate Compliant Zoom Details via REST API format
-function generateZoomDetails(meetingTitle: string, hostName: string = 'Sarah Jenkins') {
+function generateZoomDetails(meetingTitle: string, hostName: string = 'Sarah Jenkins', preferredPasscode?: string) {
   const p1 = Math.floor(100 + Math.random() * 900);
   const p2 = Math.floor(1000 + Math.random() * 9000);
   const p3 = Math.floor(1000 + Math.random() * 9000);
   const meetingId = `${p1} ${p2} ${p3}`;
   const rawId = `${p1}${p2}${p3}`;
-  
+
   const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz';
-  let passcode = '';
-  for (let i = 0; i < 6; i++) {
-    passcode += chars.charAt(Math.floor(Math.random() * chars.length));
+  let passcode = preferredPasscode || '';
+  if (!passcode) {
+    for (let i = 0; i < 6; i++) {
+      passcode += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
   }
 
   const token = Buffer.from(`${passcode}_zoom_auth_${Date.now()}`).toString('base64').substring(0, 16);
@@ -612,10 +615,12 @@ async function provisionZoomMeeting(
   startIso: string,
   durationMinutes: number,
   timezone: string,
-  agenda?: string
+  agenda?: string,
+  zoomConfig?: Partial<ZoomMeetingConfig>
 ) {
   if (!accountKey || !isAccountConfigured(accountKey)) {
-    return { zoomDetails: generateZoomDetails(meetingTitle, hostName), accountKey };
+    const preferredPasscode = zoomConfig?.passcodeEnabled !== false ? zoomConfig?.passcode : undefined;
+    return { zoomDetails: generateZoomDetails(meetingTitle, hostName, preferredPasscode), accountKey };
   }
 
   const result = await createZoomMeeting(accountKey, {
@@ -623,7 +628,18 @@ async function provisionZoomMeeting(
     startTimeIso: startIso,
     durationMinutes,
     timezone,
-    agenda
+    agenda,
+    passcode: zoomConfig?.passcodeEnabled !== false ? zoomConfig?.passcode : undefined,
+    waitingRoom: zoomConfig?.waitingRoom,
+    hostVideo: zoomConfig?.hostVideo,
+    participantVideo: zoomConfig?.participantVideo,
+    audioOption: zoomConfig?.audioOption,
+    muteOnEntry: zoomConfig?.muteOnEntry,
+    joinBeforeHost: zoomConfig?.joinAnytime,
+    meetingAuthentication: zoomConfig?.requireAuth,
+    usePmi: zoomConfig?.meetingIdType === 'pmi',
+    autoRecording: zoomConfig?.autoRecord,
+    autoRecordTo: 'local'
   });
 
   const provisionLog: ZoomApiLog = {
@@ -1836,6 +1852,7 @@ app.post('/api/bookings', async (req, res) => {
       notes,
       meetingTopic,
       topic,
+      zoomConfig,
     } = req.body;
 
     if (!participantName || !participantEmail || !date || !timeSlot) {
@@ -1890,7 +1907,8 @@ app.post('/api/bookings', async (req, res) => {
         startIso,
         meetingType.duration || 30,
         timezone,
-        notes
+        notes,
+        zoomConfig
       ));
     } catch (zoomErr: any) {
       console.error('Zoom API error while creating meeting:', zoomErr);
@@ -1921,6 +1939,35 @@ app.post('/api/bookings', async (req, res) => {
       endTimeIso: endIso,
       timezone,
       zoomDetails,
+      zoomConfig: {
+        invitees: guestEmails,
+        meetingIdType: zoomConfig?.meetingIdType || 'auto',
+        pmiNumber: assignedHost.zoomPmi || '',
+        hasAgenda: false,
+        agenda: '',
+        attachments: [],
+        passcodeEnabled: zoomConfig?.passcodeEnabled ?? true,
+        passcode: zoomDetails.passcode,
+        waitingRoom: zoomConfig?.waitingRoom ?? true,
+        requireAuth: zoomConfig?.requireAuth ?? false,
+        allowMyNotesTranscript: true,
+        enableContinuousChat: true,
+        hostVideo: zoomConfig?.hostVideo ?? true,
+        participantVideo: zoomConfig?.participantVideo ?? true,
+        audioOption: zoomConfig?.audioOption || 'both',
+        calendarType: 'outlook',
+        joinAnytime: zoomConfig?.joinAnytime ?? false,
+        enableQa: false,
+        muteOnEntry: zoomConfig?.muteOnEntry ?? true,
+        autoRecord: zoomConfig?.autoRecord ?? false,
+        autoAddCloudRecordingToChannel: false,
+        enableAdditionalDataCenters: false,
+        approveOrBlockRegions: zoomConfig?.approveOrBlockRegions ?? false,
+        preventScreenCapture: zoomConfig?.preventScreenCapture ?? false,
+        alternativeHosts: '',
+        manageAssetsSummary: true,
+        manageAssetsRecording: true,
+      },
       m365SyncStatus: m365CalendarState.syncEnabled ? 'synced' : 'pending',
       m365EventId: m365CalendarState.syncEnabled ? `M365-EVT-${Date.now()}` : undefined,
       answers,

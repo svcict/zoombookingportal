@@ -14,7 +14,36 @@ import {
   CheckCircle2,
   Lock,
 } from 'lucide-react';
-import { MeetingType, TimeSlot, M365User } from '../types';
+import { MeetingType, TimeSlot, M365User, ZoomMeetingConfig } from '../types';
+
+// Only the settings that actually map to a real Zoom API meeting.settings
+// field (see src/lib/zoomApi.ts) are collected here - Template, Whiteboard,
+// Docs, Workflow, Encryption type, My Notes, and Meeting chat from Zoom's
+// own Schedule Meeting page are host-account/enterprise features with no
+// per-booking API equivalent, so they're left out.
+type IntakeZoomConfig = Pick<
+  ZoomMeetingConfig,
+  | 'meetingIdType'
+  | 'passcodeEnabled'
+  | 'passcode'
+  | 'waitingRoom'
+  | 'requireAuth'
+  | 'hostVideo'
+  | 'participantVideo'
+  | 'audioOption'
+  | 'joinAnytime'
+  | 'muteOnEntry'
+  | 'autoRecord'
+  | 'approveOrBlockRegions'
+  | 'preventScreenCapture'
+>;
+
+function generateDefaultPasscode(): string {
+  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz';
+  let out = '';
+  for (let i = 0; i < 6; i++) out += chars.charAt(Math.floor(Math.random() * chars.length));
+  return out;
+}
 
 interface ZoomIntakeFormProps {
   meetingType: MeetingType;
@@ -33,6 +62,7 @@ interface ZoomIntakeFormProps {
     answers: Record<string, any>;
     notes?: string;
     meetingTopic?: string;
+    zoomConfig: IntakeZoomConfig;
   }) => Promise<void>;
   isSubmitting?: boolean;
 }
@@ -59,6 +89,24 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   const [guestEmails, setGuestEmails] = useState<string[]>([]);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Zoom meeting settings - set here at booking time so the meeting is
+  // created with these already applied, instead of a separate settings
+  // step after confirmation.
+  const [meetingIdType, setMeetingIdType] = useState<'auto' | 'pmi'>('auto');
+  const hostPmi = selectedSlot.assignedHost?.zoomPmi;
+  const [passcodeEnabled, setPasscodeEnabled] = useState(true);
+  const [passcode, setPasscode] = useState(() => generateDefaultPasscode());
+  const [waitingRoom, setWaitingRoom] = useState(true);
+  const [requireAuth, setRequireAuth] = useState(false);
+  const [hostVideo, setHostVideo] = useState(true);
+  const [participantVideo, setParticipantVideo] = useState(true);
+  const [audioOption, setAudioOption] = useState<'telephone' | 'computer' | 'both' | 'third_party'>('both');
+  const [joinAnytime, setJoinAnytime] = useState(false);
+  const [muteOnEntry, setMuteOnEntry] = useState(true);
+  const [autoRecord, setAutoRecord] = useState(false);
+  const [approveOrBlockRegions, setApproveOrBlockRegions] = useState(false);
+  const [preventScreenCapture, setPreventScreenCapture] = useState(false);
 
   const handleAddGuest = () => {
     if (!guestEmailInput.trim() || !guestEmailInput.includes('@')) return;
@@ -111,6 +159,21 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
       answers,
       notes: `Registered for Zoom session via Zoom Scheduler Portal. Host: ${meetingType.hostName}`,
       meetingTopic: topic.trim() || meetingType.title,
+      zoomConfig: {
+        meetingIdType,
+        passcodeEnabled,
+        passcode,
+        waitingRoom,
+        requireAuth,
+        hostVideo,
+        participantVideo,
+        audioOption,
+        joinAnytime,
+        muteOnEntry,
+        autoRecord,
+        approveOrBlockRegions,
+        preventScreenCapture,
+      },
     });
   };
 
@@ -410,6 +473,197 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
             })}
           </div>
         )}
+
+        {/* Section: Zoom Meeting Settings (set now, applied when the meeting is created) */}
+        <div className="pt-4 border-t border-gray-100 space-y-5">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
+            <Video className="w-4 h-4 text-[#0b5cff]" />
+            Zoom Meeting Settings
+          </h3>
+
+          {/* Meeting ID */}
+          <div className="space-y-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">Meeting ID</label>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-8">
+              <label className="flex items-center gap-2.5 cursor-pointer text-sm text-gray-800 select-none">
+                <input
+                  type="radio"
+                  name="intakeMeetingIdType"
+                  checked={meetingIdType === 'auto'}
+                  onChange={() => setMeetingIdType('auto')}
+                  className="w-4 h-4 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                />
+                <span>Generate Automatically</span>
+              </label>
+              <label className="flex items-center gap-2.5 cursor-pointer text-sm text-gray-800 select-none">
+                <input
+                  type="radio"
+                  name="intakeMeetingIdType"
+                  checked={meetingIdType === 'pmi'}
+                  onChange={() => setMeetingIdType('pmi')}
+                  className="w-4 h-4 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                />
+                <span>Personal Meeting ID{hostPmi ? ` ${hostPmi}` : ''}</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Security */}
+          <div className="space-y-2.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">Security</label>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-800">
+                <input
+                  type="checkbox"
+                  checked={passcodeEnabled}
+                  onChange={(e) => setPasscodeEnabled(e.target.checked)}
+                  className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                />
+                <span className="font-medium">Passcode</span>
+              </label>
+              <input
+                type="text"
+                value={passcode}
+                onChange={(e) => setPasscode(e.target.value)}
+                disabled={!passcodeEnabled}
+                className="w-28 px-3 py-1.5 bg-white border border-gray-300 rounded-md text-sm font-mono text-gray-800 focus:outline-none focus:border-[#0b5cff] focus:ring-1 focus:ring-[#0b5cff] disabled:opacity-50"
+              />
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-800">
+              <input
+                type="checkbox"
+                checked={waitingRoom}
+                onChange={(e) => setWaitingRoom(e.target.checked)}
+                className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+              />
+              <span>Waiting Room</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-800">
+              <input
+                type="checkbox"
+                checked={requireAuth}
+                onChange={(e) => setRequireAuth(e.target.checked)}
+                className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+              />
+              <span>Only authenticated users can join: Sign in to Zoom</span>
+            </label>
+          </div>
+
+          {/* Video */}
+          <div className="space-y-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">Video</label>
+            <div className="flex items-center gap-10">
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-800">Host:</span>
+                <button
+                  type="button"
+                  onClick={() => setHostVideo(!hostVideo)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                    hostVideo ? 'bg-[#0b5cff]' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      hostVideo ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+                <span className="text-xs font-semibold text-gray-600">{hostVideo ? 'On' : 'Off'}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-800">Participant:</span>
+                <button
+                  type="button"
+                  onClick={() => setParticipantVideo(!participantVideo)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                    participantVideo ? 'bg-[#0b5cff]' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      participantVideo ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+                <span className="text-xs font-semibold text-gray-600">{participantVideo ? 'On' : 'Off'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Audio */}
+          <div className="space-y-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">Audio</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {([
+                ['telephone', 'Telephone'],
+                ['computer', 'Computer Audio'],
+                ['both', 'Telephone and Computer Audio'],
+                ['third_party', '3rd Party Audio'],
+              ] as const).map(([value, label]) => (
+                <label key={value} className="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-800">
+                  <input
+                    type="radio"
+                    name="intakeAudioOption"
+                    checked={audioOption === value}
+                    onChange={() => setAudioOption(value)}
+                    className="w-4 h-4 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                  />
+                  <span>{label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Advanced */}
+          <div className="space-y-2.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">Advanced</label>
+            <label className="flex items-center gap-2.5 cursor-pointer select-none text-sm text-gray-800">
+              <input
+                type="checkbox"
+                checked={joinAnytime}
+                onChange={(e) => setJoinAnytime(e.target.checked)}
+                className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+              />
+              <span>Allow participants to join anytime</span>
+            </label>
+            <label className="flex items-center gap-2.5 cursor-pointer select-none text-sm text-gray-800">
+              <input
+                type="checkbox"
+                checked={muteOnEntry}
+                onChange={(e) => setMuteOnEntry(e.target.checked)}
+                className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+              />
+              <span>Mute participants upon entry</span>
+            </label>
+            <label className="flex items-center gap-2.5 cursor-pointer select-none text-sm text-gray-800">
+              <input
+                type="checkbox"
+                checked={autoRecord}
+                onChange={(e) => setAutoRecord(e.target.checked)}
+                className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+              />
+              <span>Automatically record meeting on the local computer</span>
+            </label>
+            <label className="flex items-center gap-2.5 cursor-pointer select-none text-sm text-gray-800">
+              <input
+                type="checkbox"
+                checked={approveOrBlockRegions}
+                onChange={(e) => setApproveOrBlockRegions(e.target.checked)}
+                className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+              />
+              <span>Approve or block entry for users from specific countries/regions</span>
+            </label>
+            <label className="flex items-center gap-2.5 cursor-pointer select-none text-sm text-gray-800">
+              <input
+                type="checkbox"
+                checked={preventScreenCapture}
+                onChange={(e) => setPreventScreenCapture(e.target.checked)}
+                className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+              />
+              <span>Prevent screen capture of meeting content</span>
+            </label>
+          </div>
+        </div>
 
         {/* Security / Push Notice Card */}
         <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 flex items-center justify-between">
