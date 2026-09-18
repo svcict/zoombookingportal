@@ -180,20 +180,6 @@ let meetingTypes: SeedMeetingType[] = [
         type: 'text',
         placeholder: 'Acme Corp / Startup Studio',
         required: false,
-      },
-      {
-        id: 'q3',
-        label: 'Do you require Screen Sharing / Live Demo capabilities?',
-        type: 'radio',
-        required: true,
-        options: ['Yes, I want to share my screen/demo', 'No, audio & webcam discussion is sufficient', 'Not sure yet'],
-      },
-      {
-        id: 'q4',
-        label: 'Zoom Audio Preference',
-        type: 'select',
-        required: false,
-        options: ['Computer Audio (VoIP)', 'Telephone Dial-In', 'Both / Either'],
       }
     ]
   },
@@ -368,9 +354,7 @@ let bookings: any[] = [
     m365EventId: 'AAMkADk3MGMwMTEtNGQ5YS00MjY1LT...M365',
     answers: {
       q1: 'Reviewing quarterly cloud migration timeline and security compliance on Zoom infrastructure.',
-      q2: 'Ayala Foundation',
-      q3: 'Yes, I want to share my screen/demo',
-      q4: 'Computer Audio (VoIP)'
+      q2: 'Ayala Foundation'
     },
     status: 'confirmed',
     reminders: {
@@ -422,9 +406,7 @@ let bookings: any[] = [
     m365EventId: 'AAMkADk3MGMwMTEtNGQ5YS00MjY1LT...M365',
     answers: {
       q1: 'Reviewing quarterly cloud migration timeline and security compliance on Zoom infrastructure.',
-      q2: 'Enterprise IO',
-      q3: 'Yes, I want to share my screen/demo',
-      q4: 'Computer Audio (VoIP)'
+      q2: 'Enterprise IO'
     },
     status: 'confirmed',
     reminders: {
