@@ -12,7 +12,9 @@ import {
   getSupabase,
   verifySessionToken,
   verifyDemoSessionToken,
-  isLocalTestAccountEmail
+  isLocalTestAccountEmail,
+  issueM365SsoSessionToken,
+  verifyM365SsoSessionToken
 } from './src/lib/supabase';
 import {
   ZoomAccountKey,
@@ -1326,6 +1328,157 @@ app.post('/api/admin/m365/test-connection', async (req, res) => {
   });
 });
 
+// ----------------------------------------------------
+// REAL MICROSOFT 365 SSO - Entra ID OAuth 2.0 authorization-code flow
+// ----------------------------------------------------
+
+// Signs a short-lived, single-use-window CSRF nonce for the OAuth
+// redirect round trip. Per-process is fine: it only needs to survive the
+// few seconds between redirecting to Microsoft and Microsoft redirecting
+// back, never across a server restart.
+const OAUTH_STATE_SECRET = crypto.randomBytes(32).toString('hex');
+const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+
+function signOAuthState(): string {
+  const nonce = crypto.randomBytes(16).toString('hex');
+  const ts = Date.now().toString();
+  const raw = `${nonce}.${ts}`;
+  const sig = crypto.createHmac('sha256', OAUTH_STATE_SECRET).update(raw).digest('base64url');
+  return `${raw}.${sig}`;
+}
+
+function verifyOAuthState(state: string): boolean {
+  const parts = (state || '').split('.');
+  if (parts.length !== 3) return false;
+  const [nonce, ts, sig] = parts;
+  const expected = crypto.createHmac('sha256', OAUTH_STATE_SECRET).update(`${nonce}.${ts}`).digest('base64url');
+  if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
+    return false;
+  }
+  const age = Date.now() - Number(ts);
+  return age >= 0 && age < OAUTH_STATE_TTL_MS;
+}
+
+function getM365OAuthConfig(req: express.Request) {
+  return {
+    tenantId: (process.env.MICROSOFT_TENANT_ID || '').trim(),
+    clientId: (process.env.MICROSOFT_CLIENT_ID || '').trim(),
+    clientSecret: (process.env.MICROSOFT_CLIENT_SECRET || '').trim(),
+    redirectUri: (process.env.MICROSOFT_REDIRECT_URI || `${req.protocol}://${req.get('host')}/api/auth/m365/callback`).trim(),
+    scopes: (process.env.MICROSOFT_GRAPH_SCOPES || 'User.Read Calendars.ReadWrite Mail.Send offline_access').trim(),
+    orgDomain: (process.env.MICROSOFT_ORGANIZATION_DOMAIN || '').trim().toLowerCase()
+  };
+}
+
+// Step 1: redirect the browser to Microsoft's real sign-in page.
+app.get('/api/auth/m365/authorize', (req, res) => {
+  const { tenantId, clientId, redirectUri, scopes } = getM365OAuthConfig(req);
+
+  if (!tenantId || !clientId) {
+    return res.redirect('/?m365_error=' + encodeURIComponent('Microsoft 365 login is not configured yet. Set up Azure Entra ID credentials first.'));
+  }
+
+  const authorizeUrl = new URL(`https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/authorize`);
+  authorizeUrl.searchParams.set('client_id', clientId);
+  authorizeUrl.searchParams.set('response_type', 'code');
+  authorizeUrl.searchParams.set('redirect_uri', redirectUri);
+  authorizeUrl.searchParams.set('response_mode', 'query');
+  authorizeUrl.searchParams.set('scope', scopes);
+  authorizeUrl.searchParams.set('state', signOAuthState());
+  authorizeUrl.searchParams.set('prompt', 'select_account');
+
+  res.redirect(authorizeUrl.toString());
+});
+
+// Step 2: Microsoft redirects back here with an authorization code. Exchange
+// it for a real access token, look up the signed-in user via Microsoft
+// Graph, and issue this app's own session token for them.
+app.get('/api/auth/m365/callback', async (req, res) => {
+  const code = typeof req.query.code === 'string' ? req.query.code : '';
+  const state = typeof req.query.state === 'string' ? req.query.state : '';
+  const oauthError = typeof req.query.error === 'string' ? req.query.error : '';
+  const oauthErrorDescription = typeof req.query.error_description === 'string' ? req.query.error_description : '';
+
+  const failWith = (message: string) => res.redirect('/?m365_error=' + encodeURIComponent(message));
+
+  if (oauthError) {
+    return failWith(oauthErrorDescription || oauthError);
+  }
+  if (!code) {
+    return failWith('Microsoft did not return an authorization code.');
+  }
+  if (!state || !verifyOAuthState(state)) {
+    return failWith('Your Microsoft 365 sign-in request expired or was invalid. Please try again.');
+  }
+
+  const { tenantId, clientId, clientSecret, redirectUri, scopes, orgDomain } = getM365OAuthConfig(req);
+  if (!tenantId || !clientId || !clientSecret) {
+    return failWith('Microsoft 365 login is not fully configured (missing tenant, client ID, or client secret).');
+  }
+
+  try {
+    const tokenRes = await fetch(`https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: redirectUri,
+        scope: scopes
+      }).toString()
+    });
+
+    const tokenData = (await tokenRes.json()) as any;
+    if (!tokenRes.ok || !tokenData.access_token) {
+      return failWith(tokenData.error_description || tokenData.error || 'Microsoft rejected the sign-in request.');
+    }
+
+    const profileRes = await fetch('https://graph.microsoft.com/v1.0/me', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` }
+    });
+    const profile = (await profileRes.json()) as any;
+    if (!profileRes.ok) {
+      return failWith(profile?.error?.message || 'Failed to read your Microsoft 365 profile.');
+    }
+
+    const userEmail = String(profile.mail || profile.userPrincipalName || '').toLowerCase().trim();
+    if (!userEmail) {
+      return failWith('Your Microsoft 365 account has no email address Graph will report.');
+    }
+    if (orgDomain && !userEmail.endsWith(`@${orgDomain}`)) {
+      return failWith(`Only ${orgDomain} accounts may sign in here.`);
+    }
+
+    const isAdmin = userEmail.includes('admin');
+    const displayName = profile.displayName || userEmail.split('@')[0];
+
+    const user = {
+      id: profile.id || `m365-${userEmail}`,
+      name: displayName,
+      email: userEmail,
+      role: profile.jobTitle || (isAdmin ? 'Administrator' : 'Staff Member'),
+      isAdmin,
+      department: profile.department || 'Microsoft 365',
+      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}`,
+      tenantName: process.env.MICROSOFT_ORGANIZATION_DOMAIN || 'Azure Entra ID',
+      tenantId,
+      scopes: scopes.split(/\s+/).filter(Boolean),
+      accessToken: issueM365SsoSessionToken(userEmail, isAdmin),
+      provider: 'm365',
+      jobTitle: profile.jobTitle || undefined,
+      signedInAt: new Date().toISOString()
+    };
+
+    const encodedUser = Buffer.from(JSON.stringify(user), 'utf8').toString('base64url');
+    res.redirect(`/#m365_sso=${encodedUser}`);
+  } catch (err: any) {
+    console.error('M365 SSO callback error:', err);
+    failWith(err?.message || 'Unexpected error completing Microsoft 365 sign-in.');
+  }
+});
+
 app.get('/api/auth/m365/status', (req, res) => {
   const isConfigured = Boolean(
     process.env.MICROSOFT_CLIENT_ID && 
@@ -1374,7 +1527,7 @@ app.post('/api/auth/signup', async (req, res) => {
 });
 
 app.post('/api/auth/m365/login', async (req, res) => {
-  const { email, password, authMethod, isSSO } = req.body;
+  const { email, password } = req.body;
   const rawInput = (email || '').trim().toLowerCase();
   const clientIp = getClientIp(req);
   const userAgent = req.headers['user-agent'] || 'Unknown Client';
@@ -1426,24 +1579,11 @@ app.post('/api/auth/m365/login', async (req, res) => {
   // If lockout timer just expired, reset consecutive fails for the new attempt batch
   resetExpiredLockout(entry);
 
-  // 2. Microsoft 365 SSO Attempt Check
-  if (isSSO || authMethod === 'microsoft_sso') {
-    const isM365Configured = Boolean(
-      process.env.MICROSOFT_CLIENT_ID && 
-      process.env.MICROSOFT_TENANT_ID && 
-      process.env.MICROSOFT_CLIENT_ID.trim() !== '' && 
-      process.env.MICROSOFT_TENANT_ID.trim() !== ''
-    );
+  // Real Microsoft 365 SSO goes through /api/auth/m365/authorize +
+  // /api/auth/m365/callback (a real Entra ID OAuth redirect flow), not this
+  // password endpoint - it never accepts an isSSO/authMethod flag itself.
 
-    if (!isM365Configured) {
-      return res.status(400).json({
-        success: false,
-        message: 'Microsoft 365 login is currently disabled. Azure Entra ID credentials (MICROSOFT_CLIENT_ID, MICROSOFT_TENANT_ID) have not been configured in the environment.'
-      });
-    }
-  }
-
-  // 3. Strict Supabase Authentication
+  // 2. Strict Supabase Authentication
   if (!rawInput) {
     return res.status(400).json({
       success: false,
@@ -1881,8 +2021,9 @@ async function resolveIdentity(req: express.Request): Promise<RequestIdentity | 
 
     // Real Supabase sessions first; fall back to our own signed demo-account
     // tokens (see issueDemoSessionToken) for explicitly allowlisted demo
-    // profiles that don't have a real Supabase Auth password.
-    return (await verifySessionToken(token)) || verifyDemoSessionToken(token);
+    // profiles that don't have a real Supabase Auth password, and to
+    // real Microsoft Entra ID SSO sessions (see issueM365SsoSessionToken).
+    return (await verifySessionToken(token)) || verifyDemoSessionToken(token) || verifyM365SsoSessionToken(token);
   }
 
   const raw = req.headers['x-user-email'];

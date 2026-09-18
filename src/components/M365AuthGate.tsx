@@ -166,8 +166,10 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated }) =
     }
   };
 
-  // Trigger Microsoft 365 Single Sign-On (SSO)
-  const handleMicrosoftSSO = async () => {
+  // Trigger Microsoft 365 Single Sign-On (SSO): a real redirect to
+  // Microsoft's own login page (login.microsoftonline.com), handled by
+  // /api/auth/m365/authorize + /api/auth/m365/callback on the server.
+  const handleMicrosoftSSO = () => {
     if (isIpBlocked || (isLockedOut && lockoutRemaining > 0)) {
       return;
     }
@@ -179,32 +181,40 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated }) =
 
     setIsSsoLoading(true);
     setAuthError(null);
-
-    try {
-      const res = await fetch('/api/auth/m365/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email: 'sarah.jenkins@zoompartner.com',
-          isSSO: true,
-          authMethod: 'microsoft_sso'
-        })
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success && data.user) {
-        localStorage.setItem('m365_auth_user', JSON.stringify(data.user));
-        onAuthenticated(data.user);
-      } else {
-        setAuthError(data.message || 'Microsoft 365 Single Sign-On failed.');
-      }
-    } catch (err) {
-      console.error(err);
-      setAuthError('Connection error contacting Microsoft 365 SSO service.');
-    } finally {
-      setIsSsoLoading(false);
-    }
+    window.location.href = '/api/auth/m365/authorize';
   };
+
+  // Pick up the result of a completed Microsoft 365 SSO redirect: the
+  // server encodes the signed-in user into the URL hash (#m365_sso=...) on
+  // success, or an error message into ?m365_error=... on failure.
+  useEffect(() => {
+    if (window.location.hash.startsWith('#m365_sso=')) {
+      const encodedUser = window.location.hash.slice('#m365_sso='.length);
+      try {
+        const base64 = encodedUser.replace(/-/g, '+').replace(/_/g, '/');
+        const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+        const user = JSON.parse(decodeURIComponent(escape(atob(padded))));
+        localStorage.setItem('m365_auth_user', JSON.stringify(user));
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        onAuthenticated(user);
+        return;
+      } catch (err) {
+        console.error('Failed to parse Microsoft 365 SSO result:', err);
+        setAuthError('Microsoft 365 sign-in completed but the response could not be read.');
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const ssoError = params.get('m365_error');
+    if (ssoError) {
+      setAuthError(ssoError);
+      params.delete('m365_error');
+      const newSearch = params.toString();
+      window.history.replaceState(null, '', window.location.pathname + (newSearch ? `?${newSearch}` : ''));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] flex flex-col justify-center items-center p-4 sm:p-6 font-sans select-none">

@@ -86,6 +86,52 @@ export function verifyDemoSessionToken(token: string): { email: string; isAdmin:
   }
 }
 
+export function issueM365SsoSessionToken(email: string, isAdmin: boolean): string {
+  const payload = JSON.stringify({
+    email: email.toLowerCase().trim(),
+    isAdmin,
+    iat: Date.now(),
+    exp: Date.now() + DEMO_TOKEN_TTL_MS,
+  });
+  const encodedPayload = base64UrlEncode(payload);
+  const signature = crypto.createHmac('sha256', DEMO_TOKEN_SECRET).update(encodedPayload).digest('base64url');
+  return `m365sso_v1.${encodedPayload}.${signature}`;
+}
+
+/**
+ * Verifies a token issued by issueM365SsoSessionToken. Unlike
+ * verifyDemoSessionToken, there's no allowlist check here: the email inside
+ * was already verified by a real Microsoft Entra ID OAuth code exchange plus
+ * a Graph /me lookup at the moment this token was issued.
+ */
+export function verifyM365SsoSessionToken(token: string): { email: string; isAdmin: boolean } | null {
+  if (!token.startsWith('m365sso_v1.')) return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  const [, encodedPayload, signature] = parts;
+
+  const expectedSignature = crypto
+    .createHmac('sha256', DEMO_TOKEN_SECRET)
+    .update(encodedPayload)
+    .digest('base64url');
+
+  if (
+    signature.length !== expectedSignature.length ||
+    !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))
+  ) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(base64UrlDecode(encodedPayload));
+    if (typeof payload.email !== 'string' || typeof payload.exp !== 'number') return null;
+    if (Date.now() > payload.exp) return null;
+    return { email: payload.email, isAdmin: Boolean(payload.isAdmin) };
+  } catch {
+    return null;
+  }
+}
+
 export function isSupabaseConfigured(): boolean {
   const url = process.env.SUPABASE_URL;
   const anonKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
