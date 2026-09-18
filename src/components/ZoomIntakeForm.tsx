@@ -11,8 +11,6 @@ import {
   Plus,
   X,
   ArrowLeft,
-  CheckCircle2,
-  Lock,
 } from 'lucide-react';
 import { MeetingType, TimeSlot, M365User, ZoomMeetingConfig } from '../types';
 
@@ -23,7 +21,6 @@ import { MeetingType, TimeSlot, M365User, ZoomMeetingConfig } from '../types';
 // per-booking API equivalent, so they're left out.
 type IntakeZoomConfig = Pick<
   ZoomMeetingConfig,
-  | 'meetingIdType'
   | 'passcodeEnabled'
   | 'passcode'
   | 'waitingRoom'
@@ -91,8 +88,6 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   // Zoom meeting settings - set here at booking time so the meeting is
   // created with these already applied, instead of a separate settings
   // step after confirmation.
-  const [meetingIdType, setMeetingIdType] = useState<'auto' | 'pmi'>('auto');
-  const hostPmi = selectedSlot.assignedHost?.zoomPmi;
   const [passcodeEnabled, setPasscodeEnabled] = useState(true);
   const [passcode, setPasscode] = useState(() => generateDefaultPasscode());
   const [waitingRoom, setWaitingRoom] = useState(true);
@@ -156,7 +151,6 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
       notes: `Registered for Zoom session via Zoom Scheduler Portal. Host: ${meetingType.hostName}`,
       meetingTopic: topic.trim() || meetingType.title,
       zoomConfig: {
-        meetingIdType,
         passcodeEnabled,
         passcode,
         waitingRoom,
@@ -475,33 +469,6 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
             Zoom Meeting Settings
           </h3>
 
-          {/* Meeting ID */}
-          <div className="space-y-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">Meeting ID</label>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-8">
-              <label className="flex items-center gap-2.5 cursor-pointer text-sm text-gray-800 select-none">
-                <input
-                  type="radio"
-                  name="intakeMeetingIdType"
-                  checked={meetingIdType === 'auto'}
-                  onChange={() => setMeetingIdType('auto')}
-                  className="w-4 h-4 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
-                />
-                <span>Generate Automatically</span>
-              </label>
-              <label className="flex items-center gap-2.5 cursor-pointer text-sm text-gray-800 select-none">
-                <input
-                  type="radio"
-                  name="intakeMeetingIdType"
-                  checked={meetingIdType === 'pmi'}
-                  onChange={() => setMeetingIdType('pmi')}
-                  className="w-4 h-4 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
-                />
-                <span>Personal Meeting ID{hostPmi ? ` ${hostPmi}` : ''}</span>
-              </label>
-            </div>
-          </div>
-
           {/* Security */}
           <div className="space-y-2.5">
             <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">Security</label>
@@ -639,22 +606,6 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
               <span>Automatically record meeting on the local computer</span>
             </label>
           </div>
-        </div>
-
-        {/* Security / Push Notice Card */}
-        <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#0b5cff] text-white flex items-center justify-center shrink-0">
-              <Lock className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="text-xs font-bold text-gray-900">Push Notifications &amp; M365 Sync</div>
-              <div className="text-[11px] text-gray-500">Includes encrypted Zoom passcodes &amp; Outlook calendar invite</div>
-            </div>
-          </div>
-          <span className="text-xs font-semibold px-2.5 py-1 bg-white text-[#0b5cff] rounded-lg border border-blue-200">
-            Enabled
-          </span>
         </div>
 
         {/* Submit Actions */}
