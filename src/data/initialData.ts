@@ -79,7 +79,7 @@ export const INITIAL_MEETING_TYPES: MeetingType[] = [
     customQuestions: [
       {
         id: 'q1',
-        label: 'What is the primary topic or goal for this Zoom meeting?',
+        label: 'Meeting Agenda',
         type: 'textarea',
         placeholder: 'Please describe what you would like to achieve or specific questions you have...',
         required: true,

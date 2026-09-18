@@ -14,11 +14,9 @@ import {
   Check, 
   Search, 
   Filter, 
-  Trash2, 
-  ShieldCheck,
+  Trash2,
   ChevronDown,
   ChevronUp,
-  FileText,
   Shield,
   Layers
 } from 'lucide-react';
@@ -258,8 +256,8 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
                 {isExpanded && (
                   <div className="px-5 pb-5 pt-3 border-t border-gray-100 bg-[#F7F9FA] space-y-4 text-xs animate-in fade-in duration-150">
                     
-                    {/* Zoom & M365 Sync Info */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-3.5 rounded-xl border border-gray-200">
+                    {/* Zoom Meeting Info */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-3.5 rounded-xl border border-gray-200">
                       <div>
                         <span className="text-gray-500 font-bold uppercase tracking-wider text-[10px]">Zoom Meeting ID:</span>
                         <div className="font-mono font-bold text-gray-900 mt-0.5">{booking.zoomDetails.meetingId}</div>
@@ -268,23 +266,11 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
                         <span className="text-gray-500 font-bold uppercase tracking-wider text-[10px]">Zoom Passcode:</span>
                         <div className="font-mono font-bold text-gray-900 mt-0.5">{booking.zoomDetails.passcode}</div>
                       </div>
-                      <div>
-                        <span className="text-gray-500 font-bold uppercase tracking-wider text-[10px]">Microsoft 365 Sync:</span>
-                        <div className="font-bold text-green-700 flex items-center gap-1 mt-0.5">
-                          <ShieldCheck className="w-3.5 h-3.5 text-green-600" />
-                          <span>Active on Exchange</span>
-                        </div>
-                      </div>
                     </div>
 
                     {/* Custom Intake Form Answers */}
                     {booking.answers && Object.keys(booking.answers).length > 0 && (
                       <div>
-                        <h4 className="font-bold text-gray-800 uppercase tracking-wider text-[11px] mb-2 flex items-center gap-1.5">
-                          <FileText className="w-3.5 h-3.5 text-[#0b5cff]" />
-                          Intake Form Responses
-                        </h4>
-
                         <div className="space-y-2">
                           {Object.entries(booking.answers).map(([qKey, ans]) => (
                             <div key={qKey} className="bg-white p-3 rounded-xl border border-gray-200">

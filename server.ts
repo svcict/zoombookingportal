@@ -171,7 +171,7 @@ let meetingTypes: SeedMeetingType[] = [
     customQuestions: [
       {
         id: 'q1',
-        label: 'What is the primary topic or goal for this Zoom meeting?',
+        label: 'Meeting Agenda',
         type: 'textarea',
         placeholder: 'Please describe what you would like to achieve or specific questions you have...',
         required: true,
@@ -827,13 +827,26 @@ const DEPRECATED_CUSTOM_QUESTION_LABELS = new Set([
   'Company or Organization Name'
 ]);
 
+// Same self-healing idea, for a label that was renamed rather than removed.
+const RENAMED_CUSTOM_QUESTION_LABELS = new Map([
+  ['What is the primary topic or goal for this Zoom meeting?', 'Meeting Agenda']
+]);
+
 async function removeDeprecatedCustomQuestions(): Promise<void> {
   for (const meetingType of meetingTypes) {
     const before = meetingType.customQuestions.length;
     meetingType.customQuestions = meetingType.customQuestions.filter(
       (q) => !DEPRECATED_CUSTOM_QUESTION_LABELS.has(q.label)
     );
-    if (meetingType.customQuestions.length !== before) {
+    let renamed = false;
+    for (const q of meetingType.customQuestions) {
+      const newLabel = RENAMED_CUSTOM_QUESTION_LABELS.get(q.label);
+      if (newLabel) {
+        q.label = newLabel;
+        renamed = true;
+      }
+    }
+    if (meetingType.customQuestions.length !== before || renamed) {
       await upsertRow('meeting_types', meetingType.id, meetingType);
     }
   }
