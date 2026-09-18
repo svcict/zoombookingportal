@@ -78,6 +78,19 @@ Supabase is configured (`SUPABASE_URL` + `SUPABASE_ANON_KEY` in `.env`):
 The frontend always sends both headers (see `src/utils/auth.ts`); which one the server actually
 honors depends entirely on its own Supabase configuration, not anything the client requests.
 
+### Local test accounts (no Supabase project needed)
+
+When Supabase isn't configured at all, the login screen also accepts two hardcoded accounts —
+any password (or none) works, since there's no real identity provider to check one against in
+this mode anyway:
+
+- `admin@local.test` — logs in as an admin
+- `user@local.test` — logs in as a regular staff member
+
+Every other email still fails to log in in this mode. These only ever activate when
+`SUPABASE_URL`/`SUPABASE_ANON_KEY` are unset — as soon as Supabase is configured, only real
+Supabase accounts (and allowlisted `DEMO_LOGIN_EMAILS`) can sign in.
+
 ## Data Persistence
 
 Booking data, host accounts, meeting types, Zoom API logs, and failed-login logs used to live
