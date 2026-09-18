@@ -1985,7 +1985,7 @@ app.patch('/api/bookings/:id', async (req, res) => {
       const rawMeetingId = booking.zoomDetails.meetingId.replace(/\s/g, '');
       const result = await updateZoomMeeting(accountKey, rawMeetingId, {
         topic: meetingTitle,
-        agenda: notes,
+        agenda: zoomConfig?.agenda,
         passcode: zoomConfig?.passcode,
         waitingRoom: zoomConfig?.waitingRoom,
         autoRecording: zoomConfig?.autoRecord,

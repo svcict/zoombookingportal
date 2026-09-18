@@ -41,12 +41,12 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
   const defaultPasscode = booking?.zoomDetails?.passcode || '7894676141';
   const defaultPmi = '869 563 2911';
 
+  // Invitees is a real Zoom API concern for calendar/access purposes only
+  // via the booking's own guestEmails - Zoom's meeting API has no separate
+  // "invitees" setting, so this list IS booking.guestEmails, not a second
+  // copy of it living only in zoomConfig.
   const [inviteeInput, setInviteeInput] = useState('');
-  const [invitees, setInvitees] = useState<string[]>(
-    booking?.guestEmails?.length 
-      ? booking.guestEmails 
-      : initialConfig?.invitees || []
-  );
+  const [invitees, setInvitees] = useState<string[]>(booking?.guestEmails || []);
 
   const [meetingIdType, setMeetingIdType] = useState<'auto' | 'pmi'>(
     initialConfig?.meetingIdType || 'auto'
@@ -56,9 +56,10 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
   const [showAgendaInput, setShowAgendaInput] = useState<boolean>(
     Boolean(initialConfig?.hasAgenda || initialConfig?.agenda)
   );
-  const [agenda, setAgenda] = useState<string>(
-    initialConfig?.agenda || (booking?.answers?.q1 as string) || ''
-  );
+  // Zoom's real agenda field - deliberately not pre-filled from the intake
+  // form's custom questions (those vary per meeting type and aren't
+  // reliably "the agenda"), so there's exactly one place this comes from.
+  const [agenda, setAgenda] = useState<string>(initialConfig?.agenda || '');
 
   const [attachments, setAttachments] = useState<Array<{ id: string; name: string; size: string; type?: string }>>(
     initialConfig?.attachments || []
@@ -148,9 +149,11 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
 
   // Sync state if booking changes
   useEffect(() => {
+    if (booking) {
+      setInvitees(booking.guestEmails || []);
+    }
     if (booking?.zoomConfig) {
       const cfg = booking.zoomConfig;
-      setInvitees(cfg.invitees || []);
       setMeetingIdType(cfg.meetingIdType || 'auto');
       setAgenda(cfg.agenda || '');
       setShowAgendaInput(Boolean(cfg.agenda));

@@ -649,7 +649,7 @@ export default function App() {
                   'Content-Type': 'application/json',
                   ...authHeaders,
                 },
-                body: JSON.stringify({ zoomConfig: updatedConfig }),
+                body: JSON.stringify({ zoomConfig: updatedConfig, guestEmails: updatedConfig.invitees }),
               });
               if (res.ok) {
                 const data = await res.json();
