@@ -278,49 +278,54 @@ export async function testSupabaseConnection(): Promise<{
 /**
  * Authenticates a user strictly with Supabase Auth or verified profiles table.
  */
-// Local-only test accounts, active ONLY when Supabase isn't configured at
-// all - there's no real identity provider to check a password against in
-// that mode anyway (same "no real security guarantee" as the X-User-Email
-// fallback elsewhere), so this just makes local testing easy without
-// requiring a Supabase project or memorized credentials. Accepts any
-// password (or none) for these exact emails; every other email still gets
-// the "Supabase is not configured" error below.
+// Test-only accounts on a reserved, non-routable domain (RFC 2606
+// ".test" - can never collide with a real email), always available
+// regardless of Supabase configuration, so testing this app never depends
+// on Supabase setup (DEMO_LOGIN_EMAILS, profiles rows) being correct.
+// Accepts any password (or none) for these exact emails. Must be disabled
+// before production - see README "Before Going to Production".
 const LOCAL_DEV_TEST_ACCOUNTS: Record<string, { name: string; isAdmin: boolean }> = {
   'admin@local.test': { name: 'Local Test Admin', isAdmin: true },
   'user@local.test': { name: 'Local Test User', isAdmin: false },
 };
 
+export function isLocalTestAccountEmail(email: string): boolean {
+  return Boolean(LOCAL_DEV_TEST_ACCOUNTS[(email || '').trim().toLowerCase()]);
+}
+
 export async function authenticateLocalUser(
   email: string,
   password?: string
 ): Promise<SupabaseAuthResult> {
+  const normalizedEmailForTestAccount = (email || '').trim().toLowerCase();
+  const testAccount = LOCAL_DEV_TEST_ACCOUNTS[normalizedEmailForTestAccount];
+  if (testAccount) {
+    const normalizedEmail = normalizedEmailForTestAccount;
+    return {
+      success: true,
+      user: {
+        id: `local-dev-${normalizedEmail}`,
+        name: testAccount.name,
+        email: normalizedEmail,
+        role: testAccount.isAdmin ? 'Administrator' : 'Staff Member',
+        isAdmin: testAccount.isAdmin,
+        department: 'Local Testing',
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(testAccount.name)}`,
+        tenantName: 'Local Test Account',
+        tenantId: 'local-dev',
+        scopes: testAccount.isAdmin
+          ? ['User.Read', 'Calendars.ReadWrite', 'Directory.AccessAsUser.All']
+          : ['User.Read', 'Calendars.ReadWrite'],
+        accessToken: issueDemoSessionToken(normalizedEmail, testAccount.isAdmin),
+        provider: 'demo',
+      },
+    };
+  }
+
   const client = getSupabase();
   const adminClient = getSupabaseAdmin();
 
   if (!client) {
-    const normalizedEmail = (email || '').trim().toLowerCase();
-    const testAccount = LOCAL_DEV_TEST_ACCOUNTS[normalizedEmail];
-    if (testAccount) {
-      return {
-        success: true,
-        user: {
-          id: `local-dev-${normalizedEmail}`,
-          name: testAccount.name,
-          email: normalizedEmail,
-          role: testAccount.isAdmin ? 'Administrator' : 'Staff Member',
-          isAdmin: testAccount.isAdmin,
-          department: 'Local Testing',
-          avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(testAccount.name)}`,
-          tenantName: 'Local Dev (No Supabase Configured)',
-          tenantId: 'local-dev',
-          scopes: testAccount.isAdmin
-            ? ['User.Read', 'Calendars.ReadWrite', 'Directory.AccessAsUser.All']
-            : ['User.Read', 'Calendars.ReadWrite'],
-          accessToken: issueDemoSessionToken(normalizedEmail, testAccount.isAdmin),
-          provider: 'demo',
-        },
-      };
-    }
     return {
       success: false,
       error: 'Supabase is not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY in your environment.',

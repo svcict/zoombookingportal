@@ -11,7 +11,8 @@ import {
   isSupabaseConfigured,
   getSupabase,
   verifySessionToken,
-  verifyDemoSessionToken
+  verifyDemoSessionToken,
+  isLocalTestAccountEmail
 } from './src/lib/supabase';
 import {
   ZoomAccountKey,
@@ -1304,6 +1305,17 @@ app.post('/api/auth/m365/login', async (req, res) => {
   const rawInput = (email || '').trim().toLowerCase();
   const clientIp = getClientIp(req);
   const userAgent = req.headers['user-agent'] || 'Unknown Client';
+
+  // Local test accounts (admin@local.test / user@local.test) skip rate
+  // limiting entirely - they're testing-only, on a reserved domain that
+  // can never be a real account, so there's nothing here to brute-force.
+  if (isLocalTestAccountEmail(rawInput)) {
+    const result = await authenticateLocalUser(rawInput, password);
+    return res.json(result.success
+      ? { success: true, message: 'Signed in successfully via local test account.', user: result.user }
+      : { success: false, message: result.error || 'Invalid credentials.' });
+  }
+
   const entry = getRateLimitEntry(req);
 
   // 0. Check Permanent IP Block

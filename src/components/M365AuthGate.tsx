@@ -101,8 +101,8 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated }) =
   };
 
   // Supabase Sign In (Strict - Authenticates with Supabase Auth / Profiles)
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSignIn = async (e?: React.FormEvent, quickLoginEmail?: string) => {
+    e?.preventDefault();
     if (isIpBlocked) {
       setAuthError('Your IP address is permanently blocked. Please contact an administrator.');
       return;
@@ -111,7 +111,8 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated }) =
       setAuthError(`Too many failed login attempts. Please wait ${formatCountdown(lockoutRemaining)} before trying again.`);
       return;
     }
-    if (!username.trim()) {
+    const emailValue = quickLoginEmail || username.trim();
+    if (!emailValue) {
       setAuthError('Please enter your email or username.');
       return;
     }
@@ -120,13 +121,12 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated }) =
     setAuthError(null);
 
     try {
-      const emailValue = username.trim();
       const res = await fetch('/api/auth/m365/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email: emailValue, 
-          password: password.trim(),
+        body: JSON.stringify({
+          email: emailValue,
+          password: quickLoginEmail ? '' : password.trim(),
           authMethod: 'local'
         })
       });
@@ -359,44 +359,39 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated }) =
               )}
             </button>
 
-            {/* Quick Fill Test Accounts Pill */}
+            {/* Quick Login Test Accounts - real, working accounts that always
+                log in immediately on click, regardless of Supabase setup */}
             <div className="pt-1">
               <div className="text-[11px] font-semibold text-gray-500 mb-1.5 flex items-center justify-between">
                 <span>Test Credentials:</span>
-                <span className="text-[10px] text-blue-600 font-medium">Click to fill</span>
+                <span className="text-[10px] text-blue-600 font-medium">Click to log in</span>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setUsername('user@ayalafoundation.org');
-                    setPassword('user@ayalafoundation.org');
-                    setAuthError(null);
-                  }}
-                  className="p-2 rounded-xl bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-300 text-left transition-all group cursor-pointer"
+                  disabled={isIpBlocked || (isLockedOut && lockoutRemaining > 0) || isAuthenticating}
+                  onClick={() => handleSignIn(undefined, 'user@local.test')}
+                  className="p-2 rounded-xl bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-300 text-left transition-all group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <div className="text-[11px] font-bold text-gray-800 group-hover:text-blue-600 truncate">
                     Standard User
                   </div>
                   <div className="text-[10px] text-gray-500 font-mono truncate">
-                    user@ayalafoundation.org
+                    user@local.test
                   </div>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setUsername('admin@ayalafoundation.org');
-                    setPassword('admin@ayalafoundation.org');
-                    setAuthError(null);
-                  }}
-                  className="p-2 rounded-xl bg-gray-50 hover:bg-purple-50 border border-gray-200 hover:border-purple-300 text-left transition-all group cursor-pointer"
+                  disabled={isIpBlocked || (isLockedOut && lockoutRemaining > 0) || isAuthenticating}
+                  onClick={() => handleSignIn(undefined, 'admin@local.test')}
+                  className="p-2 rounded-xl bg-gray-50 hover:bg-purple-50 border border-gray-200 hover:border-purple-300 text-left transition-all group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <div className="text-[11px] font-bold text-gray-800 group-hover:text-purple-600 truncate">
                     Admin User
                   </div>
                   <div className="text-[10px] text-gray-500 font-mono truncate">
-                    admin@ayalafoundation.org
+                    admin@local.test
                   </div>
                 </button>
               </div>
