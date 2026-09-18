@@ -3,9 +3,7 @@ import {
   Video,
   CheckCircle2,
   Activity,
-  Send,
   ShieldCheck,
-  Terminal,
   RefreshCw,
   Key,
   Webhook,
@@ -51,10 +49,6 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
   const [accountNotice, setAccountNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Playground form state
-  const [testTopic, setTestTopic] = useState('Enterprise Architecture Review');
-  const [testDuration, setTestDuration] = useState('30');
-  const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
-  const [createdMeetingResponse, setCreatedMeetingResponse] = useState<any | null>(null);
 
   const fetchZoomStatus = async () => {
     try {
@@ -156,36 +150,6 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
       console.error(e);
     } finally {
       setIsPinging(false);
-    }
-  };
-
-  const handleCreateTestMeeting = async () => {
-    setIsCreatingMeeting(true);
-    try {
-      const payload = {
-        meetingTypeId: 'mt-1',
-        date: new Date().toISOString().split('T')[0],
-        timeSlot: '02:00 PM',
-        timezone: 'America/New_York',
-        participantName: 'Zoom API Tester',
-        participantEmail: 'api-tester@enterprise.com',
-        notes: `Direct Zoom REST API generated: ${testTopic}`
-      };
-
-      const res = await fetch('/api/bookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (data.success) {
-        setCreatedMeetingResponse(data.data);
-        fetchZoomStatus();
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsCreatingMeeting(false);
     }
   };
 
@@ -317,12 +281,10 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
 
       </div>
 
-      {/* Main 2-Column: API Configuration & Live REST Playground */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left Column: API Configuration & OAuth Scopes (5 cols) */}
-        <div className="lg:col-span-5 space-y-6">
-          
+      {/* API Configuration & OAuth Scopes */}
+      <div className="max-w-2xl">
+        <div className="space-y-6">
+
           {/* Credentials Card */}
           <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
@@ -512,97 +474,6 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
                 Event Subscriptions page) so incoming events are verified as genuinely from Zoom.
               </p>
             )}
-          </div>
-
-        </div>
-
-        {/* Right Column: Interactive Zoom API Tester & Payload Inspector (7 cols) */}
-        <div className="lg:col-span-7 space-y-6">
-          
-          {/* Live Meeting Generator Card */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-xs space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-[#0b5cff]" />
-                <h3 className="font-bold text-gray-900 text-sm">REST API Meeting Provisioner</h3>
-              </div>
-              <span className="text-xs font-mono text-gray-500">POST /v2/users/me/meetings</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1.5">Meeting Topic</label>
-                <input
-                  type="text"
-                  value={testTopic}
-                  onChange={(e) => setTestTopic(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-[#0b5cff] focus:border-[#0b5cff] focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1.5">Duration (Minutes)</label>
-                <select
-                  value={testDuration}
-                  onChange={(e) => setTestDuration(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-[#0b5cff] focus:border-[#0b5cff] focus:outline-none"
-                >
-                  <option value="15">15 Minutes</option>
-                  <option value="30">30 Minutes</option>
-                  <option value="45">45 Minutes</option>
-                  <option value="60">60 Minutes</option>
-                </select>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              disabled={isCreatingMeeting}
-              onClick={handleCreateTestMeeting}
-              className="w-full py-3 px-4 rounded-xl bg-[#0b5cff] hover:bg-[#0049d1] disabled:bg-gray-300 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              {isCreatingMeeting ? (
-                <>
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>Provisioning Zoom Room via REST API...</span>
-                </>
-              ) : (
-                <>
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Execute Zoom API Meeting Call</span>
-                </>
-              )}
-            </button>
-
-            {/* Response Payload Inspector */}
-            {createdMeetingResponse && (
-              <div className="mt-4 p-4 bg-gray-900 rounded-xl text-green-400 font-mono text-xs space-y-2 overflow-x-auto">
-                <div className="flex items-center justify-between text-gray-400 border-b border-gray-800 pb-2 text-[11px]">
-                  <span>HTTP/1.1 201 Created • Zoom API Response</span>
-                  <span className="text-green-400 font-bold">201 OK</span>
-                </div>
-                <pre className="text-[11px] whitespace-pre-wrap leading-relaxed">
-{JSON.stringify({
-  id: createdMeetingResponse.zoomDetails.meetingId,
-  topic: createdMeetingResponse.meetingTitle,
-  type: 2,
-  start_time: createdMeetingResponse.startTimeIso,
-  duration: createdMeetingResponse.duration,
-  timezone: createdMeetingResponse.timezone,
-  password: createdMeetingResponse.zoomDetails.passcode,
-  join_url: createdMeetingResponse.zoomDetails.joinUrl,
-  settings: {
-    host_video: createdMeetingResponse.zoomConfig?.hostVideo ?? true,
-    participant_video: createdMeetingResponse.zoomConfig?.participantVideo ?? true,
-    waiting_room: createdMeetingResponse.zoomConfig?.waitingRoom ?? true,
-    auto_recording: createdMeetingResponse.zoomConfig?.autoRecord ? 'local' : 'none',
-    encryption_type: createdMeetingResponse.zoomDetails.encryption
-  }
-}, null, 2)}
-                </pre>
-              </div>
-            )}
-
           </div>
 
         </div>
