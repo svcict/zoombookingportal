@@ -2213,6 +2213,13 @@ app.post('/api/bookings', async (req, res) => {
       m365EventId: m365CalendarState.syncEnabled ? `M365-EVT-${Date.now()}` : undefined,
       answers,
       status: 'confirmed',
+      // emailSent/emailSentAt are decorative - no email has ever actually
+      // been sent (email was deprioritized for push notifications). When
+      // real sending is built, it should be Microsoft Graph sendMail
+      // (app-only), sent AS the rotating account that owns zoomAccountKey
+      // for this booking - i.e. ZOOM_ACCOUNT_A_USER_ID or
+      // ZOOM_ACCOUNT_B_USER_ID, both confirmed to be real, licensed M365
+      // mailboxes - not a single fixed sender.
       reminders: {
         emailSent: true,
         emailSentAt: new Date().toISOString(),
