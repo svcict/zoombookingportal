@@ -282,8 +282,7 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
       </div>
 
       {/* API Configuration & OAuth Scopes */}
-      <div className="max-w-2xl">
-        <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
 
           {/* Credentials Card */}
           <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-xs space-y-4">
@@ -475,8 +474,6 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
               </p>
             )}
           </div>
-
-        </div>
 
       </div>
 
