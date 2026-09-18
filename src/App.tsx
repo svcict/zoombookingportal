@@ -450,6 +450,7 @@ export default function App() {
               <div className="xl:col-span-2 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto">
                 <HostBookingsView
                   bookings={visibleBookings}
+                  meetingTypes={meetingTypes}
                   isAdmin={isAdmin}
                   onCancelBooking={handleCancelBooking}
                   onSelectBookingForDetails={(booking) => setSelectedBookingForDetails(booking)}

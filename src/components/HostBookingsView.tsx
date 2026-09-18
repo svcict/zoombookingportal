@@ -22,10 +22,11 @@ import {
   Shield,
   Layers
 } from 'lucide-react';
-import { Booking } from '../types';
+import { Booking, MeetingType } from '../types';
 
 interface HostBookingsViewProps {
   bookings: Booking[];
+  meetingTypes?: MeetingType[];
   isAdmin?: boolean;
   onCancelBooking: (id: string) => Promise<void>;
   onSelectBookingForDetails?: (booking: Booking) => void;
@@ -34,6 +35,7 @@ interface HostBookingsViewProps {
 
 export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
   bookings,
+  meetingTypes = [],
   isAdmin = false,
   onCancelBooking,
   onSelectBookingForDetails,
@@ -43,6 +45,11 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<'all' | 'confirmed' | 'cancelled'>('all');
   const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const getQuestionLabel = (booking: Booking, questionId: string): string => {
+    const meetingType = meetingTypes.find((m) => m.id === booking.meetingTypeId);
+    return meetingType?.customQuestions.find((q) => q.id === questionId)?.label || questionId;
+  };
 
   const filteredBookings = bookings.filter((b) => {
     const matchesSearch =
@@ -281,7 +288,9 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
                         <div className="space-y-2">
                           {Object.entries(booking.answers).map(([qKey, ans]) => (
                             <div key={qKey} className="bg-white p-3 rounded-xl border border-gray-200">
-                              <span className="font-semibold text-gray-700">{qKey}: </span>
+                              <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-0.5">
+                                {getQuestionLabel(booking, qKey)}
+                              </div>
                               <span className="text-gray-900">{String(ans)}</span>
                             </div>
                           ))}
