@@ -57,7 +57,8 @@ export default function App() {
   // Core Data initialized with complete default seed dataset
   const [meetingTypes, setMeetingTypes] = useState<MeetingType[]>(INITIAL_MEETING_TYPES);
   const [selectedMeetingType, setSelectedMeetingType] = useState<MeetingType | null>(INITIAL_MEETING_TYPES[0]);
-  const [meetingTopic, setMeetingTopic] = useState<string>('Ayala Foundation Strategy & Collaboration Sync');
+  const [meetingTopic, setMeetingTopic] = useState<string>('');
+  const [topicError, setTopicError] = useState(false);
   const [hostAccounts, setHostAccounts] = useState<HostAccount[]>(INITIAL_HOST_ACCOUNTS);
   const [selectedAccountId, setSelectedAccountId] = useState<string>('all');
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -244,6 +245,12 @@ export default function App() {
 
   // Handle slot selection -> proceed to Zoom intake form
   const handleSelectSlot = (slot: TimeSlot) => {
+    if (!meetingTopic.trim()) {
+      setTopicError(true);
+      document.getElementById('meeting-topic-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    setTopicError(false);
     setSelectedSlot(slot);
     setBookingStep('intake');
   };
@@ -459,11 +466,11 @@ export default function App() {
                   id="meeting-topic-card"
                   className="bg-white rounded-2xl p-6 sm:p-7 border border-gray-200 shadow-xs"
                 >
-                  <div className="w-full space-y-3">
+                  <div className="w-full space-y-2">
                     <div className="flex items-center justify-between">
                       <label htmlFor="meeting-topic-input" className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-2">
                         <Video className="w-4 h-4 text-[#0b5cff]" />
-                        <span>Topic or Name of the Meeting</span>
+                        <span>Topic <span className="text-red-500">*</span></span>
                       </label>
                       <span className="text-[11px] text-gray-400 font-mono hidden sm:inline">
                         Auto-generates Zoom &amp; Outlook title
@@ -475,9 +482,16 @@ export default function App() {
                         id="meeting-topic-input"
                         type="text"
                         value={meetingTopic}
-                        onChange={(e) => setMeetingTopic(e.target.value)}
+                        onChange={(e) => {
+                          setMeetingTopic(e.target.value);
+                          if (e.target.value.trim()) setTopicError(false);
+                        }}
                         placeholder="e.g. Ayala Foundation Operations Strategy & Partner Sync"
-                        className="w-full px-4 py-3.5 bg-[#F7F9FA] hover:bg-gray-100/70 focus:bg-white border border-gray-200 focus:border-[#0b5cff] rounded-xl text-base font-semibold text-gray-900 placeholder:text-gray-400 placeholder:font-normal focus:outline-none focus:ring-4 focus:ring-[#0b5cff]/10 transition-all shadow-2xs"
+                        className={`w-full px-4 py-3.5 bg-[#F7F9FA] hover:bg-gray-100/70 focus:bg-white border rounded-xl text-base font-semibold text-gray-900 placeholder:text-gray-400 placeholder:font-normal focus:outline-none focus:ring-4 transition-all shadow-2xs ${
+                          topicError
+                            ? 'border-red-400 focus:border-red-400 focus:ring-red-400/10'
+                            : 'border-gray-200 focus:border-[#0b5cff] focus:ring-[#0b5cff]/10'
+                        }`}
                       />
                       {meetingTopic && (
                         <button
@@ -490,33 +504,9 @@ export default function App() {
                         </button>
                       )}
                     </div>
-
-                    {/* Quick Topic Suggestion Pills */}
-                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                      <span className="text-[11px] font-semibold text-gray-500 mr-1 flex items-center gap-1">
-                        <Sparkles className="w-3 h-3 text-[#0b5cff]" /> Suggestions:
-                      </span>
-                      {[
-                        'Operations Strategy Review',
-                        'Community Partner Sync',
-                        'Program Planning & Review',
-                        'Stakeholder Consultation',
-                        'Project Architecture Deep-Dive',
-                      ].map((suggestion) => (
-                        <button
-                          key={suggestion}
-                          type="button"
-                          onClick={() => setMeetingTopic(suggestion)}
-                          className={`text-[11px] px-2.5 py-1 rounded-lg border font-medium transition-colors cursor-pointer ${
-                            meetingTopic === suggestion
-                              ? 'bg-blue-50 border-blue-300 text-[#0b5cff] font-bold'
-                              : 'bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-600'
-                          }`}
-                        >
-                          {suggestion}
-                        </button>
-                      ))}
-                    </div>
+                    {topicError && (
+                      <p className="text-xs text-red-500 font-medium">Topic is required.</p>
+                    )}
                   </div>
                 </div>
 
