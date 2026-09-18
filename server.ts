@@ -874,6 +874,45 @@ async function initPersistence(): Promise<void> {
   );
 }
 
+const REMINDER_CHECK_INTERVAL_MS = 60 * 1000;
+
+function formatReminderLead(minutesBefore: number): string {
+  if (minutesBefore >= 1440) return `${Math.round(minutesBefore / 1440)} day(s)`;
+  if (minutesBefore >= 60) return `${Math.round(minutesBefore / 60)} hour(s)`;
+  return `${minutesBefore} minutes`;
+}
+
+// Runs every minute, checking every non-cancelled booking against its own
+// reminders.reminderMinutes thresholds (e.g. 1440/60/15 minutes before
+// start) and sends a real push the first time a threshold is crossed -
+// tracked per booking in reminders.sentReminderMinutes so it never repeats.
+async function checkAndSendReminders(): Promise<void> {
+  if (!isPushConfigured()) return;
+  const now = Date.now();
+
+  for (const booking of bookings) {
+    if (booking.status === 'cancelled') continue;
+    const minutesUntilStart = (new Date(booking.startTimeIso).getTime() - now) / 60000;
+    if (minutesUntilStart < 0) continue;
+
+    const reminderMinutesList: number[] = booking.reminders?.reminderMinutes || [];
+    if (!booking.reminders.sentReminderMinutes) booking.reminders.sentReminderMinutes = [];
+    const sent: number[] = booking.reminders.sentReminderMinutes;
+
+    for (const minutesBefore of reminderMinutesList) {
+      if (sent.includes(minutesBefore) || minutesUntilStart > minutesBefore) continue;
+      sent.push(minutesBefore);
+      await sendPushToEmail(booking.participantEmail, {
+        title: 'Upcoming Zoom Meeting',
+        body: `${booking.meetingTitle} starts in ${formatReminderLead(minutesBefore)} (${booking.timeSlot})`,
+        tag: `reminder-${booking.id}-${minutesBefore}`,
+        url: '/'
+      });
+      await upsertRow('bookings', booking.id, booking).catch(() => {});
+    }
+  }
+}
+
 function getClientIp(req: express.Request): string {
   // Only trust X-Forwarded-For when explicitly running behind a trusted
   // reverse proxy/load balancer that sets it - otherwise any client can
@@ -2539,6 +2578,12 @@ async function startServer() {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Zoom Booking Portal server running on http://localhost:${PORT}`);
   });
+
+  if (isPushConfigured()) {
+    setInterval(() => {
+      checkAndSendReminders().catch((err) => console.error('[push] Reminder check failed:', err));
+    }, REMINDER_CHECK_INTERVAL_MS);
+  }
 }
 
 startServer();

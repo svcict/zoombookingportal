@@ -157,6 +157,44 @@ real protection either way.
 - (Optional, UX only) Re-add `required` to the password `<input>` in `M365AuthGate.tsx` for a
   nicer inline error message on empty submission — doesn't change security either way.
 
+## Push Notifications
+
+Real browser push (RFC 8030 Web Push) — a booking's confirmation page has a "Get a browser
+notification before this meeting" button, and the server sends a real notification (not just a
+same-tab alert) on booking confirmation, cancellation, when the Zoom meeting actually starts
+(via the webhook), and automatically before the meeting starts (checked every minute against
+each booking's `reminders.reminderMinutes`, default 1 day / 1 hour / 15 minutes out — each
+threshold only ever fires once per booking).
+
+Unlike email, this needs **no third-party account or service** — just a self-generated key pair
+(VAPID) that identifies your server to the browser's own push service (Chrome's, Firefox's,
+etc.):
+
+1. Generate a key pair once:
+   ```
+   node -e "const w=require('web-push'); const k=w.generateVAPIDKeys(); console.log('PUBLIC:',k.publicKey); console.log('PRIVATE:',k.privateKey);"
+   ```
+2. Add to `.env`:
+   ```
+   VAPID_PUBLIC_KEY=...
+   VAPID_PRIVATE_KEY=...
+   VAPID_SUBJECT=mailto:you@yourcompany.com
+   ```
+3. Restart the server. Without these three set, the feature is silently disabled — the "Get a
+   browser notification" button will report "Push notifications are not configured on this
+   server" and no reminder-check loop runs.
+
+Subscriptions are stored per-email in the `push_subscriptions` table (see
+`supabase/migrations/0002_push_subscriptions.sql` — run this the same way as the other
+migrations) so they survive restarts; a subscription the browser's push service reports as
+gone (revoked permission, cleared site data, etc.) is dropped automatically on next send
+attempt.
+
+Real email notifications are a separate, not-yet-built feature — either Microsoft Graph
+`sendMail` (reuses the existing Azure app, but needs the `Mail.Send` **application permission**
+granted by a tenant admin, not just the delegated login permission already in place) or a
+transactional email API like Resend/SendGrid/Postmark (faster to set up, just needs an API key).
+
 ## Zoom API Setup (Two Rotating Server-to-Server OAuth Accounts)
 
 This portal creates real Zoom meetings via the [Zoom REST API](https://developers.zoom.us/docs/api/)

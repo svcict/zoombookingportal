@@ -18,10 +18,13 @@ import {
   Eye,
   EyeOff,
   Pencil,
-  Trash2
+  Trash2,
+  Bell,
+  BellOff
 } from 'lucide-react';
 import { Booking, ZoomMeetingConfig } from '../types';
 import { downloadIcsFile, getOutlookWebCalendarUrl, getM365EnterpriseCalendarUrl, getGoogleCalendarUrl } from '../utils/calendar';
+import { enablePushNotifications } from '../utils/pushSubscription';
 import { ZoomMeetingDetailsModal } from './ZoomMeetingDetailsModal';
 
 interface BookingConfirmationProps {
@@ -47,6 +50,8 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
   const [showPasscode, setShowPasscode] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [countdown, setCountdown] = useState<string>('');
+  const [pushState, setPushState] = useState<'idle' | 'enabling' | 'enabled' | 'error'>('idle');
+  const [pushError, setPushError] = useState<string | null>(null);
 
   useEffect(() => {
     setCurrentBooking(booking);
@@ -126,6 +131,26 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
     ? getM365EnterpriseCalendarUrl(currentBooking)
     : getOutlookWebCalendarUrl(currentBooking);
 
+  const handleEnablePush = async () => {
+    setPushState('enabling');
+    setPushError(null);
+    const result = await enablePushNotifications(currentBooking.participantEmail);
+    if (result.status === 'subscribed') {
+      setPushState('enabled');
+    } else {
+      setPushState('error');
+      setPushError(
+        result.status === 'unsupported'
+          ? 'Your browser does not support push notifications.'
+          : result.status === 'permission_denied'
+          ? 'Notification permission was denied.'
+          : result.status === 'not_configured'
+          ? 'Push notifications are not configured on this server.'
+          : result.message
+      );
+    }
+  };
+
   const copyInvitation = () => {
     const cfg = currentBooking.zoomConfig;
     const lines = [
@@ -170,6 +195,38 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
         <div className="mt-5 inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 text-[#0b5cff] border border-blue-200 rounded-full text-xs font-semibold">
           <Clock className="w-3.5 h-3.5" />
           <span>Meeting countdown: {countdown}</span>
+        </div>
+
+        {/* Real Push Notification Opt-in */}
+        <div className="mt-4">
+          {pushState === 'enabled' ? (
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-full text-xs font-semibold">
+              <Bell className="w-3.5 h-3.5" />
+              <span>Notifications enabled for this browser</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleEnablePush}
+              disabled={pushState === 'enabling'}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-full text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              {pushState === 'enabling' ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                  <span>Enabling...</span>
+                </>
+              ) : (
+                <>
+                  <BellOff className="w-3.5 h-3.5" />
+                  <span>Get a browser notification before this meeting</span>
+                </>
+              )}
+            </button>
+          )}
+          {pushState === 'error' && pushError && (
+            <p className="text-xs text-red-500 mt-1.5">{pushError}</p>
+          )}
         </div>
       </div>
 
