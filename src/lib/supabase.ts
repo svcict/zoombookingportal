@@ -79,7 +79,7 @@ export function verifyDemoSessionToken(token: string): { email: string; isAdmin:
     const payload = JSON.parse(base64UrlDecode(encodedPayload));
     if (typeof payload.email !== 'string' || typeof payload.exp !== 'number') return null;
     if (Date.now() > payload.exp) return null;
-    if (!isDemoLoginEmail(payload.email)) return null;
+    if (!isDemoLoginEmail(payload.email) && !isLocalTestAccountEmail(payload.email)) return null;
     return { email: payload.email, isAdmin: Boolean(payload.isAdmin) };
   } catch {
     return null;
