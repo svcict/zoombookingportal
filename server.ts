@@ -27,8 +27,9 @@ import {
   getZoomUserProfile,
   mapZoomMeetingResponse
 } from './src/lib/zoomApi';
-import { persistenceEnabled, loadTable, upsertRow, seedTableIfEmpty, clearTable } from './src/lib/db';
+import { persistenceEnabled, loadTable, upsertRow, deleteRow, seedTableIfEmpty, clearTable } from './src/lib/db';
 import type { ZoomMeetingConfig } from './src/types';
+import { isPushConfigured, getVapidPublicKey, sendWebPush, PushSubscriptionRecord, PushPayload } from './src/lib/pushNotifications';
 
 const app = express();
 const PORT = 3000;
@@ -778,6 +779,23 @@ interface RateLimitEntry {
 
 const failedLoginLogs: FailedAttemptRecord[] = [];
 const rateLimitStore = new Map<string, RateLimitEntry>();
+let pushSubscriptions: PushSubscriptionRecord[] = [];
+
+// Sends a real Web Push notification to every subscription registered for
+// this email (a person can have more than one - phone, laptop, etc.), and
+// drops any subscription the browser's push service reports as gone.
+async function sendPushToEmail(email: string, payload: PushPayload): Promise<void> {
+  if (!isPushConfigured()) return;
+  const normalizedEmail = email.toLowerCase().trim();
+  const targets = pushSubscriptions.filter((s) => s.email.toLowerCase() === normalizedEmail);
+  for (const sub of targets) {
+    const result = await sendWebPush(sub, payload);
+    if (result.shouldRemove) {
+      pushSubscriptions = pushSubscriptions.filter((s) => s.id !== sub.id);
+      deleteRow('push_subscriptions', sub.id).catch(() => {});
+    }
+  }
+}
 
 // ----------------------------------------------------
 // PERSISTENCE BOOTSTRAP
@@ -848,8 +866,11 @@ async function initPersistence(): Promise<void> {
   const loadedFailedLogins = await loadTable<FailedAttemptRecord>('failed_login_logs');
   if (loadedFailedLogins) failedLoginLogs.push(...loadedFailedLogins);
 
+  const loadedPushSubscriptions = await loadTable<PushSubscriptionRecord>('push_subscriptions');
+  if (loadedPushSubscriptions) pushSubscriptions = loadedPushSubscriptions;
+
   console.log(
-    `[persistence] Loaded from Supabase: ${hostAccounts.length} host accounts, ${meetingTypes.length} meeting types, ${bookings.length} bookings, ${zoomApiLogs.length} Zoom API logs, ${failedLoginLogs.length} failed login logs.`
+    `[persistence] Loaded from Supabase: ${hostAccounts.length} host accounts, ${meetingTypes.length} meeting types, ${bookings.length} bookings, ${zoomApiLogs.length} Zoom API logs, ${failedLoginLogs.length} failed login logs, ${pushSubscriptions.length} push subscriptions.`
   );
 }
 
@@ -2012,6 +2033,13 @@ app.post('/api/bookings', async (req, res) => {
     bookings.unshift(newBooking);
     await upsertRow('bookings', newBooking.id, newBooking);
 
+    sendPushToEmail(newBooking.participantEmail, {
+      title: 'Zoom Meeting Confirmed',
+      body: `${newBooking.meetingTitle} - ${newBooking.date} at ${newBooking.timeSlot}`,
+      tag: `booking-${newBooking.id}`,
+      url: '/'
+    }).catch(() => {});
+
     res.status(201).json({
       success: true,
       data: redactStartUrlForParticipant(newBooking),
@@ -2146,6 +2174,13 @@ app.post('/api/bookings/:id/cancel', async (req, res) => {
   booking.status = 'cancelled';
   booking.m365SyncStatus = 'synced'; // M365 event removed
   await upsertRow('bookings', booking.id, booking);
+
+  sendPushToEmail(booking.participantEmail, {
+    title: 'Zoom Meeting Cancelled',
+    body: `${booking.meetingTitle} (${booking.date} at ${booking.timeSlot}) has been cancelled.`,
+    tag: `booking-${booking.id}`,
+    url: '/'
+  }).catch(() => {});
 
   res.json({ success: true, message: 'Meeting cancelled and removed from Microsoft 365 calendar and Zoom.', data: booking });
 });
@@ -2340,6 +2375,12 @@ app.post('/api/zoom/webhooks', (req: any, res) => {
     booking.liveStatus = 'started';
     payloadSummary = `Meeting started: "${booking.meetingTitle}" (${rawMeetingId})`;
     upsertRow('bookings', booking.id, booking).catch(() => {});
+    sendPushToEmail(booking.participantEmail, {
+      title: 'Zoom Meeting Started',
+      body: `${booking.meetingTitle} is live now - join anytime.`,
+      tag: `live-${booking.id}`,
+      url: '/'
+    }).catch(() => {});
   } else if (eventName === 'meeting.ended' && booking) {
     booking.liveStatus = 'ended';
     payloadSummary = `Meeting ended: "${booking.meetingTitle}" (${rawMeetingId})`;
@@ -2411,6 +2452,13 @@ app.post('/api/reminders/trigger', async (req, res) => {
     return res.status(404).json({ success: false, error: 'Booking not found' });
   }
 
+  await sendPushToEmail(booking.participantEmail, {
+    title: 'Upcoming Zoom Meeting',
+    body: `${booking.meetingTitle} starts soon (${booking.timeSlot})`,
+    tag: `reminder-${booking.id}`,
+    url: '/'
+  });
+
   res.json({
     success: true,
     reminderSent: true,
@@ -2420,6 +2468,52 @@ app.post('/api/reminders/trigger', async (req, res) => {
     reminderType: reminderType || '15-min-reminder',
     message: `Reminder sent to ${booking.participantEmail} for Zoom Meeting: ${booking.meetingTitle}`
   });
+});
+
+// 10. Web Push subscriptions - no login required (booking itself doesn't
+// require one), keyed by whatever email the subscribing browser provides.
+app.get('/api/push/vapid-public-key', (req, res) => {
+  const key = getVapidPublicKey();
+  if (!key) {
+    return res.status(404).json({ success: false, configured: false, error: 'Push notifications are not configured on this server.' });
+  }
+  res.json({ success: true, configured: true, publicKey: key });
+});
+
+app.post('/api/push/subscribe', async (req, res) => {
+  const { email, subscription } = req.body;
+  const normalizedEmail = (email || '').trim().toLowerCase();
+  if (!normalizedEmail || !subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
+    return res.status(400).json({ success: false, error: 'email and a valid push subscription are required' });
+  }
+
+  // Re-subscribing with the same endpoint (e.g. browser refreshed keys)
+  // replaces the old record instead of accumulating duplicates.
+  pushSubscriptions = pushSubscriptions.filter((s) => s.endpoint !== subscription.endpoint);
+  const record: PushSubscriptionRecord = {
+    id: `push-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    email: normalizedEmail,
+    endpoint: subscription.endpoint,
+    keys: { p256dh: subscription.keys.p256dh, auth: subscription.keys.auth },
+    createdAt: new Date().toISOString()
+  };
+  pushSubscriptions.push(record);
+  await upsertRow('push_subscriptions', record.id, record);
+
+  res.json({ success: true, message: 'Push notifications enabled.' });
+});
+
+app.post('/api/push/unsubscribe', async (req, res) => {
+  const { endpoint } = req.body;
+  if (!endpoint) {
+    return res.status(400).json({ success: false, error: 'endpoint is required' });
+  }
+  const toRemove = pushSubscriptions.filter((s) => s.endpoint === endpoint);
+  pushSubscriptions = pushSubscriptions.filter((s) => s.endpoint !== endpoint);
+  for (const sub of toRemove) {
+    await deleteRow('push_subscriptions', sub.id).catch(() => {});
+  }
+  res.json({ success: true, message: 'Push notifications disabled.' });
 });
 
 // ----------------------------------------------------
