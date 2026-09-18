@@ -168,7 +168,7 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated }) =
 
   // Trigger Microsoft 365 Single Sign-On (SSO): a real redirect to
   // Microsoft's own login page (login.microsoftonline.com), handled by
-  // /api/auth/m365/authorize + /api/auth/m365/callback on the server.
+  // /api/auth/m365/authorize + /auth/callback on the server.
   const handleMicrosoftSSO = () => {
     if (isIpBlocked || (isLockedOut && lockoutRemaining > 0)) {
       return;

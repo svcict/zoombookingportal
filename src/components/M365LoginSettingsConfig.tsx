@@ -59,7 +59,7 @@ const FIELD_TOOLTIPS: Record<string, TooltipInfo> = {
     title: 'OAuth 2.0 Redirect URI',
     description: 'The authorized callback URL where Microsoft Entra ID returns authentication tokens and authorization codes after a host or user logs in.',
     portalLocation: 'Azure Portal > App Registrations > [Your App] > Authentication > Web Redirect URIs',
-    formatExample: 'https://ais-dev-jfm6qha32kjy23k5537tz5-415973400396.asia-southeast1.run.app/api/auth/m365/callback',
+    formatExample: 'https://ais-dev-jfm6qha32kjy23k5537tz5-415973400396.asia-southeast1.run.app/auth/callback',
     envKey: 'MICROSOFT_REDIRECT_URI'
   },
   MICROSOFT_GRAPH_SCOPES: {
@@ -96,7 +96,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
     tenantId: '',
     clientId: '',
     clientSecret: '',
-    redirectUri: typeof window !== 'undefined' ? `${window.location.origin}/api/auth/m365/callback` : '',
+    redirectUri: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : '',
     scopes: 'User.Read Calendars.ReadWrite Mail.Send offline_access',
     orgDomain: '',
     primaryEmail: '',
@@ -584,7 +584,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                 type="text"
                 value={config.redirectUri}
                 onChange={(e) => handleFieldChange('MICROSOFT_REDIRECT_URI', 'redirectUri', e.target.value)}
-                placeholder="https://your-domain.com/api/auth/m365/callback"
+                placeholder="https://your-domain.com/auth/callback"
                 className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0b5cff] focus:border-[#0b5cff] transition-all shadow-2xs"
               />
 

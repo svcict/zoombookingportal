@@ -1211,7 +1211,7 @@ app.get('/api/admin/m365/config', async (req, res) => {
   const tenantId = process.env.MICROSOFT_TENANT_ID || '';
   const clientId = process.env.MICROSOFT_CLIENT_ID || '';
   const clientSecret = process.env.MICROSOFT_CLIENT_SECRET || '';
-  const redirectUri = process.env.MICROSOFT_REDIRECT_URI || `${req.protocol}://${req.get('host')}/api/auth/m365/callback`;
+  const redirectUri = process.env.MICROSOFT_REDIRECT_URI || `${req.protocol}://${req.get('host')}/auth/callback`;
   const scopes = process.env.MICROSOFT_GRAPH_SCOPES || 'User.Read Calendars.ReadWrite Mail.Send offline_access';
   const orgDomain = process.env.MICROSOFT_ORGANIZATION_DOMAIN || '';
   const primaryEmail = process.env.MICROSOFT_PRIMARY_USER_EMAIL || '';
@@ -1364,7 +1364,7 @@ function getM365OAuthConfig(req: express.Request) {
     tenantId: (process.env.MICROSOFT_TENANT_ID || '').trim(),
     clientId: (process.env.MICROSOFT_CLIENT_ID || '').trim(),
     clientSecret: (process.env.MICROSOFT_CLIENT_SECRET || '').trim(),
-    redirectUri: (process.env.MICROSOFT_REDIRECT_URI || `${req.protocol}://${req.get('host')}/api/auth/m365/callback`).trim(),
+    redirectUri: (process.env.MICROSOFT_REDIRECT_URI || `${req.protocol}://${req.get('host')}/auth/callback`).trim(),
     scopes: (process.env.MICROSOFT_GRAPH_SCOPES || 'User.Read Calendars.ReadWrite Mail.Send offline_access').trim(),
     orgDomain: (process.env.MICROSOFT_ORGANIZATION_DOMAIN || '').trim().toLowerCase()
   };
@@ -1393,7 +1393,7 @@ app.get('/api/auth/m365/authorize', (req, res) => {
 // Step 2: Microsoft redirects back here with an authorization code. Exchange
 // it for a real access token, look up the signed-in user via Microsoft
 // Graph, and issue this app's own session token for them.
-app.get('/api/auth/m365/callback', async (req, res) => {
+app.get('/auth/callback', async (req, res) => {
   const code = typeof req.query.code === 'string' ? req.query.code : '';
   const state = typeof req.query.state === 'string' ? req.query.state : '';
   const oauthError = typeof req.query.error === 'string' ? req.query.error : '';
@@ -1580,7 +1580,7 @@ app.post('/api/auth/m365/login', async (req, res) => {
   resetExpiredLockout(entry);
 
   // Real Microsoft 365 SSO goes through /api/auth/m365/authorize +
-  // /api/auth/m365/callback (a real Entra ID OAuth redirect flow), not this
+  // /auth/callback (a real Entra ID OAuth redirect flow), not this
   // password endpoint - it never accepts an isSSO/authMethod flag itself.
 
   // 2. Strict Supabase Authentication
