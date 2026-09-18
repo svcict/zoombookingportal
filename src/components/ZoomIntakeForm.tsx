@@ -88,8 +88,10 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   // Zoom meeting settings - set here at booking time so the meeting is
   // created with these already applied, instead of a separate settings
   // step after confirmation.
-  const [passcodeEnabled, setPasscodeEnabled] = useState(true);
-  const [passcode, setPasscode] = useState(() => generateDefaultPasscode());
+  // Passcode is always on and auto-generated, not booker-configurable -
+  // the booker isn't the meeting host (one of the two rotating Zoom
+  // accounts is), so choosing meeting security isn't theirs to set.
+  const [passcode] = useState(() => generateDefaultPasscode());
   const [waitingRoom, setWaitingRoom] = useState(true);
   const [requireAuth, setRequireAuth] = useState(false);
   const [hostVideo, setHostVideo] = useState(true);
@@ -151,7 +153,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
       notes: `Registered for Zoom session via Zoom Scheduler Portal. Host: ${meetingType.hostName}`,
       meetingTopic: topic.trim() || meetingType.title,
       zoomConfig: {
-        passcodeEnabled,
+        passcodeEnabled: true,
         passcode,
         waitingRoom,
         requireAuth,
@@ -472,24 +474,6 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
           {/* Security */}
           <div className="space-y-2.5">
             <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">Security</label>
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-800">
-                <input
-                  type="checkbox"
-                  checked={passcodeEnabled}
-                  onChange={(e) => setPasscodeEnabled(e.target.checked)}
-                  className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
-                />
-                <span className="font-medium">Passcode</span>
-              </label>
-              <input
-                type="text"
-                value={passcode}
-                onChange={(e) => setPasscode(e.target.value)}
-                disabled={!passcodeEnabled}
-                className="w-28 px-3 py-1.5 bg-white border border-gray-300 rounded-md text-sm font-mono text-gray-800 focus:outline-none focus:border-[#0b5cff] focus:ring-1 focus:ring-[#0b5cff] disabled:opacity-50"
-              />
-            </div>
             <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-800">
               <input
                 type="checkbox"
