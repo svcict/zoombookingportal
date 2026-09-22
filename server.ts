@@ -1196,7 +1196,6 @@ app.get('/api/admin/m365/config', async (req, res) => {
   const redirectUri = process.env.MICROSOFT_REDIRECT_URI || `${req.protocol}://${req.get('host')}/auth/callback`;
   const scopes = process.env.MICROSOFT_GRAPH_SCOPES || 'User.Read Calendars.ReadWrite Mail.Send offline_access';
   const orgDomain = process.env.MICROSOFT_ORGANIZATION_DOMAIN || '';
-  const primaryEmail = process.env.MICROSOFT_PRIMARY_USER_EMAIL || '';
 
   const validation = await validateMicrosoftEntraLive(tenantId, clientId, clientSecret);
 
@@ -1209,7 +1208,6 @@ app.get('/api/admin/m365/config', async (req, res) => {
       redirectUri,
       scopes,
       orgDomain,
-      primaryEmail,
       connected: validation.connected,
       validationStatus: validation.status,
       validationMessage: validation.message,
@@ -1229,8 +1227,7 @@ const M365_CONFIG_KEYS = new Set([
   'MICROSOFT_CLIENT_SECRET',
   'MICROSOFT_REDIRECT_URI',
   'MICROSOFT_GRAPH_SCOPES',
-  'MICROSOFT_ORGANIZATION_DOMAIN',
-  'MICROSOFT_PRIMARY_USER_EMAIL'
+  'MICROSOFT_ORGANIZATION_DOMAIN'
 ]);
 
 app.post('/api/admin/m365/config', async (req, res) => {
@@ -1258,7 +1255,6 @@ app.post('/api/admin/m365/config', async (req, res) => {
   const redirectUri = process.env.MICROSOFT_REDIRECT_URI || '';
   const scopes = process.env.MICROSOFT_GRAPH_SCOPES || '';
   const orgDomain = process.env.MICROSOFT_ORGANIZATION_DOMAIN || '';
-  const primaryEmail = process.env.MICROSOFT_PRIMARY_USER_EMAIL || '';
 
   const validation = await validateMicrosoftEntraLive(tenantId, clientId, clientSecret);
 
@@ -1273,7 +1269,6 @@ app.post('/api/admin/m365/config', async (req, res) => {
       redirectUri,
       scopes,
       orgDomain,
-      primaryEmail,
       connected: validation.connected,
       validationStatus: validation.status,
       validationMessage: validation.message,
@@ -1353,17 +1348,15 @@ function getM365OAuthConfig(req: express.Request) {
 }
 
 // ----------------------------------------------------
-// REAL MICROSOFT 365 CALENDAR SYNC (app-only Graph, read-only)
+// REAL MICROSOFT 365 CALENDAR SYNC (app-only Graph)
 // ----------------------------------------------------
-// This checks the ONE configured sync mailbox (MICROSOFT_PRIMARY_USER_EMAIL)
-// for real conflicts via Microsoft Graph's getSchedule endpoint - it does
-// NOT write bookings back into Outlook as calendar events (that's a
-// separate, bigger feature: creating/updating/deleting real events per
-// booking). Since there's only one real mailbox configured, its busy
-// blocks apply uniformly across all 4 display "hosts", not per-account -
-// this app has no way to know which of the 4 corresponds to a real M365
-// mailbox unless each host account email is itself a real user in your
-// tenant.
+// Checks each rotating Zoom account's own real M365 mailbox
+// (ZOOM_ACCOUNT_A/B_USER_ID) for conflicts via Graph's getSchedule
+// endpoint, and creates/updates/deletes real Outlook calendar events for
+// bookings on the same mailbox (see createGraphCalendarEvent below) -
+// there is no separate "primary sync mailbox" concept; the rotating
+// account that hosts a given meeting is the only mailbox that matters
+// for it.
 let graphAppToken: { token: string; expiresAt: number } | null = null;
 
 async function getGraphAppToken(): Promise<string | null> {

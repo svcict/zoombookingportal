@@ -268,7 +268,6 @@ export interface M365SettingsConfig {
   redirectUri: string;
   scopes: string;
   orgDomain: string;
-  primaryEmail: string;
   connected: boolean;
   validationStatus?: string;
   validationMessage?: string;

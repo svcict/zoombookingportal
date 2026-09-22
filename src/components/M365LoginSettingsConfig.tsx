@@ -75,13 +75,6 @@ const FIELD_TOOLTIPS: Record<string, TooltipInfo> = {
     portalLocation: 'Microsoft 365 Admin Center > Settings > Domains',
     formatExample: 'ayalafoundation.org or enterprise.onmicrosoft.com',
     envKey: 'MICROSOFT_ORGANIZATION_DOMAIN'
-  },
-  MICROSOFT_PRIMARY_USER_EMAIL: {
-    title: 'Primary Host / Service Mailbox',
-    description: 'The dedicated Microsoft 365 user account or shared mailbox that owns the primary calendar and dispatches automated invitation links.',
-    portalLocation: 'Microsoft 365 Admin Center > Users > Active Users',
-    formatExample: 'sarah.jenkins@ayalafoundation.org',
-    envKey: 'MICROSOFT_PRIMARY_USER_EMAIL'
   }
 };
 
@@ -99,7 +92,6 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
     redirectUri: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : '',
     scopes: 'User.Read Calendars.ReadWrite Mail.Send offline_access',
     orgDomain: '',
-    primaryEmail: '',
     connected: false,
     validationStatus: 'initializing',
     validationMessage: 'Checking live Microsoft Entra identity status...',
@@ -725,64 +717,6 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
               )}
             </div>
 
-            {/* Field 7: MICROSOFT_PRIMARY_USER_EMAIL */}
-            <div 
-              id="m365-field-primary-email"
-              className="relative p-4 rounded-xl bg-gray-50/70 border border-gray-200 hover:border-blue-300 hover:bg-blue-50/20 transition-all group"
-              onMouseEnter={() => setActiveHoverField('MICROSOFT_PRIMARY_USER_EMAIL')}
-              onMouseLeave={() => setActiveHoverField(null)}
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5 text-green-600" />
-                  <span>Primary Host / Sync Mailbox</span>
-                  <Info className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#0b5cff] cursor-help transition-colors" />
-                </label>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(config.primaryEmail, 'MICROSOFT_PRIMARY_USER_EMAIL')}
-                  className="text-[10px] text-gray-500 hover:text-gray-900 flex items-center gap-1 font-medium transition-colors"
-                >
-                  {copiedKey === 'MICROSOFT_PRIMARY_USER_EMAIL' ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}
-                  <span>{copiedKey === 'MICROSOFT_PRIMARY_USER_EMAIL' ? 'Copied' : 'Copy'}</span>
-                </button>
-              </div>
-
-              <input
-                type="email"
-                value={config.primaryEmail}
-                onChange={(e) => handleFieldChange('MICROSOFT_PRIMARY_USER_EMAIL', 'primaryEmail', e.target.value)}
-                placeholder="e.g. sarah.jenkins@ayalafoundation.org"
-                className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0b5cff] focus:border-[#0b5cff] transition-all shadow-2xs"
-              />
-
-              <div className="flex items-center justify-between mt-2 text-[10px] text-gray-500">
-                <span className="font-mono text-gray-400">MICROSOFT_PRIMARY_USER_EMAIL</span>
-                <span className="text-blue-700 font-semibold flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                  Zoom auto-sends details to meeting creators
-                </span>
-              </div>
-
-              {/* Hover Information Popup */}
-              {activeHoverField === 'MICROSOFT_PRIMARY_USER_EMAIL' && (
-                <div className="absolute left-0 bottom-full mb-2 w-80 bg-gray-900 text-white p-3.5 rounded-xl shadow-xl z-50 border border-gray-700 animate-in fade-in zoom-in-95 pointer-events-none">
-                  <div className="text-xs font-bold text-green-400 mb-1 flex items-center gap-1.5">
-                    <Mail className="w-3.5 h-3.5" />
-                    {FIELD_TOOLTIPS.MICROSOFT_PRIMARY_USER_EMAIL.title}
-                  </div>
-                  <p className="text-[11px] text-gray-300 leading-relaxed mb-2">
-                    {FIELD_TOOLTIPS.MICROSOFT_PRIMARY_USER_EMAIL.description}
-                  </p>
-                  <div className="p-2 bg-gray-800 rounded-lg text-[10px] space-y-1">
-                    <div className="text-gray-400">Zoom Automation: <span className="text-blue-300 font-medium">Meeting details &amp; credentials are sent automatically to users who create meetings</span></div>
-                    <div className="text-gray-400">Portal Location: <span className="text-gray-200">{FIELD_TOOLTIPS.MICROSOFT_PRIMARY_USER_EMAIL.portalLocation}</span></div>
-                    <div className="text-gray-400">Example: <span className="text-blue-300 font-mono">{FIELD_TOOLTIPS.MICROSOFT_PRIMARY_USER_EMAIL.formatExample}</span></div>
-                  </div>
-                </div>
-              )}
-            </div>
-
           </div>
 
           {/* Quick Action Footer */}
@@ -804,7 +738,6 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                   saveKeyToEnv('MICROSOFT_REDIRECT_URI', config.redirectUri);
                   saveKeyToEnv('MICROSOFT_GRAPH_SCOPES', config.scopes);
                   saveKeyToEnv('MICROSOFT_ORGANIZATION_DOMAIN', config.orgDomain);
-                  saveKeyToEnv('MICROSOFT_PRIMARY_USER_EMAIL', config.primaryEmail);
                 }}
                 disabled={isSaving}
                 className="px-3.5 py-1.5 rounded-xl bg-gray-900 hover:bg-black text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
