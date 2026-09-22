@@ -296,7 +296,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                   }`}
                 />
               </div>
-              <p className="text-[11px] text-gray-400 mt-1 font-medium">Zoom join links and Microsoft 365 calendar invite sent here.</p>
+              <p className="text-[11px] text-gray-400 mt-1 font-medium">Your Zoom join link, meeting ID, and passcode will be emailed here.</p>
               {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
             </div>
           </div>

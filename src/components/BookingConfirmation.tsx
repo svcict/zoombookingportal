@@ -187,8 +187,17 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
         </h1>
 
         <p className="text-sm text-gray-600 mt-2 max-w-lg mx-auto">
-          An automated confirmation email and Microsoft 365 calendar invite have been dispatched to{' '}
-          <strong className="text-gray-900">{booking.participantEmail}</strong>.
+          {currentBooking.reminders?.emailSent ? (
+            <>
+              A confirmation email with your join link, meeting ID, and passcode has been sent to{' '}
+              <strong className="text-gray-900">{booking.participantEmail}</strong>.
+            </>
+          ) : (
+            <span className="text-amber-700">
+              The confirmation email to <strong>{booking.participantEmail}</strong> could not be sent
+              {currentBooking.reminders?.emailError ? `: ${currentBooking.reminders.emailError}` : '.'} Please share the join details below directly.
+            </span>
+          )}
         </p>
 
         {/* Meeting Countdown Bar */}
