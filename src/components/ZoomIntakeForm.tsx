@@ -105,6 +105,13 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
       setGuestEmails([...guestEmails, guestEmailInput.trim()]);
     }
     setGuestEmailInput('');
+    if (errors.guestEmails) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.guestEmails;
+        return next;
+      });
+    }
   };
 
   const handleRemoveGuest = (emailToRemove: string) => {
@@ -126,6 +133,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
     const newErrors: Record<string, string> = {};
     if (!fullName.trim()) newErrors.fullName = 'Full name is required';
     if (!email.trim() || !email.includes('@')) newErrors.email = 'Valid work email is required';
+    if (guestEmails.length === 0) newErrors.guestEmails = 'At least one invitee is required';
 
     // Validate required custom questions
     meetingType.customQuestions.forEach((q) => {
@@ -297,10 +305,10 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
         {/* Section: Add Guests / Multi-Participant */}
         <div className="pt-4 border-t border-gray-100">
           <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
-            Invitees (Optional)
+            Invitees <span className="text-red-500">*</span>
           </label>
           <p className="text-xs text-gray-400 mb-2">
-            Invitees will automatically receive the Zoom join link, passcode, and calendar invite.
+            At least one invitee is required.
           </p>
 
           <div className="flex gap-2">
@@ -350,6 +358,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
               ))}
             </div>
           )}
+          {errors.guestEmails && <p className="text-red-500 text-xs mt-2">{errors.guestEmails}</p>}
         </div>
 
         {/* Section: Custom Host Intake Questions */}
