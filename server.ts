@@ -339,6 +339,7 @@ let bookings: any[] = [
       joinAnytime: false,
       muteOnEntry: true,
       autoRecord: false,
+      recordingType: 'local',
       alternativeHosts: 'alex.rivera@zoompartner.com',
     },
     m365SyncStatus: 'not_synced',
@@ -621,7 +622,7 @@ async function provisionZoomMeeting(
     meetingAuthentication: zoomConfig?.requireAuth,
     usePmi: zoomConfig?.meetingIdType === 'pmi',
     autoRecording: zoomConfig?.autoRecord,
-    autoRecordTo: 'local',
+    autoRecordTo: zoomConfig?.recordingType || 'local',
     alternativeHosts
   });
 
@@ -2518,6 +2519,7 @@ app.post('/api/bookings', async (req, res) => {
         joinAnytime: zoomConfig?.joinAnytime ?? false,
         muteOnEntry: zoomConfig?.muteOnEntry ?? true,
         autoRecord: zoomConfig?.autoRecord ?? false,
+        recordingType: zoomConfig?.recordingType ?? 'local',
         alternativeHosts: usedAlternativeHosts,
       },
       m365SyncStatus: 'not_synced' as 'not_synced' | 'synced' | 'failed',
@@ -2612,7 +2614,7 @@ app.patch('/api/bookings/:id', async (req, res) => {
         passcode: zoomConfig?.passcode,
         waitingRoom: zoomConfig?.waitingRoom,
         autoRecording: zoomConfig?.autoRecord,
-        autoRecordTo: 'local',
+        autoRecordTo: zoomConfig?.recordingType || 'local',
         alternativeHosts: zoomConfig?.alternativeHosts,
         hostVideo: zoomConfig?.hostVideo,
         participantVideo: zoomConfig?.participantVideo,

@@ -121,6 +121,11 @@ export interface ZoomMeetingConfig {
   joinAnytime: boolean;
   muteOnEntry: boolean;
   autoRecord: boolean;
+  // Only meaningful when autoRecord is true. Real Zoom setting
+  // (auto_recording: 'local' | 'cloud') - cloud requires the hosting Zoom
+  // account to have Cloud Recording entitlement (paid plan); Zoom silently
+  // fails/ignores it on a Basic account.
+  recordingType: 'local' | 'cloud';
   alternativeHosts: string;
 }
 

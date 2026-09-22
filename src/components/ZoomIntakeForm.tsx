@@ -31,6 +31,7 @@ type IntakeZoomConfig = Pick<
   | 'joinAnytime'
   | 'muteOnEntry'
   | 'autoRecord'
+  | 'recordingType'
 >;
 
 function generateDefaultPasscode(): string {
@@ -98,6 +99,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   const [joinAnytime, setJoinAnytime] = useState(false);
   const [muteOnEntry, setMuteOnEntry] = useState(true);
   const [autoRecord, setAutoRecord] = useState(false);
+  const [recordingType, setRecordingType] = useState<'local' | 'cloud'>('local');
 
   const handleAddGuest = () => {
     if (!guestEmailInput.trim() || !guestEmailInput.includes('@')) return;
@@ -168,6 +170,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
         joinAnytime,
         muteOnEntry,
         autoRecord,
+        recordingType,
       },
     });
   };
@@ -262,7 +265,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Full Name */}
+            {/* Full Name - read-only, from the signed-in account */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">
                 Full Name <span className="text-red-500">*</span>
@@ -270,16 +273,14 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
               <input
                 type="text"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                readOnly
                 placeholder="e.g. Alex Morgan"
-                className={`w-full px-4 py-3 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] transition-all ${
-                  errors.fullName ? 'ring-2 ring-red-400 bg-red-50/50' : ''
-                }`}
+                className="w-full px-4 py-3 bg-gray-100 border-none rounded-xl text-sm text-gray-600 cursor-not-allowed"
               />
               {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>}
             </div>
 
-            {/* Email */}
+            {/* Email - read-only, from the signed-in account */}
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">
                 Work Email Address <span className="text-red-500">*</span>
@@ -289,14 +290,12 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  readOnly
                   placeholder="alex.morgan@company.com"
-                  className={`w-full pl-10 pr-4 py-3 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] transition-all ${
-                    errors.email ? 'ring-2 ring-red-400 bg-red-50/50' : ''
-                  }`}
+                  className="w-full pl-10 pr-4 py-3 bg-gray-100 border-none rounded-xl text-sm text-gray-600 cursor-not-allowed"
                 />
               </div>
-              <p className="text-[11px] text-gray-400 mt-1 font-medium">Your Zoom join link, meeting ID, and passcode will be emailed here.</p>
+              <p className="text-[11px] text-gray-400 mt-1 font-medium">Matches your signed-in account. Your Zoom join link, meeting ID, and passcode will be emailed here.</p>
               {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
             </div>
           </div>
@@ -576,8 +575,33 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                 onChange={(e) => setAutoRecord(e.target.checked)}
                 className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
               />
-              <span>Automatically record meeting on the local computer</span>
+              <span>Automatically record meeting</span>
             </label>
+
+            {autoRecord && (
+              <div className="pl-6.5 space-y-1.5">
+                <label className="flex items-center gap-2 cursor-pointer select-none text-gray-700 text-xs">
+                  <input
+                    type="radio"
+                    name="recordingType"
+                    checked={recordingType === 'local'}
+                    onChange={() => setRecordingType('local')}
+                    className="w-3.5 h-3.5 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                  />
+                  <span>Local (this computer) - works on any Zoom plan</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none text-gray-700 text-xs">
+                  <input
+                    type="radio"
+                    name="recordingType"
+                    checked={recordingType === 'cloud'}
+                    onChange={() => setRecordingType('cloud')}
+                    className="w-3.5 h-3.5 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                  />
+                  <span>Cloud - requires a Licensed Zoom plan on the hosting account</span>
+                </label>
+              </div>
+            )}
           </div>
         </div>
 
