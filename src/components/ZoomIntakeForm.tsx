@@ -99,7 +99,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   const [joinAnytime, setJoinAnytime] = useState(false);
   const [muteOnEntry, setMuteOnEntry] = useState(true);
   const [autoRecord, setAutoRecord] = useState(false);
-  const [recordingType, setRecordingType] = useState<'local' | 'cloud'>('local');
+  const [recordingType, setRecordingType] = useState<'local' | 'cloud'>('cloud');
 
   const handleAddGuest = () => {
     if (!guestEmailInput.trim() || !guestEmailInput.includes('@')) return;

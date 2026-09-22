@@ -119,7 +119,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
     initialConfig?.autoRecord ?? false
   );
   const [recordingType, setRecordingType] = useState<'local' | 'cloud'>(
-    initialConfig?.recordingType ?? 'local'
+    initialConfig?.recordingType ?? 'cloud'
   );
   const [alternativeHosts, setAlternativeHosts] = useState<string>(
     initialConfig?.alternativeHosts || ''
@@ -153,7 +153,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
       setJoinAnytime(cfg.joinAnytime ?? false);
       setMuteOnEntry(cfg.muteOnEntry ?? true);
       setAutoRecord(cfg.autoRecord ?? false);
-      setRecordingType(cfg.recordingType ?? 'local');
+      setRecordingType(cfg.recordingType ?? 'cloud');
       setAlternativeHosts(cfg.alternativeHosts || '');
     }
   }, [booking]);
