@@ -31,7 +31,6 @@ type IntakeZoomConfig = Pick<
   | 'joinAnytime'
   | 'muteOnEntry'
   | 'autoRecord'
-  | 'recordingType'
 >;
 
 function generateDefaultPasscode(): string {
@@ -99,7 +98,6 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   const [joinAnytime, setJoinAnytime] = useState(false);
   const [muteOnEntry, setMuteOnEntry] = useState(true);
   const [autoRecord, setAutoRecord] = useState(false);
-  const [recordingType, setRecordingType] = useState<'local' | 'cloud'>('cloud');
 
   const handleAddGuest = () => {
     if (!guestEmailInput.trim() || !guestEmailInput.includes('@')) return;
@@ -170,7 +168,6 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
         joinAnytime,
         muteOnEntry,
         autoRecord,
-        recordingType,
       },
     });
   };
@@ -575,33 +572,8 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                 onChange={(e) => setAutoRecord(e.target.checked)}
                 className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
               />
-              <span>Automatically record meeting</span>
+              <span>Automatically record meeting to the cloud</span>
             </label>
-
-            {autoRecord && (
-              <div className="pl-6.5 space-y-1.5">
-                <label className="flex items-center gap-2 cursor-pointer select-none text-gray-700 text-xs">
-                  <input
-                    type="radio"
-                    name="recordingType"
-                    checked={recordingType === 'local'}
-                    onChange={() => setRecordingType('local')}
-                    className="w-3.5 h-3.5 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
-                  />
-                  <span>Local (this computer) - works on any Zoom plan</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer select-none text-gray-700 text-xs">
-                  <input
-                    type="radio"
-                    name="recordingType"
-                    checked={recordingType === 'cloud'}
-                    onChange={() => setRecordingType('cloud')}
-                    className="w-3.5 h-3.5 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
-                  />
-                  <span>Cloud - requires a Licensed Zoom plan on the hosting account</span>
-                </label>
-              </div>
-            )}
           </div>
         </div>
 

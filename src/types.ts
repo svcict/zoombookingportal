@@ -120,12 +120,10 @@ export interface ZoomMeetingConfig {
   // Advanced
   joinAnytime: boolean;
   muteOnEntry: boolean;
+  // When true, records to the Zoom Cloud (auto_recording: 'cloud') -
+  // requires the hosting Zoom account to have Cloud Recording entitlement
+  // (Licensed plan); Zoom silently fails/ignores it on a Basic account.
   autoRecord: boolean;
-  // Only meaningful when autoRecord is true. Real Zoom setting
-  // (auto_recording: 'local' | 'cloud') - cloud requires the hosting Zoom
-  // account to have Cloud Recording entitlement (paid plan); Zoom silently
-  // fails/ignores it on a Basic account.
-  recordingType: 'local' | 'cloud';
   alternativeHosts: string;
 }
 

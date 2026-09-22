@@ -118,9 +118,6 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
   const [autoRecord, setAutoRecord] = useState<boolean>(
     initialConfig?.autoRecord ?? false
   );
-  const [recordingType, setRecordingType] = useState<'local' | 'cloud'>(
-    initialConfig?.recordingType ?? 'cloud'
-  );
   const [alternativeHosts, setAlternativeHosts] = useState<string>(
     initialConfig?.alternativeHosts || ''
   );
@@ -153,7 +150,6 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
       setJoinAnytime(cfg.joinAnytime ?? false);
       setMuteOnEntry(cfg.muteOnEntry ?? true);
       setAutoRecord(cfg.autoRecord ?? false);
-      setRecordingType(cfg.recordingType ?? 'cloud');
       setAlternativeHosts(cfg.alternativeHosts || '');
     }
   }, [booking]);
@@ -207,7 +203,6 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
       joinAnytime,
       muteOnEntry,
       autoRecord,
-      recordingType,
       alternativeHosts,
     };
 
@@ -775,35 +770,8 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                   disabled={readOnly}
                   className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
                 />
-                <span>Automatically record meeting</span>
+                <span>Automatically record meeting to the cloud</span>
               </label>
-
-              {autoRecord && (
-                <div className="pl-6 space-y-1.5">
-                  <label className="flex items-center gap-2 cursor-pointer select-none text-gray-700 text-sm">
-                    <input
-                      type="radio"
-                      name="recordingType"
-                      checked={recordingType === 'local'}
-                      onChange={() => setRecordingType('local')}
-                      disabled={readOnly}
-                      className="w-4 h-4 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
-                    />
-                    <span>Local (this computer) - works on any Zoom plan</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer select-none text-gray-700 text-sm">
-                    <input
-                      type="radio"
-                      name="recordingType"
-                      checked={recordingType === 'cloud'}
-                      onChange={() => setRecordingType('cloud')}
-                      disabled={readOnly}
-                      className="w-4 h-4 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
-                    />
-                    <span>Cloud - requires a Licensed Zoom plan on the hosting account</span>
-                  </label>
-                </div>
-              )}
 
               {/* Alternative hosts (Image 4) */}
               <div className="pt-2 space-y-2">
