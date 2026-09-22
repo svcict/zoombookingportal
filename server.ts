@@ -603,11 +603,14 @@ async function provisionZoomMeeting(
   // Default alternative host to whoever booked the meeting, so they can
   // "Make Host"/co-host themselves in directly if they're a Licensed user
   // on this same Zoom account - an explicit zoomConfig.alternativeHosts
-  // always wins. Zoom silently ignores this for anyone not licensed under
-  // this account, so it's a no-op (not an error) for most outside bookers.
-  const alternativeHosts = zoomConfig?.alternativeHosts || participantEmail || '';
+  // always wins. Zoom validates this at creation time and REJECTS the
+  // whole meeting (error 1114, "cannot be selected at this time") if that
+  // person isn't eligible - not a silent no-op like assumed earlier - so
+  // on that specific error, retry once with no alternative host rather
+  // than failing the entire booking.
+  let alternativeHosts = zoomConfig?.alternativeHosts || participantEmail || '';
 
-  const result = await createZoomMeeting(accountKey, {
+  const createPayload = {
     topic: meetingTitle,
     startTimeIso: startIso,
     durationMinutes,
@@ -623,9 +626,21 @@ async function provisionZoomMeeting(
     meetingAuthentication: zoomConfig?.requireAuth,
     usePmi: zoomConfig?.meetingIdType === 'pmi',
     autoRecording: zoomConfig?.autoRecord,
-    autoRecordTo: 'cloud',
-    alternativeHosts
-  });
+    autoRecordTo: 'cloud' as const
+  };
+
+  let result;
+  try {
+    result = await createZoomMeeting(accountKey, { ...createPayload, alternativeHosts });
+  } catch (err: any) {
+    const message = String(err?.message || '');
+    if (alternativeHosts && (message.includes('"code":1114') || message.includes('cannot be selected'))) {
+      alternativeHosts = '';
+      result = await createZoomMeeting(accountKey, { ...createPayload, alternativeHosts: '' });
+    } else {
+      throw err;
+    }
+  }
 
   const provisionLog: ZoomApiLog = {
     id: `zlog-${Date.now()}`,
@@ -2575,11 +2590,15 @@ app.post('/api/bookings', async (req, res) => {
       url: '/'
     }).catch(() => {});
 
+    const requestedAlternativeHosts = zoomConfig?.alternativeHosts || participantEmail;
     const messageParts = [
       'Zoom meeting scheduled successfully.',
       emailResult.success ? 'Confirmation email sent.' : `Confirmation email failed: ${emailResult.error}`,
-      eventResult.success ? 'Outlook calendar event created.' : `Outlook calendar event failed: ${eventResult.error}`
-    ];
+      eventResult.success ? 'Outlook calendar event created.' : `Outlook calendar event failed: ${eventResult.error}`,
+      requestedAlternativeHosts && !usedAlternativeHosts
+        ? 'Alternative host could not be applied: that person is not eligible on this Zoom account.'
+        : ''
+    ].filter(Boolean);
 
     res.status(201).json({
       success: true,
@@ -2605,17 +2624,17 @@ app.patch('/api/bookings/:id', async (req, res) => {
   const { zoomConfig, meetingTitle, notes, guestEmails } = req.body;
 
   const accountKey = booking.zoomAccountKey as ZoomAccountKey | undefined;
+  let appliedAlternativeHosts = zoomConfig?.alternativeHosts;
   if (booking.zoomDetails.apiGenerated && accountKey && isAccountConfigured(accountKey)) {
     try {
       const rawMeetingId = booking.zoomDetails.meetingId.replace(/\s/g, '');
-      const result = await updateZoomMeeting(accountKey, rawMeetingId, {
+      const updatePayload = {
         topic: meetingTitle,
         agenda: zoomConfig?.agenda,
         passcode: zoomConfig?.passcode,
         waitingRoom: zoomConfig?.waitingRoom,
         autoRecording: zoomConfig?.autoRecord,
-        autoRecordTo: 'cloud',
-        alternativeHosts: zoomConfig?.alternativeHosts,
+        autoRecordTo: 'cloud' as const,
         hostVideo: zoomConfig?.hostVideo,
         participantVideo: zoomConfig?.participantVideo,
         audioOption: zoomConfig?.audioOption,
@@ -2623,7 +2642,21 @@ app.patch('/api/bookings/:id', async (req, res) => {
         joinBeforeHost: zoomConfig?.joinAnytime,
         meetingAuthentication: zoomConfig?.requireAuth,
         usePmi: zoomConfig ? zoomConfig.meetingIdType === 'pmi' : undefined
-      });
+      };
+
+      let result;
+      try {
+        result = await updateZoomMeeting(accountKey, rawMeetingId, { ...updatePayload, alternativeHosts: appliedAlternativeHosts });
+      } catch (err: any) {
+        const message = String(err?.message || '');
+        if (appliedAlternativeHosts && (message.includes('"code":1114') || message.includes('cannot be selected'))) {
+          appliedAlternativeHosts = '';
+          result = await updateZoomMeeting(accountKey, rawMeetingId, { ...updatePayload, alternativeHosts: '' });
+        } else {
+          throw err;
+        }
+      }
+
       const updateLog: ZoomApiLog = {
         id: `zlog-${Date.now()}`,
         timestamp: new Date().toISOString(),
@@ -2645,7 +2678,7 @@ app.patch('/api/bookings/:id', async (req, res) => {
     }
   }
 
-  if (zoomConfig) booking.zoomConfig = zoomConfig;
+  if (zoomConfig) booking.zoomConfig = { ...zoomConfig, alternativeHosts: appliedAlternativeHosts };
   if (meetingTitle) booking.meetingTitle = meetingTitle;
   if (notes !== undefined) booking.notes = notes;
   if (guestEmails) booking.guestEmails = guestEmails;
@@ -2670,10 +2703,14 @@ app.patch('/api/bookings/:id', async (req, res) => {
 
   await upsertRow('bookings', booking.id, booking);
 
+  const altHostMessage = zoomConfig?.alternativeHosts && !appliedAlternativeHosts
+    ? ' Alternative host could not be applied: that person is not eligible on this Zoom account.'
+    : '';
+
   res.json({
     success: true,
     data: booking,
-    message: `Meeting details & Zoom configuration updated.${calendarSyncMessage}`
+    message: `Meeting details & Zoom configuration updated.${calendarSyncMessage}${altHostMessage}`
   });
 });
 
