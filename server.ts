@@ -1484,6 +1484,34 @@ async function getZoomAccountM365BusyBlocks(key: ZoomAccountKey, dateStr: string
   return getRealM365BusyBlocks(dateStr, mailbox);
 }
 
+// Real display name of the rotating Zoom account that actually hosts a
+// meeting - NOT the app's own "host persona" (Sarah Jenkins etc, a display
+// label picked per meeting type, unrelated to which of the 2 real Zoom
+// accounts creates the meeting). Used so outgoing emails show who's
+// genuinely hosting rather than that cosmetic name. Cached since it rarely
+// changes.
+const zoomAccountNameCache = new Map<ZoomAccountKey, { name: string; fetchedAt: number }>();
+const ZOOM_ACCOUNT_NAME_CACHE_TTL_MS = 60 * 60 * 1000;
+
+async function getZoomAccountRealName(key: ZoomAccountKey): Promise<string | null> {
+  const cached = zoomAccountNameCache.get(key);
+  if (cached && Date.now() - cached.fetchedAt < ZOOM_ACCOUNT_NAME_CACHE_TTL_MS) {
+    return cached.name;
+  }
+  if (!isAccountConfigured(key)) return null;
+
+  try {
+    const result = await getZoomUserProfile(key);
+    const fullName = [result.data?.first_name, result.data?.last_name].filter(Boolean).join(' ').trim();
+    const name = fullName || result.data?.email || null;
+    if (name) zoomAccountNameCache.set(key, { name, fetchedAt: Date.now() });
+    return name;
+  } catch (err) {
+    console.error(`Failed to fetch real name for Zoom account ${key}:`, err);
+    return null;
+  }
+}
+
 // ----------------------------------------------------
 // REAL EMAIL SENDING - Microsoft Graph sendMail (app-only), sent AS
 // whichever rotating Zoom account actually hosts the meeting.
@@ -1542,13 +1570,16 @@ function escapeHtml(value: unknown): string {
   }[ch] as string));
 }
 
-function buildBookingConfirmationEmail(booking: any): { subject: string; html: string } {
+function buildBookingConfirmationEmail(booking: any, realHostLabel: string): { subject: string; html: string } {
   const zd = booking.zoomDetails || {};
   const subject = `Confirmed: ${booking.meetingTitle} — ${booking.date} at ${booking.timeSlot}`;
 
   const topic = escapeHtml(booking.meetingTitle);
   const when = `${escapeHtml(booking.date)} at ${escapeHtml(booking.timeSlot)} (${escapeHtml(booking.timezone)})`;
-  const host = escapeHtml(booking.hostName);
+  // The real Zoom account hosting this meeting, NOT booking.hostName - that
+  // field is a cosmetic display persona picked per meeting type, unrelated
+  // to which of the 2 rotating Zoom accounts actually creates the meeting.
+  const host = escapeHtml(realHostLabel);
   const joinUrl = escapeHtml(zd.joinUrl || '');
   const meetingId = escapeHtml(zd.formattedMeetingId || zd.meetingId || '');
   const passcode = escapeHtml(zd.passcode || '');
@@ -2617,7 +2648,8 @@ app.post('/api/bookings', async (req, res) => {
     // sender - to the participant and every invitee.
     const emailRecipients = [newBooking.participantEmail, ...(newBooking.guestEmails || [])].filter(Boolean);
     const senderMailbox = zoomAccountKey ? (process.env[`ZOOM_ACCOUNT_${zoomAccountKey}_USER_ID`] || '') : '';
-    const { subject, html } = buildBookingConfirmationEmail(newBooking);
+    const realHostLabel = (zoomAccountKey ? await getZoomAccountRealName(zoomAccountKey) : null) || senderMailbox || newBooking.hostName;
+    const { subject, html } = buildBookingConfirmationEmail(newBooking, realHostLabel);
     const emailResult = await sendGraphMail(senderMailbox, emailRecipients, subject, html);
     newBooking.reminders.emailSent = emailResult.success;
     if (emailResult.success) {
