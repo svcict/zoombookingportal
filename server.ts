@@ -475,6 +475,41 @@ let zoomApiConfig = {
   lastPingMs: 64
 };
 
+// Converts a wall-clock date+time in a given IANA timezone to the correct
+// UTC instant. Node has no built-in "zoned time to UTC" function, so this
+// uses the standard two-pass technique: guess the UTC instant assuming the
+// wall-clock values ARE UTC, check what that guess actually reads as in the
+// target timezone via Intl, then correct by the difference. Good enough for
+// a booking system (doesn't handle the rare double-ambiguous hour during a
+// DST fall-back transition, which no booking would intentionally target).
+function zonedTimeToUtc(dateStr: string, hour: number, minute: number, timeZone: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const guessMs = Date.UTC(year, month - 1, day, hour, minute, 0);
+
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hourCycle: 'h23',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    }).formatToParts(new Date(guessMs));
+  } catch {
+    // Invalid/unknown timezone string - fall back to treating it as UTC
+    // rather than throwing and failing the whole booking.
+    return new Date(guessMs);
+  }
+
+  const map: Record<string, string> = {};
+  for (const p of parts) map[p.type] = p.value;
+  const asIfLocalMs = Date.UTC(
+    Number(map.year), Number(map.month) - 1, Number(map.day),
+    Number(map.hour), Number(map.minute), Number(map.second)
+  );
+
+  return new Date(guessMs + (guessMs - asIfLocalMs));
+}
+
 // Helper: Generate Compliant Zoom Details via REST API format
 function generateZoomDetails(meetingTitle: string, hostName: string = 'Sarah Jenkins', preferredPasscode?: string) {
   const p1 = Math.floor(100 + Math.random() * 900);
@@ -2316,7 +2351,7 @@ app.get('/api/availability', async (req, res) => {
         const hour12 = h % 12 === 0 ? 12 : h % 12;
         const ampm = h >= 12 ? 'PM' : 'AM';
         const formattedTime = `${hour12}:${String(m).padStart(2, '0')} ${ampm}`;
-        const slotIso = `${date}T${timeStr}:00.000Z`;
+        const slotIso = zonedTimeToUtc(date, h, m, timezone).toISOString();
 
         if (isWeekend) {
           slots.push({
@@ -2541,12 +2576,16 @@ app.post('/api/bookings', async (req, res) => {
       if (ampm === 'PM' && hour < 12) hour += 12;
       if (ampm === 'AM' && hour === 12) hour = 0;
     }
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const startIso = `${date}T${pad(hour)}:${pad(minute)}:00.000Z`;
-    const endMinutes = hour * 60 + minute + (meetingType.duration || 30);
-    const endHour = Math.floor(endMinutes / 60);
-    const endMin = endMinutes % 60;
-    const endIso = `${date}T${pad(endHour)}:${pad(endMin)}:00.000Z`;
+    // Convert the booker's selected wall-clock time in THEIR timezone to
+    // the correct UTC instant - previously this just appended "Z" to the
+    // local hour/minute as if it were already UTC, silently shifting every
+    // booking by the timezone's offset (e.g. 4:00 PM in Manila, UTC+8,
+    // was stored as 16:00 UTC - which displays as midnight the next day
+    // back in Manila).
+    const startDate = zonedTimeToUtc(date, hour, minute, timezone);
+    const endDate = new Date(startDate.getTime() + (meetingType.duration || 30) * 60000);
+    const startIso = startDate.toISOString();
+    const endIso = endDate.toISOString();
 
     // Assign one of the two rotating Zoom accounts and provision the meeting
     // (real Zoom REST API call when that account has credentials configured,
