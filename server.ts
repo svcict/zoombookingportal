@@ -1532,6 +1532,113 @@ function buildBookingConfirmationEmail(booking: any): { subject: string; html: s
   return { subject, html };
 }
 
+// ----------------------------------------------------
+// REAL OUTLOOK CALENDAR EVENTS - Microsoft Graph /events (app-only), on
+// whichever rotating Zoom account's real mailbox hosts the meeting.
+// ----------------------------------------------------
+// Requires the Azure app registration to have the Calendars.ReadWrite
+// APPLICATION permission (not just the delegated Graph scopes used for
+// user sign-in) admin-consented - the same one-time manual Azure Portal
+// step as Mail.Send. Adding attendees here makes Microsoft/Exchange send
+// its own native meeting invite to them, independent of our own
+// confirmation email.
+interface GraphCalendarEventResult {
+  success: boolean;
+  eventId?: string;
+  error?: string;
+}
+
+async function createGraphCalendarEvent(mailbox: string, booking: any): Promise<GraphCalendarEventResult> {
+  if (!mailbox) return { success: false, error: 'No sending mailbox configured for this Zoom account.' };
+
+  const token = await getGraphAppToken();
+  if (!token) return { success: false, error: 'Microsoft Graph is not configured (missing tenant/client credentials).' };
+
+  const zd = booking.zoomDetails || {};
+  const attendees = [booking.participantEmail, ...(booking.guestEmails || [])]
+    .filter(Boolean)
+    .map((email: string) => ({ emailAddress: { address: email }, type: 'required' }));
+
+  try {
+    const res = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(mailbox)}/events`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        subject: booking.meetingTitle,
+        body: {
+          contentType: 'HTML',
+          content: `Join Zoom: <a href="${zd.joinUrl || ''}">${zd.joinUrl || ''}</a><br/>Meeting ID: ${zd.meetingId || ''}<br/>Passcode: ${zd.passcode || ''}`
+        },
+        start: { dateTime: booking.startTimeIso, timeZone: 'UTC' },
+        end: { dateTime: booking.endTimeIso, timeZone: 'UTC' },
+        location: { displayName: 'Zoom Meeting' },
+        attendees,
+        isOnlineMeeting: false
+      })
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      return { success: false, error: `Graph event creation failed (${res.status}): ${errText.slice(0, 300)}` };
+    }
+    const data = (await res.json()) as any;
+    return { success: true, eventId: data.id };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error contacting Microsoft Graph.' };
+  }
+}
+
+async function updateGraphCalendarEvent(
+  mailbox: string,
+  eventId: string,
+  updates: { subject?: string }
+): Promise<GraphCalendarEventResult> {
+  const token = await getGraphAppToken();
+  if (!token) return { success: false, error: 'Microsoft Graph is not configured.' };
+
+  try {
+    const res = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(mailbox)}/events/${encodeURIComponent(eventId)}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updates)
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      return { success: false, error: `Graph event update failed (${res.status}): ${errText.slice(0, 300)}` };
+    }
+    return { success: true, eventId };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error contacting Microsoft Graph.' };
+  }
+}
+
+async function deleteGraphCalendarEvent(mailbox: string, eventId: string): Promise<GraphCalendarEventResult> {
+  const token = await getGraphAppToken();
+  if (!token) return { success: false, error: 'Microsoft Graph is not configured.' };
+
+  try {
+    const res = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(mailbox)}/events/${encodeURIComponent(eventId)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (!res.ok && res.status !== 404) {
+      const errText = await res.text().catch(() => '');
+      return { success: false, error: `Graph event deletion failed (${res.status}): ${errText.slice(0, 300)}` };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error contacting Microsoft Graph.' };
+  }
+}
+
 // Step 1: redirect the browser to Microsoft's real sign-in page.
 app.get('/api/auth/m365/authorize', (req, res) => {
   const { tenantId, clientId, redirectUri, scopes } = getM365OAuthConfig(req);
@@ -2404,12 +2511,9 @@ app.post('/api/bookings', async (req, res) => {
         manageAssetsSummary: true,
         manageAssetsRecording: true,
       },
-      // M365 sync only reads the configured mailbox's calendar for conflict
-      // checking (see getRealM365BusyBlocks) - it does not write bookings
-      // back into Outlook as real calendar events, so there is no real
-      // event ID to record here.
-      m365SyncStatus: 'not_synced' as const,
-      m365EventId: undefined,
+      m365SyncStatus: 'not_synced' as 'not_synced' | 'synced' | 'failed',
+      m365EventId: undefined as string | undefined,
+      m365SyncError: undefined as string | undefined,
       answers,
       status: 'confirmed',
       reminders: {
@@ -2439,6 +2543,18 @@ app.post('/api/bookings', async (req, res) => {
     } else {
       newBooking.reminders.emailError = emailResult.error;
     }
+
+    // Real Outlook calendar event, created on the same rotating account's
+    // mailbox - Exchange sends its own native invite to every attendee.
+    const eventResult = await createGraphCalendarEvent(senderMailbox, newBooking);
+    if (eventResult.success) {
+      newBooking.m365SyncStatus = 'synced';
+      newBooking.m365EventId = eventResult.eventId;
+    } else {
+      newBooking.m365SyncStatus = 'failed';
+      newBooking.m365SyncError = eventResult.error;
+    }
+
     await upsertRow('bookings', newBooking.id, newBooking);
 
     sendPushToEmail(newBooking.participantEmail, {
@@ -2448,12 +2564,16 @@ app.post('/api/bookings', async (req, res) => {
       url: '/'
     }).catch(() => {});
 
+    const messageParts = [
+      'Zoom meeting scheduled successfully.',
+      emailResult.success ? 'Confirmation email sent.' : `Confirmation email failed: ${emailResult.error}`,
+      eventResult.success ? 'Outlook calendar event created.' : `Outlook calendar event failed: ${eventResult.error}`
+    ];
+
     res.status(201).json({
       success: true,
       data: redactStartUrlForParticipant(newBooking),
-      message: emailResult.success
-        ? 'Zoom meeting scheduled successfully! Confirmation email sent.'
-        : `Zoom meeting scheduled successfully. Confirmation email failed to send: ${emailResult.error}`
+      message: messageParts.join(' ')
     });
   } catch (err: any) {
     console.error('Error creating booking:', err);
@@ -2524,12 +2644,25 @@ app.patch('/api/bookings/:id', async (req, res) => {
     booking.zoomDetails.passcode = zoomConfig.passcode;
   }
 
+  // Keep the real Outlook calendar event's subject in sync when the
+  // meeting title changes.
+  let calendarSyncMessage = '';
+  if (meetingTitle && booking.m365SyncStatus === 'synced' && booking.m365EventId && accountKey) {
+    const mailbox = process.env[`ZOOM_ACCOUNT_${accountKey}_USER_ID`] || '';
+    const eventUpdate = await updateGraphCalendarEvent(mailbox, booking.m365EventId, { subject: meetingTitle });
+    if (!eventUpdate.success) {
+      booking.m365SyncStatus = 'failed';
+      booking.m365SyncError = eventUpdate.error;
+      calendarSyncMessage = ` Outlook calendar event failed to update: ${eventUpdate.error}`;
+    }
+  }
+
   await upsertRow('bookings', booking.id, booking);
 
   res.json({
     success: true,
     data: booking,
-    message: 'Meeting details & Zoom configuration updated and synced with Microsoft 365 Exchange.'
+    message: `Meeting details & Zoom configuration updated.${calendarSyncMessage}`
   });
 });
 
@@ -2583,6 +2716,19 @@ app.post('/api/bookings/:id/cancel', async (req, res) => {
   }
 
   booking.status = 'cancelled';
+
+  let calendarCancelMessage = '';
+  if (booking.m365SyncStatus === 'synced' && booking.m365EventId && accountKey) {
+    const mailbox = process.env[`ZOOM_ACCOUNT_${accountKey}_USER_ID`] || '';
+    const eventDelete = await deleteGraphCalendarEvent(mailbox, booking.m365EventId);
+    if (eventDelete.success) {
+      booking.m365SyncStatus = 'not_synced';
+      booking.m365EventId = undefined;
+    } else {
+      calendarCancelMessage = ` Outlook calendar event could not be removed: ${eventDelete.error}`;
+    }
+  }
+
   await upsertRow('bookings', booking.id, booking);
 
   sendPushToEmail(booking.participantEmail, {
@@ -2592,7 +2738,11 @@ app.post('/api/bookings/:id/cancel', async (req, res) => {
     url: '/'
   }).catch(() => {});
 
-  res.json({ success: true, message: 'Meeting cancelled and removed from Microsoft 365 calendar and Zoom.', data: booking });
+  res.json({
+    success: true,
+    message: `Meeting cancelled and removed from Zoom.${calendarCancelMessage}`,
+    data: booking
+  });
 });
 
 // 7. Zoom REST API Integration Endpoints

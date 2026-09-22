@@ -151,8 +151,9 @@ export interface Booking {
   timezone: string;
   zoomDetails: ZoomDetails;
   zoomConfig?: ZoomMeetingConfig;
-  m365SyncStatus: 'not_synced';
+  m365SyncStatus: 'not_synced' | 'synced' | 'failed';
   m365EventId?: string;
+  m365SyncError?: string;
   answers: Record<string, any>;
   status: 'confirmed' | 'rescheduled' | 'cancelled';
   liveStatus?: 'started' | 'ended';
