@@ -337,14 +337,9 @@ let bookings: any[] = [
       audioOption: 'both',
       calendarType: 'outlook',
       joinAnytime: false,
-      enableQa: false,
       muteOnEntry: true,
       autoRecord: false,
-      autoAddCloudRecordingToChannel: false,
-      enableAdditionalDataCenters: false,
       alternativeHosts: 'alex.rivera@zoompartner.com',
-      manageAssetsSummary: true,
-      manageAssetsRecording: true
     },
     m365SyncStatus: 'not_synced',
     answers: {
@@ -2521,14 +2516,9 @@ app.post('/api/bookings', async (req, res) => {
         audioOption: zoomConfig?.audioOption || 'both',
         calendarType: 'outlook',
         joinAnytime: zoomConfig?.joinAnytime ?? false,
-        enableQa: false,
         muteOnEntry: zoomConfig?.muteOnEntry ?? true,
         autoRecord: zoomConfig?.autoRecord ?? false,
-        autoAddCloudRecordingToChannel: false,
-        enableAdditionalDataCenters: false,
         alternativeHosts: usedAlternativeHosts,
-        manageAssetsSummary: true,
-        manageAssetsRecording: true,
       },
       m365SyncStatus: 'not_synced' as 'not_synced' | 'synced' | 'failed',
       m365EventId: undefined as string | undefined,
@@ -2685,16 +2675,11 @@ app.patch('/api/bookings/:id', async (req, res) => {
   });
 });
 
-app.post('/api/bookings/:id/cancel', async (req, res) => {
-  const identity = await resolveIdentity(req);
-  if (!identity) {
-    return res.status(401).json({ success: false, error: 'Not authenticated' });
-  }
-  const booking = bookings.find((b) => b.id === req.params.id);
-  if (!booking || (!identity.isAdmin && !canAccessBooking(booking, identity.email))) {
-    return res.status(404).json({ success: false, error: 'Booking not found' });
-  }
-
+// Real cancellation: deletes the Zoom meeting (or logs the mock
+// equivalent), deletes the real Outlook event if one exists, and pushes a
+// cancellation notice. Shared by the single-booking and bulk-cancel
+// endpoints below.
+async function cancelBookingReal(booking: any): Promise<{ success: boolean; message: string }> {
   const accountKey = booking.zoomAccountKey as ZoomAccountKey | undefined;
   const rawMeetingId = booking.zoomDetails.meetingId.replace(/\s/g, '');
 
@@ -2715,10 +2700,7 @@ app.post('/api/bookings/:id/cancel', async (req, res) => {
       persistZoomLog(cancelLog);
     } catch (zoomErr: any) {
       console.error('Zoom API error while cancelling meeting:', zoomErr);
-      return res.status(502).json({
-        success: false,
-        error: `Failed to cancel the Zoom meeting: ${zoomErr.message || 'Zoom API error'}`
-      });
+      return { success: false, message: `Failed to cancel the Zoom meeting: ${zoomErr.message || 'Zoom API error'}` };
     }
   } else {
     const mockCancelLog: ZoomApiLog = {
@@ -2757,10 +2739,55 @@ app.post('/api/bookings/:id/cancel', async (req, res) => {
     url: '/'
   }).catch(() => {});
 
+  return { success: true, message: `Meeting cancelled and removed from Zoom.${calendarCancelMessage}` };
+}
+
+app.post('/api/bookings/:id/cancel', async (req, res) => {
+  const identity = await resolveIdentity(req);
+  if (!identity) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
+  }
+  const booking = bookings.find((b) => b.id === req.params.id);
+  if (!booking || (!identity.isAdmin && !canAccessBooking(booking, identity.email))) {
+    return res.status(404).json({ success: false, error: 'Booking not found' });
+  }
+
+  const result = await cancelBookingReal(booking);
+  if (!result.success) {
+    return res.status(502).json({ success: false, error: result.message });
+  }
+
+  res.json({ success: true, message: result.message, data: booking });
+});
+
+// Bulk self-service cleanup: cancels every one of the caller's own
+// confirmed bookings for real (Zoom + Outlook), not just DB rows - so
+// nothing is left orphaned on Zoom's or Microsoft's side. Only cancels
+// bookings where the caller is the actual booker (participantEmail),
+// not ones they were merely invited to as a guest.
+app.post('/api/bookings/cancel-mine', async (req, res) => {
+  const identity = await resolveIdentity(req);
+  if (!identity) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
+  }
+
+  const targets = bookings.filter(
+    (b) => b.status !== 'cancelled' && (b.participantEmail || '').toLowerCase().trim() === identity.email
+  );
+
+  const results: Array<{ id: string; success: boolean; message: string }> = [];
+  for (const booking of targets) {
+    const result = await cancelBookingReal(booking);
+    results.push({ id: booking.id, success: result.success, message: result.message });
+  }
+
+  const cancelledCount = results.filter((r) => r.success).length;
   res.json({
     success: true,
-    message: `Meeting cancelled and removed from Zoom.${calendarCancelMessage}`,
-    data: booking
+    message: targets.length === 0
+      ? 'You have no active bookings to cancel.'
+      : `Cancelled ${cancelledCount} of ${targets.length} booking(s).`,
+    results
   });
 });
 

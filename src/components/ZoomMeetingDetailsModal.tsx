@@ -112,29 +112,14 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
   const [joinAnytime, setJoinAnytime] = useState<boolean>(
     initialConfig?.joinAnytime ?? false
   );
-  const [enableQa, setEnableQa] = useState<boolean>(
-    initialConfig?.enableQa ?? false
-  );
   const [muteOnEntry, setMuteOnEntry] = useState<boolean>(
     initialConfig?.muteOnEntry ?? true
   );
   const [autoRecord, setAutoRecord] = useState<boolean>(
     initialConfig?.autoRecord ?? false
   );
-  const [autoAddCloudRecordingToChannel, setAutoAddCloudRecordingToChannel] = useState<boolean>(
-    initialConfig?.autoAddCloudRecordingToChannel ?? false
-  );
-  const [enableAdditionalDataCenters, setEnableAdditionalDataCenters] = useState<boolean>(
-    initialConfig?.enableAdditionalDataCenters ?? false
-  );
   const [alternativeHosts, setAlternativeHosts] = useState<string>(
     initialConfig?.alternativeHosts || ''
-  );
-  const [manageAssetsSummary, setManageAssetsSummary] = useState<boolean>(
-    initialConfig?.manageAssetsSummary ?? true
-  );
-  const [manageAssetsRecording, setManageAssetsRecording] = useState<boolean>(
-    initialConfig?.manageAssetsRecording ?? true
   );
 
   const [isSaving, setIsSaving] = useState(false);
@@ -163,14 +148,9 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
       setAudioOption(cfg.audioOption || 'both');
       setCalendarType(cfg.calendarType || 'outlook');
       setJoinAnytime(cfg.joinAnytime ?? false);
-      setEnableQa(cfg.enableQa ?? false);
       setMuteOnEntry(cfg.muteOnEntry ?? true);
       setAutoRecord(cfg.autoRecord ?? false);
-      setAutoAddCloudRecordingToChannel(cfg.autoAddCloudRecordingToChannel ?? false);
-      setEnableAdditionalDataCenters(cfg.enableAdditionalDataCenters ?? false);
       setAlternativeHosts(cfg.alternativeHosts || '');
-      setManageAssetsSummary(cfg.manageAssetsSummary ?? true);
-      setManageAssetsRecording(cfg.manageAssetsRecording ?? true);
     }
   }, [booking]);
 
@@ -221,14 +201,9 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
       audioOption,
       calendarType,
       joinAnytime,
-      enableQa,
       muteOnEntry,
       autoRecord,
-      autoAddCloudRecordingToChannel,
-      enableAdditionalDataCenters,
       alternativeHosts,
-      manageAssetsSummary,
-      manageAssetsRecording,
     };
 
     try {
@@ -774,18 +749,6 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 <span>Allow participants to join anytime</span>
               </label>
 
-              {/* Q&A */}
-              <label className="flex items-center gap-2.5 cursor-pointer select-none text-gray-800">
-                <input
-                  type="checkbox"
-                  checked={enableQa}
-                  onChange={(e) => setEnableQa(e.target.checked)}
-                  disabled={readOnly}
-                  className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
-                />
-                <span>Q&amp;A</span>
-              </label>
-
               {/* Mute participants upon entry */}
               <label className="flex items-center gap-2.5 cursor-pointer select-none text-gray-800">
                 <input
@@ -807,33 +770,8 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                   disabled={readOnly}
                   className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
                 />
-                <span>Automatically record meeting</span>
+                <span>Automatically record meeting on the local computer</span>
               </label>
-
-              {/* Automatically add the cloud recording to channel in Video Management */}
-              <label className="flex items-center gap-2.5 cursor-pointer select-none text-gray-800">
-                <input
-                  type="checkbox"
-                  checked={autoAddCloudRecordingToChannel}
-                  onChange={(e) => setAutoAddCloudRecordingToChannel(e.target.checked)}
-                  disabled={readOnly}
-                  className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
-                />
-                <span>Automatically add the cloud recording to channel in Video Management</span>
-              </label>
-
-              {/* Enable additional data center regions for this meeting */}
-              <label className="flex items-center gap-2.5 cursor-pointer select-none text-gray-800">
-                <input
-                  type="checkbox"
-                  checked={enableAdditionalDataCenters}
-                  onChange={(e) => setEnableAdditionalDataCenters(e.target.checked)}
-                  disabled={readOnly}
-                  className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
-                />
-                <span>Enable additional data center regions for this meeting</span>
-              </label>
-
 
               {/* Alternative hosts (Image 4) */}
               <div className="pt-2 space-y-2">
@@ -849,37 +787,13 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                   className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#0b5cff] focus:ring-1 focus:ring-[#0b5cff]"
                 />
                 <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                  <span>Allow the alternative host to manage this meeting&apos;s assets as co-owner.</span>
+                  <span>Defaults to the booker&apos;s email. Only takes effect if that person is a Licensed user on this Zoom account - otherwise Zoom silently ignores it.</span>
                   <div className="group relative">
                     <Info className="w-3 h-3 text-gray-400 cursor-pointer" />
                     <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-gray-900 text-white text-[11px] rounded shadow-lg z-30">
-                      Co-hosts have full permissions to host, record, and moderate
+                      Alternative hosts have full permissions to host, record, and moderate
                     </div>
                   </div>
-                </div>
-
-                <div className="space-y-1.5 pt-1 pl-2">
-                  <label className="flex items-center gap-2 cursor-pointer select-none text-gray-500">
-                    <input
-                      type="checkbox"
-                      checked={manageAssetsSummary}
-                      onChange={(e) => setManageAssetsSummary(e.target.checked)}
-                      disabled={readOnly}
-                      className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
-                    />
-                    <span className="text-gray-600 font-medium">Meeting summary</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer select-none text-gray-500">
-                    <input
-                      type="checkbox"
-                      checked={manageAssetsRecording}
-                      onChange={(e) => setManageAssetsRecording(e.target.checked)}
-                      disabled={readOnly}
-                      className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
-                    />
-                    <span className="text-gray-600 font-medium">Meeting cloud recording</span>
-                  </label>
                 </div>
               </div>
 

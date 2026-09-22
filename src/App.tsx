@@ -329,7 +329,28 @@ export default function App() {
         if (confirmedBooking?.id === bookingId) {
           setConfirmedBooking((prev) => (prev ? { ...prev, status: 'cancelled' } : null));
         }
-        setBannerNotice('Zoom meeting cancelled and removed from Microsoft 365 Exchange Calendar.');
+        setBannerNotice(data.message || 'Meeting cancelled.');
+        setTimeout(() => setBannerNotice(null), 4000);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Cancel every one of the caller's own bookings for real (Zoom + Outlook)
+  const handleCancelAllMine = async () => {
+    try {
+      const res = await fetch('/api/bookings/cancel-mine', {
+        method: 'POST',
+        headers: authHeaders,
+      });
+      const data = await res.json();
+      if (data.success) {
+        const cancelledIds = new Set((data.results || []).filter((r: any) => r.success).map((r: any) => r.id));
+        setBookings((prev) =>
+          prev.map((b) => (cancelledIds.has(b.id) ? { ...b, status: 'cancelled' } : b))
+        );
+        setBannerNotice(data.message);
         setTimeout(() => setBannerNotice(null), 4000);
       }
     } catch (e) {
@@ -444,6 +465,7 @@ export default function App() {
                   meetingTypes={meetingTypes}
                   isAdmin={isAdmin}
                   onCancelBooking={handleCancelBooking}
+                  onCancelAllMine={handleCancelAllMine}
                   onSelectBookingForDetails={(booking) => setSelectedBookingForDetails(booking)}
                   onNavigateToSchedule={() => setCurrentView('booking')}
                 />

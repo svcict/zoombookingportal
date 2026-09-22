@@ -119,14 +119,9 @@ export interface ZoomMeetingConfig {
   calendarType: 'outlook' | 'google' | 'other';
   // Advanced
   joinAnytime: boolean;
-  enableQa: boolean;
   muteOnEntry: boolean;
   autoRecord: boolean;
-  autoAddCloudRecordingToChannel: boolean;
-  enableAdditionalDataCenters: boolean;
   alternativeHosts: string;
-  manageAssetsSummary: boolean;
-  manageAssetsRecording: boolean;
 }
 
 export interface Booking {
