@@ -78,20 +78,6 @@ Supabase is configured (`SUPABASE_URL` + `SUPABASE_ANON_KEY` in `.env`):
 The frontend always sends both headers (see `src/utils/auth.ts`); which one the server actually
 honors depends entirely on its own Supabase configuration, not anything the client requests.
 
-### Local test accounts (always available, with or without Supabase)
-
-The login screen's "Standard User"/"Admin User" quick-login cards sign in with two hardcoded
-accounts on a reserved, non-routable domain (`.test`, per RFC 2606 - it can never collide with a
-real email) — any password (or none) works for these two exact addresses:
-
-- `admin@local.test` — logs in as an admin
-- `user@local.test` — logs in as a regular staff member
-
-Unlike the Supabase-backed demo accounts below, these work **regardless of whether Supabase is
-configured** — they're checked first, before any Supabase call is attempted, and are also exempt
-from login rate-limiting/lockout (there's no real account behind them to brute-force). Every
-other email still goes through the normal Supabase/demo-login checks below.
-
 ## Data Persistence
 
 Booking data, host accounts, meeting types, Zoom API logs, and failed-login logs used to live
@@ -138,20 +124,14 @@ Supabase — not a real Supabase session. Removing an email from `DEMO_LOGIN_EMA
 invalidates any outstanding token for it, even before it would otherwise expire.
 
 The login form's password field also has no client-side `required` validation, so demo accounts
-(and the two `admin@local.test`/`user@local.test` local-testing accounts above) can submit a
-blank password. This is only a UX convenience, not a security boundary — the real gate is
-entirely server-side (`authenticateLocalUser`), which only ever accepts a blank password for an
-email explicitly listed in `DEMO_LOGIN_EMAILS` or one of the two `.test` accounts. Client-side
-validation can always be bypassed by anyone calling the API directly, so it was never providing
-real protection either way.
+can submit a blank password. This is only a UX convenience, not a security boundary — the real
+gate is entirely server-side (`authenticateLocalUser`), which only ever accepts a blank password
+for an email explicitly listed in `DEMO_LOGIN_EMAILS`. Client-side validation can always be
+bypassed by anyone calling the API directly, so it was never providing real protection either way.
 
 ## Before Going to Production
 
 - **Set `DEMO_LOGIN_EMAILS` to empty/unset.** Closes the Supabase-backed passwordless login path.
-- **Remove the `admin@local.test`/`user@local.test` handling** in `authenticateLocalUser`
-  (`src/lib/supabase.ts`) and the two quick-login cards in `M365AuthGate.tsx`. These are separate
-  from `DEMO_LOGIN_EMAILS` and unsetting that env var does **not** disable them - they're
-  hardcoded and always active regardless of environment config.
 - Confirm `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` point at your real
   production project, not a test one.
 - (Optional, UX only) Re-add `required` to the password `<input>` in `M365AuthGate.tsx` for a

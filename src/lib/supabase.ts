@@ -79,7 +79,7 @@ export function verifyDemoSessionToken(token: string): { email: string; isAdmin:
     const payload = JSON.parse(base64UrlDecode(encodedPayload));
     if (typeof payload.email !== 'string' || typeof payload.exp !== 'number') return null;
     if (Date.now() > payload.exp) return null;
-    if (!isDemoLoginEmail(payload.email) && !isLocalTestAccountEmail(payload.email)) return null;
+    if (!isDemoLoginEmail(payload.email)) return null;
     return { email: payload.email, isAdmin: Boolean(payload.isAdmin) };
   } catch {
     return null;
@@ -324,50 +324,10 @@ export async function testSupabaseConnection(): Promise<{
 /**
  * Authenticates a user strictly with Supabase Auth or verified profiles table.
  */
-// Test-only accounts on a reserved, non-routable domain (RFC 2606
-// ".test" - can never collide with a real email), always available
-// regardless of Supabase configuration, so testing this app never depends
-// on Supabase setup (DEMO_LOGIN_EMAILS, profiles rows) being correct.
-// Accepts any password (or none) for these exact emails. Must be disabled
-// before production - see README "Before Going to Production".
-const LOCAL_DEV_TEST_ACCOUNTS: Record<string, { name: string; isAdmin: boolean }> = {
-  'admin@local.test': { name: 'Local Test Admin', isAdmin: true },
-  'user@local.test': { name: 'Local Test User', isAdmin: false },
-};
-
-export function isLocalTestAccountEmail(email: string): boolean {
-  return Boolean(LOCAL_DEV_TEST_ACCOUNTS[(email || '').trim().toLowerCase()]);
-}
-
 export async function authenticateLocalUser(
   email: string,
   password?: string
 ): Promise<SupabaseAuthResult> {
-  const normalizedEmailForTestAccount = (email || '').trim().toLowerCase();
-  const testAccount = LOCAL_DEV_TEST_ACCOUNTS[normalizedEmailForTestAccount];
-  if (testAccount) {
-    const normalizedEmail = normalizedEmailForTestAccount;
-    return {
-      success: true,
-      user: {
-        id: `local-dev-${normalizedEmail}`,
-        name: testAccount.name,
-        email: normalizedEmail,
-        role: testAccount.isAdmin ? 'Administrator' : 'Staff Member',
-        isAdmin: testAccount.isAdmin,
-        department: 'Local Testing',
-        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(testAccount.name)}`,
-        tenantName: 'Local Test Account',
-        tenantId: 'local-dev',
-        scopes: testAccount.isAdmin
-          ? ['User.Read', 'Calendars.ReadWrite', 'Directory.AccessAsUser.All']
-          : ['User.Read', 'Calendars.ReadWrite'],
-        accessToken: issueDemoSessionToken(normalizedEmail, testAccount.isAdmin),
-        provider: 'demo',
-      },
-    };
-  }
-
   const client = getSupabase();
   const adminClient = getSupabaseAdmin();
 
