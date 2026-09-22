@@ -14,7 +14,12 @@ import {
   verifyDemoSessionToken,
   isLocalTestAccountEmail,
   issueM365SsoSessionToken,
-  verifyM365SsoSessionToken
+  verifyM365SsoSessionToken,
+  isGrantedAdminEmail,
+  listGrantedAdminEmails,
+  listAdminBootstrapEmails,
+  grantAdminEmail,
+  revokeAdminEmail
 } from './src/lib/supabase';
 import {
   ZoomAccountKey,
@@ -1861,7 +1866,7 @@ app.get('/auth/callback', async (req, res) => {
       return failWith(`Only ${orgDomain} accounts may sign in here.`);
     }
 
-    const isAdmin = userEmail.includes('admin');
+    const isAdmin = await isGrantedAdminEmail(userEmail);
     const displayName = profile.displayName || userEmail.split('@')[0];
 
     const user = {
@@ -2190,6 +2195,63 @@ app.post('/api/admin/clear-failed-logs', async (req, res) => {
     success: true,
     message: 'Failed login security logs have been cleared.'
   });
+});
+
+// Admin Users Management (grant/revoke real admin access by email)
+app.get('/api/admin/users', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+
+  res.json({
+    success: true,
+    data: {
+      grantedAdmins: await listGrantedAdminEmails(),
+      bootstrapAdmins: listAdminBootstrapEmails(),
+      supabaseConfigured: isSupabaseConfigured()
+    }
+  });
+});
+
+app.post('/api/admin/users/grant', async (req, res) => {
+  const adminEmail = await requireAdmin(req, res);
+  if (!adminEmail) return;
+
+  const { email } = req.body;
+  if (!email || typeof email !== 'string' || !email.trim()) {
+    return res.status(400).json({ success: false, message: 'Email is required.' });
+  }
+
+  const result = await grantAdminEmail(email, adminEmail);
+  if (!result.success) {
+    return res.status(400).json({ success: false, message: result.error });
+  }
+  res.json({ success: true, message: `${email.trim().toLowerCase()} can now sign in as an administrator.` });
+});
+
+app.post('/api/admin/users/revoke', async (req, res) => {
+  const adminEmail = await requireAdmin(req, res);
+  if (!adminEmail) return;
+
+  const { email } = req.body;
+  if (!email || typeof email !== 'string' || !email.trim()) {
+    return res.status(400).json({ success: false, message: 'Email is required.' });
+  }
+
+  const normalized = email.trim().toLowerCase();
+  if (normalized === adminEmail.toLowerCase()) {
+    return res.status(400).json({ success: false, message: 'You cannot revoke your own admin access.' });
+  }
+  if (listAdminBootstrapEmails().includes(normalized)) {
+    return res.status(400).json({
+      success: false,
+      message: `${normalized} is an admin via the ADMIN_BOOTSTRAP_EMAILS server setting, not the database - remove it from that env var to revoke.`
+    });
+  }
+
+  const result = await revokeAdminEmail(normalized);
+  if (!result.success) {
+    return res.status(400).json({ success: false, message: result.error });
+  }
+  res.json({ success: true, message: `${normalized} is no longer an administrator.` });
 });
 
 

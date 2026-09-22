@@ -92,6 +92,25 @@ configured** — they're checked first, before any Supabase call is attempted, a
 from login rate-limiting/lockout (there's no real account behind them to brute-force). Every
 other email still goes through the normal Supabase/demo-login checks below.
 
+### Admin Access
+
+Admin status used to be decided by an `email.includes('admin')` heuristic almost everywhere (Microsoft 365
+SSO callback, Supabase sign-up, Supabase password login) - meaning **anyone could grant themselves real
+admin access just by choosing an email address containing "admin"** (e.g. `administrator@gmail.com`), while
+a genuine admin without that substring in their email got none. This has been replaced with a real,
+explicit grant system:
+
+1. **`ADMIN_BOOTSTRAP_EMAILS`** (env var, comma-separated) - always-admin emails set by whoever controls the
+   server config. This is how you create the very first admin, since every other path requires an existing
+   admin to be signed in already.
+2. **The `admin_emails` table** (run `supabase/migrations/0003_admin_emails.sql` once) - managed from the
+   in-app **Admin Users** page (admin-only nav item), where an existing admin grants or revokes admin access
+   for any exact email. This is deliberately a separate table from `profiles`, since `profiles.id` is bound
+   to a Supabase Auth user and Microsoft 365 SSO sign-ins never create one.
+
+An email is treated as admin if it's in either list. Once your first admin (via `ADMIN_BOOTSTRAP_EMAILS`)
+can sign in, use the Admin Users page for everyone after that rather than growing the env var.
+
 ## Data Persistence
 
 Booking data, host accounts, meeting types, Zoom API logs, and failed-login logs used to live
@@ -101,7 +120,8 @@ booking, account, and audit log. This is now backed by Supabase Postgres when it
 
 1. Run `supabase/migrations/0001_app_data_tables.sql` once against your Supabase project (SQL
    Editor → paste → Run) to create the `host_accounts`, `meeting_types`, `bookings`,
-   `zoom_api_logs`, and `failed_login_logs` tables.
+   `zoom_api_logs`, and `failed_login_logs` tables. Also run `0002_push_subscriptions.sql` (Push
+   Notifications, below) and `0003_admin_emails.sql` (Admin Access, above) the same way.
 2. Make sure `SUPABASE_SERVICE_ROLE_KEY` is set in `.env` — the server writes through this
    service-role key (bypassing RLS), since these tables aren't meant to be queried directly by
    end users, only through the API.
@@ -147,15 +167,26 @@ real protection either way.
 
 ## Before Going to Production
 
-- **Set `DEMO_LOGIN_EMAILS` to empty/unset.** Closes the Supabase-backed passwordless login path.
-- **Remove the `admin@local.test`/`user@local.test` handling** in `authenticateLocalUser`
+Last run against this codebase on 2026-09-22 - status of each item below. Items marked "confirm on your
+server" can't be checked from a dev/CI checkout since they depend on that deployment's real `.env`.
+
+- [ ] **Set `ADMIN_BOOTSTRAP_EMAILS` to your real admin(s), then run
+  `supabase/migrations/0003_admin_emails.sql`.** Do this *before* the next two items - it's what lets a real
+  admin sign in at all once the local test accounts are gone. See "Admin Access" above. *(Confirm on your
+  server - can't be checked from here.)*
+- [ ] **Set `DEMO_LOGIN_EMAILS` to empty/unset.** Closes the Supabase-backed passwordless login path.
+  *(Confirm on your server.)*
+- [ ] **Remove the `admin@local.test`/`user@local.test` handling** in `authenticateLocalUser`
   (`src/lib/supabase.ts`) and the two quick-login cards in `M365AuthGate.tsx`. These are separate
   from `DEMO_LOGIN_EMAILS` and unsetting that env var does **not** disable them - they're
-  hardcoded and always active regardless of environment config.
-- Confirm `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` point at your real
-  production project, not a test one.
-- (Optional, UX only) Re-add `required` to the password `<input>` in `M365AuthGate.tsx` for a
-  nicer inline error message on empty submission — doesn't change security either way.
+  hardcoded and always active regardless of environment config. **Not done yet, on purpose** - keep these
+  until you've confirmed a real `ADMIN_BOOTSTRAP_EMAILS` admin can sign in and reach the Admin Users page,
+  so you can't lock yourself out of the admin views.
+- [ ] Confirm `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` point at your real
+  production project, not a test one. *(Confirm on your server.)*
+- Skipped by design: re-adding `required` to the password `<input>` in `M365AuthGate.tsx`. It would block
+  the documented "leave blank for demo accounts" flow that's still in use for local testing - revisit once
+  the item above (removing local test accounts) is actually done, since only then does that flow go away.
 
 ## Push Notifications
 

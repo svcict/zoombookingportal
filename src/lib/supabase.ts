@@ -132,6 +132,89 @@ export function verifyM365SsoSessionToken(token: string): { email: string; isAdm
   }
 }
 
+function getAdminBootstrapEmails(): Set<string> {
+  return new Set(
+    (process.env.ADMIN_BOOTSTRAP_EMAILS || '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
+/** Emails granted admin purely via server config (env var), independent of
+ * anything in the database - the only way to create the very first admin,
+ * since granting admin through the app itself requires an existing admin. */
+export function isAdminBootstrapEmail(email: string): boolean {
+  return getAdminBootstrapEmails().has((email || '').trim().toLowerCase());
+}
+
+export function listAdminBootstrapEmails(): string[] {
+  return Array.from(getAdminBootstrapEmails());
+}
+
+/**
+ * Whether an email is a real, currently-active admin - checked against the
+ * ADMIN_BOOTSTRAP_EMAILS env allowlist first, then the `admin_emails` table
+ * (managed from the in-app Admin Users page). This replaces the old
+ * `email.includes('admin')` heuristic, which let anyone grant themselves
+ * admin just by choosing an email address with "admin" in it.
+ *
+ * `admin_emails` is a separate table from Supabase Auth's `profiles`
+ * (rather than a `profiles.is_admin` column) because `profiles.id` is bound
+ * to a real Supabase Auth user, and Microsoft 365 SSO sign-ins - a fully
+ * supported login path in this app - never create one.
+ */
+export async function isGrantedAdminEmail(email: string): Promise<boolean> {
+  const normalized = (email || '').trim().toLowerCase();
+  if (!normalized) return false;
+  if (isAdminBootstrapEmail(normalized)) return true;
+  const adminClient = getSupabaseAdmin();
+  if (!adminClient) return false;
+  try {
+    const { data } = await adminClient.from('admin_emails').select('email').eq('email', normalized).maybeSingle();
+    return Boolean(data);
+  } catch {
+    return false;
+  }
+}
+
+export async function listGrantedAdminEmails(): Promise<string[]> {
+  const adminClient = getSupabaseAdmin();
+  if (!adminClient) return [];
+  try {
+    const { data } = await adminClient.from('admin_emails').select('email').order('created_at', { ascending: true });
+    return (data || []).map((row: any) => row.email as string);
+  } catch {
+    return [];
+  }
+}
+
+export async function grantAdminEmail(
+  email: string,
+  grantedBy: string
+): Promise<{ success: boolean; error?: string }> {
+  const normalized = (email || '').trim().toLowerCase();
+  if (!normalized) return { success: false, error: 'Email is required.' };
+  const adminClient = getSupabaseAdmin();
+  if (!adminClient) {
+    return { success: false, error: 'Supabase is not configured, so admin grants cannot be persisted.' };
+  }
+  const { error } = await adminClient.from('admin_emails').upsert({ email: normalized, granted_by: grantedBy });
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+export async function revokeAdminEmail(email: string): Promise<{ success: boolean; error?: string }> {
+  const normalized = (email || '').trim().toLowerCase();
+  const adminClient = getSupabaseAdmin();
+  if (!adminClient) {
+    return { success: false, error: 'Supabase is not configured, so admin grants cannot be persisted.' };
+  }
+  const { error } = await adminClient.from('admin_emails').delete().eq('email', normalized);
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
 export function isSupabaseConfigured(): boolean {
   const url = process.env.SUPABASE_URL;
   const anonKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -400,7 +483,7 @@ export async function authenticateLocalUser(
         const isExplicitAdmin =
           metadata.isAdmin === true ||
           metadata.role === 'admin' ||
-          normalizedEmail.includes('admin');
+          (await isGrantedAdminEmail(normalizedEmail));
 
         const name =
           metadata.name ||
@@ -457,7 +540,7 @@ export async function authenticateLocalUser(
         const isExplicitAdmin =
           profileData.is_admin === true ||
           profileData.role === 'admin' ||
-          normalizedEmail.includes('admin');
+          (await isGrantedAdminEmail(normalizedEmail));
 
         const name = profileData.full_name || profileData.name || normalizedEmail.split('@')[0];
 
@@ -517,7 +600,7 @@ export async function registerSupabaseUser(
   }
 
   const normalizedEmail = email.trim().toLowerCase();
-  const isAdmin = normalizedEmail.includes('admin');
+  const isAdmin = await isGrantedAdminEmail(normalizedEmail);
 
   try {
     // 1. If admin client is available, use admin.createUser to auto-confirm email

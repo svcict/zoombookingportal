@@ -27,8 +27,8 @@ import { requestPushPermission, playZoomNotificationSound } from '../utils/notif
 import { AyalaFoundationLogo } from './AyalaFoundationLogo';
 
 interface HeaderProps {
-  currentView: 'dashboard' | 'booking' | 'm365' | 'zoom-api' | 'security-logs';
-  onViewChange: (view: 'dashboard' | 'booking' | 'm365' | 'zoom-api' | 'security-logs') => void;
+  currentView: 'dashboard' | 'booking' | 'm365' | 'zoom-api' | 'security-logs' | 'admin-users';
+  onViewChange: (view: 'dashboard' | 'booking' | 'm365' | 'zoom-api' | 'security-logs' | 'admin-users') => void;
   m365State: M365CalendarState;
   authUser: M365User | null;
   onSignOut: () => void;
@@ -90,12 +90,9 @@ export const Header: React.FC<HeaderProps> = ({
     }
   }, [isUserMenuOpen]);
 
-  const isAdmin = Boolean(
-    authUser?.isAdmin || 
-    authUser?.role?.toLowerCase().includes('admin') || 
-    authUser?.email?.toLowerCase().includes('admin') || 
-    authUser?.email === 'sarah.jenkins@zoompartner.com'
-  );
+  // Trusts only the server-verified flag issued at login - never a guess
+  // from the email or role string.
+  const isAdmin = Boolean(authUser?.isAdmin);
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -275,6 +272,19 @@ export const Header: React.FC<HeaderProps> = ({
                   >
                     <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
                     Login Audits
+                  </button>
+
+                  {/* Admin Users */}
+                  <button
+                    onClick={() => onViewChange('admin-users')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
+                      currentView === 'admin-users'
+                        ? 'bg-purple-50 text-purple-700 font-semibold'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+                    Admin Users
                   </button>
                 </>
               )}
@@ -516,6 +526,12 @@ export const Header: React.FC<HeaderProps> = ({
                 className={`py-1 px-2 rounded cursor-pointer ${currentView === 'security-logs' ? 'text-red-600 font-bold' : 'text-gray-600'}`}
               >
                 Audits
+              </button>
+              <button
+                onClick={() => onViewChange('admin-users')}
+                className={`py-1 px-2 rounded cursor-pointer ${currentView === 'admin-users' ? 'text-purple-600 font-bold' : 'text-gray-600'}`}
+              >
+                Admins
               </button>
             </>
           )}
