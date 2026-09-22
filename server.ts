@@ -591,12 +591,24 @@ async function provisionZoomMeeting(
   durationMinutes: number,
   timezone: string,
   agenda?: string,
-  zoomConfig?: Partial<ZoomMeetingConfig>
+  zoomConfig?: Partial<ZoomMeetingConfig>,
+  participantEmail?: string
 ) {
   if (!accountKey || !isAccountConfigured(accountKey)) {
     const preferredPasscode = zoomConfig?.passcodeEnabled !== false ? zoomConfig?.passcode : undefined;
-    return { zoomDetails: generateZoomDetails(meetingTitle, hostName, preferredPasscode), accountKey };
+    return {
+      zoomDetails: generateZoomDetails(meetingTitle, hostName, preferredPasscode),
+      accountKey,
+      alternativeHosts: zoomConfig?.alternativeHosts || participantEmail || ''
+    };
   }
+
+  // Default alternative host to whoever booked the meeting, so they can
+  // "Make Host"/co-host themselves in directly if they're a Licensed user
+  // on this same Zoom account - an explicit zoomConfig.alternativeHosts
+  // always wins. Zoom silently ignores this for anyone not licensed under
+  // this account, so it's a no-op (not an error) for most outside bookers.
+  const alternativeHosts = zoomConfig?.alternativeHosts || participantEmail || '';
 
   const result = await createZoomMeeting(accountKey, {
     topic: meetingTitle,
@@ -614,7 +626,8 @@ async function provisionZoomMeeting(
     meetingAuthentication: zoomConfig?.requireAuth,
     usePmi: zoomConfig?.meetingIdType === 'pmi',
     autoRecording: zoomConfig?.autoRecord,
-    autoRecordTo: 'local'
+    autoRecordTo: 'local',
+    alternativeHosts
   });
 
   const provisionLog: ZoomApiLog = {
@@ -630,7 +643,7 @@ async function provisionZoomMeeting(
   if (zoomApiLogs.length > 30) zoomApiLogs.pop();
   persistZoomLog(provisionLog);
 
-  return { zoomDetails: mapZoomMeetingResponse(result.data), accountKey };
+  return { zoomDetails: mapZoomMeetingResponse(result.data), accountKey, alternativeHosts };
 }
 
 // ----------------------------------------------------
@@ -2448,8 +2461,9 @@ app.post('/api/bookings', async (req, res) => {
     }
 
     let zoomDetails;
+    let usedAlternativeHosts = '';
     try {
-      ({ zoomDetails } = await provisionZoomMeeting(
+      ({ zoomDetails, alternativeHosts: usedAlternativeHosts } = await provisionZoomMeeting(
         zoomAccountKey,
         finalMeetingTitle,
         assignedHost.name,
@@ -2457,7 +2471,8 @@ app.post('/api/bookings', async (req, res) => {
         meetingType.duration || 30,
         timezone,
         notes,
-        zoomConfig
+        zoomConfig,
+        participantEmail
       ));
     } catch (zoomErr: any) {
       console.error('Zoom API error while creating meeting:', zoomErr);
@@ -2511,7 +2526,7 @@ app.post('/api/bookings', async (req, res) => {
         autoRecord: zoomConfig?.autoRecord ?? false,
         autoAddCloudRecordingToChannel: false,
         enableAdditionalDataCenters: false,
-        alternativeHosts: '',
+        alternativeHosts: usedAlternativeHosts,
         manageAssetsSummary: true,
         manageAssetsRecording: true,
       },

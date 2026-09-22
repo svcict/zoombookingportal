@@ -211,6 +211,13 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           </p>
         )}
 
+        {currentBooking.zoomConfig?.alternativeHosts === currentBooking.participantEmail && (
+          <p className="text-xs text-gray-500 mt-1.5">
+            You've been set as an alternative host on this meeting - if you have a licensed seat on
+            this Zoom account, you can start or manage it directly. If not, this has no effect.
+          </p>
+        )}
+
         {/* Meeting Countdown Bar */}
         <div className="mt-5 inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 text-[#0b5cff] border border-blue-200 rounded-full text-xs font-semibold">
           <Clock className="w-3.5 h-3.5" />
