@@ -189,12 +189,8 @@ export const INITIAL_MEETING_TYPES: MeetingType[] = [
 ];
 
 export const INITIAL_M365_STATE: M365CalendarState = {
-  connected: true,
-  accountEmail: 'sarah.jenkins@zoompartner.com',
-  displayName: 'Sarah Jenkins (M365 Exchange)',
-  calendarName: 'Primary Calendar (Outlook 365)',
   syncEnabled: true,
-  sendEmailViaGraph: true,
-  lastSyncTime: new Date().toISOString(),
-  conflictEventsCount: 5,
+  connected: false,
+  lastCheckedAt: null,
+  lastError: null,
 };

@@ -232,7 +232,7 @@ export default function App() {
 
   useEffect(() => {
     fetchAvailability();
-  }, [fetchAvailability, m365State.lastSyncTime]);
+  }, [fetchAvailability, m365State.lastCheckedAt]);
 
   // Ensure non-admin users cannot access admin views
   useEffect(() => {
@@ -352,21 +352,13 @@ export default function App() {
     }
   };
 
-  // Add Busy Slot to M365 (Admin Only)
-  const handleAddM365BusySlot = async (date: string, time: string, title: string) => {
-    try {
-      const res = await fetch('/api/m365/add-busy-slot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, time, title }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setM365State((prev) => ({ ...prev, lastSyncTime: new Date().toISOString() }));
-      }
-    } catch (e) {
-      console.error(e);
-    }
+  // Live-check both rotating Zoom accounts' real M365 calendars for a date
+  // (Admin Only) - returns what Microsoft Graph actually reports.
+  const handleCheckM365Now = async (date: string) => {
+    const res = await fetch(`/api/m365/check-now?date=${encodeURIComponent(date)}`);
+    const data = await res.json();
+    setM365State((prev) => ({ ...prev, lastCheckedAt: new Date().toISOString() }));
+    return data;
   };
 
   // If user is not authenticated with Microsoft 365, show Auth Gate
@@ -430,7 +422,6 @@ export default function App() {
                   authUser={authUser}
                   m365State={m365State}
                   bookings={visibleBookings}
-                  syncedEvents={m365State.events || []}
                   hideWelcomeCard
                   onScheduleMeeting={() => {
                     setCurrentView('booking');
@@ -613,7 +604,7 @@ export default function App() {
           <M365SyncView
             m365State={m365State}
             onToggleSync={handleToggleM365Sync}
-            onAddBusySlot={handleAddM365BusySlot}
+            onCheckNow={handleCheckM365Now}
             adminEmail={authUser?.email}
             authHeaders={authHeaders}
           />

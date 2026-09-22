@@ -346,8 +346,7 @@ let bookings: any[] = [
       manageAssetsSummary: true,
       manageAssetsRecording: true
     },
-    m365SyncStatus: 'synced',
-    m365EventId: 'AAMkADk3MGMwMTEtNGQ5YS00MjY1LT...M365',
+    m365SyncStatus: 'not_synced',
     answers: {
       q1: 'Reviewing quarterly cloud migration timeline and security compliance on Zoom infrastructure.'
     },
@@ -397,8 +396,7 @@ let bookings: any[] = [
       apiGenerated: true,
       zoomApiEndpoint: 'https://api.zoom.us/v2/users/me/meetings'
     },
-    m365SyncStatus: 'synced',
-    m365EventId: 'AAMkADk3MGMwMTEtNGQ5YS00MjY1LT...M365',
+    m365SyncStatus: 'not_synced',
     answers: {
       q1: 'Reviewing quarterly cloud migration timeline and security compliance on Zoom infrastructure.'
     },
@@ -414,48 +412,14 @@ let bookings: any[] = [
   }
 ];
 
-// Multi-Account M365 Busy Slots (Including current September 2026 week)
-let m365BusySlots = [
-  // Current Week: Sep 14 - Sep 20, 2026
-  { accountId: 'acc-1', date: '2026-09-14', time: '09:00', title: 'Weekly Engineering Kickoff (M365 Exchange)' },
-  { accountId: 'acc-1', date: '2026-09-14', time: '13:00', title: 'Ayala Foundation Program Alignment' },
-  { accountId: 'acc-1', date: '2026-09-15', time: '10:00', title: 'Internal Architecture Standup' },
-  { accountId: 'acc-1', date: '2026-09-15', time: '14:00', title: 'Executive Briefing (Outlook 365)' },
-  { accountId: 'acc-2', date: '2026-09-15', time: '11:00', title: 'Engineering Sprint Review' },
-  { accountId: 'acc-1', date: '2026-09-16', time: '11:00', title: 'M365 Cloud Infrastructure Review' },
-  { accountId: 'acc-1', date: '2026-09-16', time: '14:30', title: 'Client Architecture Deep-Dive' },
-  { accountId: 'acc-3', date: '2026-09-16', time: '09:30', title: 'Board Strategy Call' },
-  { accountId: 'acc-1', date: '2026-09-17', time: '09:00', title: 'Sprint Planning & Backlog Grooming' },
-  { accountId: 'acc-1', date: '2026-09-17', time: '13:30', title: 'Ayala Digital Transformation Workshop' },
-  { accountId: 'acc-1', date: '2026-09-18', time: '10:00', title: 'Quarterly Stakeholder Review (Outlook)' },
-  { accountId: 'acc-1', date: '2026-09-18', time: '15:00', title: 'Weekly Team Retrospective' },
-
-  // August historic data
-  { accountId: 'acc-1', date: '2026-08-26', time: '10:00', title: 'Internal Architecture Standup' },
-  { accountId: 'acc-1', date: '2026-08-26', time: '14:00', title: 'Executive Briefing (Outlook 365)' },
-  { accountId: 'acc-2', date: '2026-08-26', time: '09:00', title: 'Engineering Sprint Review' },
-  { accountId: 'acc-2', date: '2026-08-26', time: '11:00', title: 'Client Zoom Integration Review' },
-  { accountId: 'acc-3', date: '2026-08-26', time: '09:30', title: 'Board Strategy Call' },
-  { accountId: 'acc-3', date: '2026-08-26', time: '13:00', title: 'M365 Infrastructure Sync' },
-  { accountId: 'acc-4', date: '2026-08-26', time: '15:00', title: 'Customer Onboarding Workshop' },
-  { accountId: 'acc-1', date: '2026-08-27', time: '09:30', title: 'Client Architecture Review' },
-  { accountId: 'acc-1', date: '2026-08-27', time: '13:00', title: 'M365 Team Sync' },
-  { accountId: 'acc-2', date: '2026-08-27', time: '14:30', title: 'Zoom API Webhook Debugging' },
-  { accountId: 'acc-3', date: '2026-08-27', time: '11:00', title: 'Executive Leadership Sync' },
-  { accountId: 'acc-4', date: '2026-08-27', time: '10:00', title: 'CS Quarterly Touchpoint' },
-  { accountId: 'acc-1', date: '2026-08-28', time: '11:30', title: 'Sprint Retrospective' },
-  { accountId: 'acc-2', date: '2026-08-28', time: '15:00', title: 'Security Audit Call' },
-];
-
+// Real M365 calendar sync state - no fake seeded events. connected/
+// lastCheckedAt/lastError reflect the outcome of the most recent real
+// Graph getSchedule call (see getRealM365BusyBlocks), not a static claim.
 let m365CalendarState = {
-  connected: true,
-  accountEmail: 'sarah.jenkins@zoompartner.com',
-  displayName: 'Enterprise Microsoft 365 Exchange Hub',
-  calendarName: 'M365 Live Exchange Synced',
   syncEnabled: true,
-  sendEmailViaGraph: true,
-  lastSyncTime: new Date().toISOString(),
-  conflictEventsCount: m365BusySlots.length
+  connected: false,
+  lastCheckedAt: null as string | null,
+  lastError: null as string | null
 };
 
 // ----------------------------------------------------
@@ -579,18 +543,36 @@ let lastAssignedZoomAccount: ZoomAccountKey | null = null;
 // Picks a Zoom account for a new meeting, favoring whichever configured
 // account (A or B) has no overlapping booking at the requested time.
 // Falls back to round-robin between the two when both are free.
-function pickZoomAccount(startIso: string, endIso: string): ZoomAccountKey | null {
+async function pickZoomAccount(startIso: string, endIso: string): Promise<ZoomAccountKey | null> {
   const configured = getConfiguredAccountKeys();
   if (configured.length === 0) return null;
-  if (configured.length === 1) return configured[0];
 
-  const overlaps = (key: ZoomAccountKey) =>
+  const overlapsExistingBooking = (key: ZoomAccountKey) =>
     bookings.some((b) => {
       if (b.status === 'cancelled' || b.zoomAccountKey !== key) return false;
       return b.startTimeIso < endIso && startIso < b.endTimeIso;
     });
 
-  const free = configured.filter((key) => !overlaps(key));
+  // Also real-checks each account's own M365 calendar, not just this app's
+  // own booking log - an account can be genuinely busy in Outlook without
+  // ever having been booked through this app.
+  const dateStr = startIso.slice(0, 10);
+  const overlapsRealM365 = async (key: ZoomAccountKey) => {
+    if (!m365CalendarState.syncEnabled) return false;
+    const blocks = await getZoomAccountM365BusyBlocks(key, dateStr);
+    if (!blocks) return false; // couldn't check - fail open rather than block booking entirely
+    const startMs = new Date(startIso).getTime();
+    const endMs = new Date(endIso).getTime();
+    return blocks.some((block) => startMs < new Date(block.endIso).getTime() && endMs > new Date(block.startIso).getTime());
+  };
+
+  const free: ZoomAccountKey[] = [];
+  for (const key of configured) {
+    if (overlapsExistingBooking(key)) continue;
+    if (await overlapsRealM365(key)) continue;
+    free.push(key);
+  }
+
   if (free.length === 0) return null;
   if (free.length === 1) return free[0];
 
@@ -1370,6 +1352,120 @@ function getM365OAuthConfig(req: express.Request) {
   };
 }
 
+// ----------------------------------------------------
+// REAL MICROSOFT 365 CALENDAR SYNC (app-only Graph, read-only)
+// ----------------------------------------------------
+// This checks the ONE configured sync mailbox (MICROSOFT_PRIMARY_USER_EMAIL)
+// for real conflicts via Microsoft Graph's getSchedule endpoint - it does
+// NOT write bookings back into Outlook as calendar events (that's a
+// separate, bigger feature: creating/updating/deleting real events per
+// booking). Since there's only one real mailbox configured, its busy
+// blocks apply uniformly across all 4 display "hosts", not per-account -
+// this app has no way to know which of the 4 corresponds to a real M365
+// mailbox unless each host account email is itself a real user in your
+// tenant.
+let graphAppToken: { token: string; expiresAt: number } | null = null;
+
+async function getGraphAppToken(): Promise<string | null> {
+  const tenantId = (process.env.MICROSOFT_TENANT_ID || '').trim();
+  const clientId = (process.env.MICROSOFT_CLIENT_ID || '').trim();
+  const clientSecret = (process.env.MICROSOFT_CLIENT_SECRET || '').trim();
+  if (!tenantId || !clientId || !clientSecret) return null;
+
+  if (graphAppToken && graphAppToken.expiresAt > Date.now() + 30_000) {
+    return graphAppToken.token;
+  }
+
+  const tokenRes = await fetch(`https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: 'client_credentials',
+      scope: 'https://graph.microsoft.com/.default'
+    }).toString()
+  });
+  if (!tokenRes.ok) return null;
+
+  const data = (await tokenRes.json()) as any;
+  if (!data.access_token) return null;
+  graphAppToken = { token: data.access_token, expiresAt: Date.now() + data.expires_in * 1000 };
+  return graphAppToken.token;
+}
+
+interface M365BusyBlock {
+  startIso: string;
+  endIso: string;
+  status: string;
+  subject?: string;
+}
+
+const m365BusyCache = new Map<string, { blocks: M365BusyBlock[]; fetchedAt: number }>();
+const M365_BUSY_CACHE_TTL_MS = 3 * 60 * 1000;
+
+// Live-queries Microsoft Graph for real busy blocks on one mailbox for one
+// calendar day (UTC). The mailbox is always one of the two rotating Zoom
+// accounts' real M365 addresses (ZOOM_ACCOUNT_A_USER_ID / _B_USER_ID) -
+// those are the accounts that actually host meetings, so their own real
+// calendars are what can genuinely conflict with a booking. Returns null on
+// any failure (unconfigured, no consent, network error) so callers can
+// distinguish "no conflicts" from "couldn't check".
+async function getRealM365BusyBlocks(dateStr: string, mailbox: string): Promise<M365BusyBlock[] | null> {
+  if (!mailbox) return null;
+
+  const cacheKey = `${mailbox}|${dateStr}`;
+  const cached = m365BusyCache.get(cacheKey);
+  if (cached && Date.now() - cached.fetchedAt < M365_BUSY_CACHE_TTL_MS) {
+    return cached.blocks;
+  }
+
+  const token = await getGraphAppToken();
+  if (!token) return null;
+
+  try {
+    const res = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(mailbox)}/calendar/getSchedule`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Prefer: 'outlook.timezone="UTC"'
+      },
+      body: JSON.stringify({
+        schedules: [mailbox],
+        startTime: { dateTime: `${dateStr}T00:00:00`, timeZone: 'UTC' },
+        endTime: { dateTime: `${dateStr}T23:59:59`, timeZone: 'UTC' },
+        availabilityViewInterval: 30
+      })
+    });
+
+    if (!res.ok) return null;
+    const data = (await res.json()) as any;
+    const items = data?.value?.[0]?.scheduleItems || [];
+    const blocks: M365BusyBlock[] = items
+      .filter((item: any) => item.status && item.status !== 'free')
+      .map((item: any) => ({
+        startIso: item.start.dateTime.endsWith('Z') ? item.start.dateTime : `${item.start.dateTime}Z`,
+        endIso: item.end.dateTime.endsWith('Z') ? item.end.dateTime : `${item.end.dateTime}Z`,
+        status: item.status,
+        subject: item.subject
+      }));
+
+    m365BusyCache.set(cacheKey, { blocks, fetchedAt: Date.now() });
+    return blocks;
+  } catch {
+    return null;
+  }
+}
+
+// Real busy blocks for one rotating Zoom account, keyed by which account
+// (A/B) - reads that account's real M365 mailbox from
+// ZOOM_ACCOUNT_{key}_USER_ID, the same address used for meeting creation.
+async function getZoomAccountM365BusyBlocks(key: ZoomAccountKey, dateStr: string): Promise<M365BusyBlock[] | null> {
+  const mailbox = (process.env[`ZOOM_ACCOUNT_${key}_USER_ID`] || '').trim();
+  return getRealM365BusyBlocks(dateStr, mailbox);
+}
+
 // Step 1: redirect the browser to Microsoft's real sign-in page.
 app.get('/api/auth/m365/authorize', (req, res) => {
   const { tenantId, clientId, redirectUri, scopes } = getM365OAuthConfig(req);
@@ -1827,7 +1923,7 @@ app.post('/api/meeting-types', (req, res) => {
 });
 
 // 5. Account-Aware Availability Matrix Generator (Shows which accounts are open/busy)
-app.get('/api/availability', (req, res) => {
+app.get('/api/availability', async (req, res) => {
   try {
     const {
       meetingTypeId,
@@ -1868,6 +1964,46 @@ app.get('/api/availability', (req, res) => {
       : meetingTypeHost
       ? [meetingTypeHost]
       : hostAccounts;
+
+    // Real Microsoft 365 calendar conflicts for this day, per rotating Zoom
+    // account (A/B) - those are the accounts that actually host meetings,
+    // so their own real M365 calendars are what can genuinely conflict.
+    const configuredZoomAccounts = getConfiguredAccountKeys();
+    const zoomAccountM365Blocks = new Map<ZoomAccountKey, M365BusyBlock[]>();
+    if (m365CalendarState.syncEnabled && configuredZoomAccounts.length > 0) {
+      let anyReachable = false;
+      for (const key of configuredZoomAccounts) {
+        const blocks = await getZoomAccountM365BusyBlocks(key, date);
+        if (blocks !== null) {
+          zoomAccountM365Blocks.set(key, blocks);
+          anyReachable = true;
+        }
+      }
+      m365CalendarState.lastCheckedAt = new Date().toISOString();
+      m365CalendarState.connected = anyReachable;
+      m365CalendarState.lastError = anyReachable ? null : 'Could not reach Microsoft Graph for either rotating account mailbox.';
+    }
+
+    // An org-wide slot is only truly available if at least one of the two
+    // rotating Zoom accounts is free on both its own real M365 calendar and
+    // its existing Zoom bookings - that's the actual capacity limit,
+    // independent of which display host persona is shown.
+    const isZoomAccountFreeAt = (key: ZoomAccountKey, slotStartMs: number, slotEndMs: number) => {
+      const zoomBusy = bookings.some(
+        (b) =>
+          b.status !== 'cancelled' &&
+          b.zoomAccountKey === key &&
+          new Date(b.startTimeIso).getTime() < slotEndMs &&
+          slotStartMs < new Date(b.endTimeIso).getTime()
+      );
+      if (zoomBusy) return false;
+
+      const blocks = zoomAccountM365Blocks.get(key);
+      if (!blocks) return true; // couldn't check this account - fail open
+      return !blocks.some(
+        (block) => slotStartMs < new Date(block.endIso).getTime() && slotEndMs > new Date(block.startIso).getTime()
+      );
+    };
 
     // Booking hours: 08:00 AM to 20:00 (8:00 PM)
     const slots: Array<{
@@ -1931,18 +2067,21 @@ app.get('/api/availability', (req, res) => {
               (b.hostAccountId === acc.id || b.hostEmail === acc.email)
           );
 
-          // Check M365 Outlook Conflicts
-          const m365Conflict = m365CalendarState.syncEnabled
-            ? m365BusySlots.find((s) => s.accountId === acc.id && s.date === date && s.time === timeStr)
-            : null;
+          // Real capacity check: is at least one rotating Zoom account free
+          // (both Zoom-side and real M365) at this exact time?
+          const slotStart = new Date(slotIso).getTime();
+          const slotEnd = slotStart + duration * 60 * 1000;
+          const noZoomAccountFree =
+            configuredZoomAccounts.length > 0 &&
+            !configuredZoomAccounts.some((key) => isZoomAccountFreeAt(key, slotStart, slotEnd));
 
           // Lunch / buffer check
           const isLunchBuffer = h === 12 && m === 0;
 
           if (existingBooking) {
             unavailableForSlot.push({ account: acc, reason: `Booked in Zoom: ${existingBooking.meetingTitle}` });
-          } else if (m365Conflict) {
-            unavailableForSlot.push({ account: acc, reason: `M365 Calendar Busy: ${m365Conflict.title}` });
+          } else if (noZoomAccountFree) {
+            unavailableForSlot.push({ account: acc, reason: 'Both rotating Zoom accounts busy (Zoom + M365 calendar)' });
           } else if (isLunchBuffer) {
             unavailableForSlot.push({ account: acc, reason: 'Lunch / Administrative Buffer' });
           } else {
@@ -2133,7 +2272,7 @@ app.post('/api/bookings', async (req, res) => {
     // Assign one of the two rotating Zoom accounts and provision the meeting
     // (real Zoom REST API call when that account has credentials configured,
     // otherwise a local mock so the app still works in dev without them).
-    const zoomAccountKey = pickZoomAccount(startIso, endIso);
+    const zoomAccountKey = await pickZoomAccount(startIso, endIso);
     if (getConfiguredAccountKeys().length > 0 && !zoomAccountKey) {
       return res.status(409).json({
         success: false,
@@ -2209,8 +2348,12 @@ app.post('/api/bookings', async (req, res) => {
         manageAssetsSummary: true,
         manageAssetsRecording: true,
       },
-      m365SyncStatus: m365CalendarState.syncEnabled ? 'synced' : 'pending',
-      m365EventId: m365CalendarState.syncEnabled ? `M365-EVT-${Date.now()}` : undefined,
+      // M365 sync only reads the configured mailbox's calendar for conflict
+      // checking (see getRealM365BusyBlocks) - it does not write bookings
+      // back into Outlook as real calendar events, so there is no real
+      // event ID to record here.
+      m365SyncStatus: 'not_synced' as const,
+      m365EventId: undefined,
       answers,
       status: 'confirmed',
       // emailSent/emailSentAt are decorative - no email has ever actually
@@ -2372,7 +2515,6 @@ app.post('/api/bookings/:id/cancel', async (req, res) => {
   }
 
   booking.status = 'cancelled';
-  booking.m365SyncStatus = 'synced'; // M365 event removed
   await upsertRow('bookings', booking.id, booking);
 
   sendPushToEmail(booking.participantEmail, {
@@ -2610,18 +2752,20 @@ app.post('/api/zoom/webhooks', (req: any, res) => {
   res.status(200).json({ success: true });
 });
 
-// 8. Microsoft 365 Calendar & Graph API Sync
+// 8. Microsoft 365 Calendar & Graph API Sync (real, per rotating Zoom account)
 app.get('/api/m365/status', (req, res) => {
+  const mailboxes = getConfiguredAccountKeys().map((key) => ({
+    accountKey: key,
+    mailbox: process.env[`ZOOM_ACCOUNT_${key}_USER_ID`] || ''
+  }));
   res.json({
     success: true,
-    data: m365CalendarState,
-    syncedEvents: m365BusySlots
+    data: { ...m365CalendarState, mailboxes }
   });
 });
 
 app.post('/api/m365/sync-toggle', (req, res) => {
   m365CalendarState.syncEnabled = !m365CalendarState.syncEnabled;
-  m365CalendarState.lastSyncTime = new Date().toISOString();
   res.json({
     success: true,
     data: m365CalendarState,
@@ -2631,12 +2775,37 @@ app.post('/api/m365/sync-toggle', (req, res) => {
   });
 });
 
-app.post('/api/m365/add-busy-slot', (req, res) => {
-  const { accountId = 'acc-1', date, time, title } = req.body;
-  if (!date || !time) return res.status(400).json({ error: 'Date and time required' });
-  m365BusySlots.push({ accountId, date, time, title: title || 'External Outlook Event' });
-  m365CalendarState.lastSyncTime = new Date().toISOString();
-  res.json({ success: true, data: m365BusySlots });
+// Live-checks both rotating accounts' real M365 calendars for one date and
+// returns what Graph actually reports - replaces the old fake "add a busy
+// slot" simulator, which just pushed made-up data into an in-memory array
+// and never touched a real calendar.
+app.get('/api/m365/check-now', async (req, res) => {
+  const date = typeof req.query.date === 'string' ? req.query.date : new Date().toISOString().slice(0, 10);
+  const configured = getConfiguredAccountKeys();
+
+  if (configured.length === 0) {
+    return res.json({ success: false, message: 'No Zoom accounts configured to check.', results: [] });
+  }
+
+  const results = await Promise.all(
+    configured.map(async (key) => {
+      const mailbox = process.env[`ZOOM_ACCOUNT_${key}_USER_ID`] || '';
+      const blocks = await getZoomAccountM365BusyBlocks(key, date);
+      return {
+        accountKey: key,
+        mailbox,
+        reachable: blocks !== null,
+        busyBlocks: blocks || []
+      };
+    })
+  );
+
+  m365CalendarState.lastCheckedAt = new Date().toISOString();
+  const anyReachable = results.some((r) => r.reachable);
+  m365CalendarState.connected = anyReachable;
+  m365CalendarState.lastError = anyReachable ? null : 'Could not reach Microsoft Graph for either rotating account mailbox.';
+
+  res.json({ success: true, date, results });
 });
 
 // 9. Reminder dispatch trigger endpoint

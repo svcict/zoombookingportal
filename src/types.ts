@@ -151,7 +151,7 @@ export interface Booking {
   timezone: string;
   zoomDetails: ZoomDetails;
   zoomConfig?: ZoomMeetingConfig;
-  m365SyncStatus: 'synced' | 'pending' | 'failed';
+  m365SyncStatus: 'not_synced';
   m365EventId?: string;
   answers: Record<string, any>;
   status: 'confirmed' | 'rescheduled' | 'cancelled';
@@ -175,15 +175,17 @@ export interface TimezoneOption {
   sampleTime: string;
 }
 
+export interface M365SyncMailbox {
+  accountKey: 'A' | 'B';
+  mailbox: string;
+}
+
 export interface M365CalendarState {
-  connected: boolean;
-  accountEmail: string;
-  displayName: string;
-  calendarName: string;
   syncEnabled: boolean;
-  sendEmailViaGraph: boolean;
-  lastSyncTime: string;
-  conflictEventsCount: number;
+  connected: boolean;
+  lastCheckedAt: string | null;
+  lastError: string | null;
+  mailboxes?: M365SyncMailbox[];
 }
 
 export interface M365ExternalEvent {
