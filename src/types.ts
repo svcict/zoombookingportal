@@ -159,6 +159,7 @@ export interface Booking {
   reminders: {
     emailSent: boolean;
     emailSentAt?: string;
+    emailError?: string;
     pushScheduled: boolean;
     pushFired?: boolean;
     reminderMinutes: number[]; // e.g. [1440, 60, 15]

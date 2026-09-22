@@ -308,7 +308,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
             Invitees <span className="text-red-500">*</span>
           </label>
           <p className="text-xs text-gray-400 mb-2">
-            At least one invitee is required.
+            At least one invitee is required. They&apos;ll receive an email with the Zoom join link, meeting ID, and passcode.
           </p>
 
           <div className="flex gap-2">

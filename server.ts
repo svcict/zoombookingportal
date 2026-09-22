@@ -1466,6 +1466,73 @@ async function getZoomAccountM365BusyBlocks(key: ZoomAccountKey, dateStr: string
   return getRealM365BusyBlocks(dateStr, mailbox);
 }
 
+// ----------------------------------------------------
+// REAL EMAIL SENDING - Microsoft Graph sendMail (app-only), sent AS
+// whichever rotating Zoom account actually hosts the meeting.
+// ----------------------------------------------------
+// Requires the Azure app registration to have the Mail.Send APPLICATION
+// permission (not just delegated User.Read/Mail.Send under Graph scopes)
+// admin-consented in Azure Portal - that's a manual, one-time step outside
+// this codebase. Without it, sendGraphMail fails with a permission error,
+// which is surfaced honestly via reminders.emailError rather than a fake
+// emailSent: true.
+async function sendGraphMail(
+  fromMailbox: string,
+  toEmails: string[],
+  subject: string,
+  htmlBody: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!fromMailbox) return { success: false, error: 'No sending mailbox configured for this Zoom account.' };
+  if (toEmails.length === 0) return { success: false, error: 'No recipients to send to.' };
+
+  const token = await getGraphAppToken();
+  if (!token) return { success: false, error: 'Microsoft Graph is not configured (missing tenant/client credentials).' };
+
+  try {
+    const res = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(fromMailbox)}/sendMail`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: {
+          subject,
+          body: { contentType: 'HTML', content: htmlBody },
+          toRecipients: toEmails.map((email) => ({ emailAddress: { address: email } }))
+        },
+        saveToSentItems: true
+      })
+    });
+
+    if (res.status === 202) return { success: true };
+
+    const errText = await res.text().catch(() => '');
+    return { success: false, error: `Graph sendMail failed (${res.status}): ${errText.slice(0, 300)}` };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error contacting Microsoft Graph.' };
+  }
+}
+
+function buildBookingConfirmationEmail(booking: any): { subject: string; html: string } {
+  const zd = booking.zoomDetails || {};
+  const subject = `Confirmed: ${booking.meetingTitle} — ${booking.date} at ${booking.timeSlot}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; font-size: 14px; color: #1a1a1a;">
+      <p>Your Zoom meeting is confirmed.</p>
+      <p style="font-size: 16px; font-weight: bold; margin-bottom: 4px;">${booking.meetingTitle}</p>
+      <p style="margin-top: 0; color: #555;">${booking.date} at ${booking.timeSlot} (${booking.timezone})</p>
+      <table style="margin-top: 16px;">
+        <tr><td style="padding: 4px 12px 4px 0; color: #555;">Join URL</td><td><a href="${zd.joinUrl || ''}">${zd.joinUrl || ''}</a></td></tr>
+        <tr><td style="padding: 4px 12px 4px 0; color: #555;">Meeting ID</td><td>${zd.meetingId || ''}</td></tr>
+        <tr><td style="padding: 4px 12px 4px 0; color: #555;">Passcode</td><td>${zd.passcode || ''}</td></tr>
+      </table>
+      <p style="margin-top: 20px; color: #888; font-size: 12px;">Sent via Zoom Scheduling Portal.</p>
+    </div>
+  `;
+  return { subject, html };
+}
+
 // Step 1: redirect the browser to Microsoft's real sign-in page.
 app.get('/api/auth/m365/authorize', (req, res) => {
   const { tenantId, clientId, redirectUri, scopes } = getM365OAuthConfig(req);
@@ -2356,16 +2423,10 @@ app.post('/api/bookings', async (req, res) => {
       m365EventId: undefined,
       answers,
       status: 'confirmed',
-      // emailSent/emailSentAt are decorative - no email has ever actually
-      // been sent (email was deprioritized for push notifications). When
-      // real sending is built, it should be Microsoft Graph sendMail
-      // (app-only), sent AS the rotating account that owns zoomAccountKey
-      // for this booking - i.e. ZOOM_ACCOUNT_A_USER_ID or
-      // ZOOM_ACCOUNT_B_USER_ID, both confirmed to be real, licensed M365
-      // mailboxes - not a single fixed sender.
       reminders: {
-        emailSent: true,
-        emailSentAt: new Date().toISOString(),
+        emailSent: false,
+        emailSentAt: undefined as string | undefined,
+        emailError: undefined as string | undefined,
         pushScheduled: true,
         reminderMinutes: [1440, 60, 15]
       },
@@ -2374,6 +2435,21 @@ app.post('/api/bookings', async (req, res) => {
     };
 
     bookings.unshift(newBooking);
+    await upsertRow('bookings', newBooking.id, newBooking);
+
+    // Real confirmation email, sent AS the rotating Zoom account that
+    // hosts this specific meeting (its real M365 mailbox), not a fixed
+    // sender - to the participant and every invitee.
+    const emailRecipients = [newBooking.participantEmail, ...(newBooking.guestEmails || [])].filter(Boolean);
+    const senderMailbox = zoomAccountKey ? (process.env[`ZOOM_ACCOUNT_${zoomAccountKey}_USER_ID`] || '') : '';
+    const { subject, html } = buildBookingConfirmationEmail(newBooking);
+    const emailResult = await sendGraphMail(senderMailbox, emailRecipients, subject, html);
+    newBooking.reminders.emailSent = emailResult.success;
+    if (emailResult.success) {
+      newBooking.reminders.emailSentAt = new Date().toISOString();
+    } else {
+      newBooking.reminders.emailError = emailResult.error;
+    }
     await upsertRow('bookings', newBooking.id, newBooking);
 
     sendPushToEmail(newBooking.participantEmail, {
@@ -2386,7 +2462,9 @@ app.post('/api/bookings', async (req, res) => {
     res.status(201).json({
       success: true,
       data: redactStartUrlForParticipant(newBooking),
-      message: 'Zoom meeting scheduled successfully! Microsoft 365 calendar synced & Zoom REST API meeting generated.'
+      message: emailResult.success
+        ? 'Zoom meeting scheduled successfully! Confirmation email sent.'
+        : `Zoom meeting scheduled successfully. Confirmation email failed to send: ${emailResult.error}`
     });
   } catch (err: any) {
     console.error('Error creating booking:', err);
@@ -2416,6 +2494,7 @@ app.patch('/api/bookings/:id', async (req, res) => {
         passcode: zoomConfig?.passcode,
         waitingRoom: zoomConfig?.waitingRoom,
         autoRecording: zoomConfig?.autoRecord,
+        autoRecordTo: 'local',
         alternativeHosts: zoomConfig?.alternativeHosts,
         hostVideo: zoomConfig?.hostVideo,
         participantVideo: zoomConfig?.participantVideo,
