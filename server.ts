@@ -1532,22 +1532,78 @@ async function sendGraphMail(
   }
 }
 
+// Escapes text dropped into the HTML email body - booking fields (meeting
+// title, host name, etc.) ultimately come from user-submitted booking data,
+// so this prevents HTML/script injection into an email sent as this
+// account, not just a cosmetic concern.
+function escapeHtml(value: unknown): string {
+  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch] as string));
+}
+
 function buildBookingConfirmationEmail(booking: any): { subject: string; html: string } {
   const zd = booking.zoomDetails || {};
   const subject = `Confirmed: ${booking.meetingTitle} — ${booking.date} at ${booking.timeSlot}`;
+
+  const topic = escapeHtml(booking.meetingTitle);
+  const when = `${escapeHtml(booking.date)} at ${escapeHtml(booking.timeSlot)} (${escapeHtml(booking.timezone)})`;
+  const host = escapeHtml(booking.hostName);
+  const joinUrl = escapeHtml(zd.joinUrl || '');
+  const meetingId = escapeHtml(zd.formattedMeetingId || zd.meetingId || '');
+  const passcode = escapeHtml(zd.passcode || '');
+
+  const dialInRows = (zd.dialInNumbers || [])
+    .slice(0, 4)
+    .map((d: any) => `<tr><td style="padding:2px 0;color:#6b7280;">${escapeHtml(d.country)} (${escapeHtml(d.city)})</td><td style="padding:2px 0 2px 12px;color:#374151;">${escapeHtml(d.number)}</td></tr>`)
+    .join('');
+
   const html = `
-    <div style="font-family: Arial, sans-serif; font-size: 14px; color: #1a1a1a;">
-      <p>Your Zoom meeting is confirmed.</p>
-      <p style="font-size: 16px; font-weight: bold; margin-bottom: 4px;">${booking.meetingTitle}</p>
-      <p style="margin-top: 0; color: #555;">${booking.date} at ${booking.timeSlot} (${booking.timezone})</p>
-      <table style="margin-top: 16px;">
-        <tr><td style="padding: 4px 12px 4px 0; color: #555;">Join URL</td><td><a href="${zd.joinUrl || ''}">${zd.joinUrl || ''}</a></td></tr>
-        <tr><td style="padding: 4px 12px 4px 0; color: #555;">Meeting ID</td><td>${zd.meetingId || ''}</td></tr>
-        <tr><td style="padding: 4px 12px 4px 0; color: #555;">Passcode</td><td>${zd.passcode || ''}</td></tr>
-      </table>
-      <p style="margin-top: 20px; color: #888; font-size: 12px;">Sent via Zoom Scheduling Portal.</p>
+<div style="background:#f3f4f6;padding:24px 12px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+  <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    <div style="background:#2D8CFF;padding:20px 28px;">
+      <span style="color:#ffffff;font-size:16px;font-weight:700;letter-spacing:0.2px;">Zoom Meeting Invitation</span>
     </div>
-  `;
+    <div style="padding:28px;">
+      <p style="margin:0 0 4px;color:#6b7280;font-size:13px;">You are invited to a scheduled Zoom meeting.</p>
+      <h1 style="margin:4px 0 16px;font-size:20px;color:#111827;">${topic}</h1>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+        <tr>
+          <td style="padding:6px 0;color:#6b7280;font-size:13px;width:80px;">Time</td>
+          <td style="padding:6px 0;color:#111827;font-size:13px;">${when}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#6b7280;font-size:13px;">Host</td>
+          <td style="padding:6px 0;color:#111827;font-size:13px;">${host}</td>
+        </tr>
+      </table>
+
+      <a href="${joinUrl}" style="display:inline-block;background:#2D8CFF;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 28px;border-radius:8px;">Join Zoom Meeting</a>
+
+      <table style="width:100%;border-collapse:collapse;margin-top:20px;background:#f9fafb;border-radius:8px;">
+        <tr>
+          <td style="padding:12px 16px;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.4px;">Meeting ID</td>
+          <td style="padding:12px 16px;color:#111827;font-size:14px;font-family:monospace;">${meetingId}</td>
+        </tr>
+        <tr>
+          <td style="padding:0 16px 12px;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.4px;">Passcode</td>
+          <td style="padding:0 16px 12px;color:#111827;font-size:14px;font-family:monospace;">${passcode}</td>
+        </tr>
+      </table>
+
+      ${dialInRows ? `
+      <div style="margin-top:20px;">
+        <p style="margin:0 0 6px;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.4px;">One tap mobile / dial-in</p>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">${dialInRows}</table>
+      </div>` : ''}
+
+      <p style="margin:24px 0 0;color:#9ca3af;font-size:11px;">Sent via Zoom Scheduling Portal.</p>
+    </div>
+  </div>
+</div>
+  `.trim();
+
   return { subject, html };
 }
 
