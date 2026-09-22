@@ -331,9 +331,12 @@ export default function App() {
         }
         setBannerNotice(data.message || 'Meeting cancelled.');
         setTimeout(() => setBannerNotice(null), 4000);
+      } else {
+        alert(data.error || data.message || 'Failed to cancel the meeting.');
       }
     } catch (e) {
       console.error(e);
+      alert('A connection error occurred while cancelling the meeting.');
     }
   };
 
@@ -352,9 +355,12 @@ export default function App() {
         );
         setBannerNotice(data.message);
         setTimeout(() => setBannerNotice(null), 4000);
+      } else {
+        alert(data.error || data.message || 'Failed to cancel bookings.');
       }
     } catch (e) {
       console.error(e);
+      alert('A connection error occurred while cancelling bookings.');
     }
   };
 
