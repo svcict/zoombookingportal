@@ -473,13 +473,14 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value)}
                 disabled={!passcodeEnabled || readOnly}
+                maxLength={10}
                 className="w-32 px-3 py-1 bg-white border border-gray-300 rounded-md text-sm font-mono text-gray-800 focus:outline-none focus:border-[#0b5cff] focus:ring-1 focus:ring-[#0b5cff] disabled:opacity-50"
               />
 
               <div className="group relative">
                 <Info className="w-3.5 h-3.5 text-gray-400 cursor-pointer" />
                 <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-gray-900 text-white text-[11px] rounded shadow-lg z-30">
-                  Numeric passcode required to join the meeting
+                  Up to 10 characters. Some Zoom accounts enforce a minimum length (up to 10) - if Zoom rejects a save, try a longer passcode.
                 </div>
               </div>
             </div>

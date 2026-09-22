@@ -33,10 +33,14 @@ type IntakeZoomConfig = Pick<
   | 'autoRecord'
 >;
 
+// 10 characters: Zoom's meeting password field caps out at 10 characters,
+// and some accounts enforce a minimum length policy up to that same limit
+// (e.g. "must be at least 10 characters") - generating exactly 10 satisfies
+// both the general max and the strictest real-world minimum policy.
 function generateDefaultPasscode(): string {
   const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz';
   let out = '';
-  for (let i = 0; i < 6; i++) out += chars.charAt(Math.floor(Math.random() * chars.length));
+  for (let i = 0; i < 10; i++) out += chars.charAt(Math.floor(Math.random() * chars.length));
   return out;
 }
 

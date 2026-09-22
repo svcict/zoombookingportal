@@ -486,7 +486,9 @@ function generateZoomDetails(meetingTitle: string, hostName: string = 'Sarah Jen
   const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz';
   let passcode = preferredPasscode || '';
   if (!passcode) {
-    for (let i = 0; i < 6; i++) {
+    // 10 chars: matches Zoom's real max meeting-password length, and
+    // satisfies account-level minimum-length policies up to that same cap.
+    for (let i = 0; i < 10; i++) {
       passcode += chars.charAt(Math.floor(Math.random() * chars.length));
     }
   }
