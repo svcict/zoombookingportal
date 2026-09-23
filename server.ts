@@ -1617,15 +1617,6 @@ async function getZoomAccountRealName(key: ZoomAccountKey): Promise<string | nul
 // which is surfaced honestly via reminders.emailError rather than a fake
 // emailSent: true.
 
-// CC'd on every real Zoom booking confirmation email and Outlook calendar
-// invite (as optional attendees), regardless of who booked - a standing
-// organizational requirement, not something the booker/booking configures.
-const ALWAYS_CC_EMAILS = [
-  'quinto.ag@ayalafoundation.org',
-  'caniedo.wg@ayalafoundation.org',
-  'asticom.delrosariojm@ayalafoundation.org'
-];
-
 async function sendGraphMail(
   fromMailbox: string,
   toEmails: string[],
@@ -1797,14 +1788,7 @@ async function createGraphCalendarEvent(mailbox: string, booking: any): Promise<
 
   const zd = booking.zoomDetails || {};
   const requiredEmails: string[] = [booking.participantEmail, ...(booking.guestEmails || [])].filter(Boolean);
-  const attendees = [
-    ...requiredEmails.map((email) => ({ emailAddress: { address: email }, type: 'required' })),
-    // CC equivalent for a calendar invite - "optional" attendees still get
-    // the real Outlook invite and see the meeting, just not marked required.
-    ...ALWAYS_CC_EMAILS.filter(
-      (cc) => !requiredEmails.some((req) => req.toLowerCase() === cc.toLowerCase())
-    ).map((email) => ({ emailAddress: { address: email }, type: 'optional' }))
-  ];
+  const attendees = requiredEmails.map((email) => ({ emailAddress: { address: email }, type: 'required' }));
 
   try {
     const res = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(mailbox)}/events`, {
@@ -2879,9 +2863,7 @@ app.post('/api/bookings', async (req, res) => {
     // booker and an explicitly nominated meeting host (see the "Meeting
     // Host" intake field) should be able to start the meeting directly, so
     // only their copy includes the Host Key - every other invitee gets an
-    // otherwise-identical email without that section. The standing CC list
-    // still goes out on the host-key copy (they're internal staff, not
-    // external invitees).
+    // otherwise-identical email without that section.
     const nominatedHost = newBooking.zoomConfig?.alternativeHosts;
     const isNominatedHost =
       nominatedHost && nominatedHost.toLowerCase() !== newBooking.participantEmail.toLowerCase();
@@ -2889,12 +2871,9 @@ app.post('/api/bookings', async (req, res) => {
     const plainRecipients = (newBooking.guestEmails || []).filter(
       (g: string) => !sensitiveRecipients.some((s) => s.toLowerCase() === g.toLowerCase())
     );
-    const ccRecipients = ALWAYS_CC_EMAILS.filter(
-      (cc) => ![...sensitiveRecipients, ...plainRecipients].some((to) => to.toLowerCase() === cc.toLowerCase())
-    );
 
     const { subject, html: hostKeyHtml } = buildBookingConfirmationEmail(newBooking, realHostLabel, true);
-    const sensitiveEmailResult = await sendGraphMail(senderMailbox, sensitiveRecipients, subject, hostKeyHtml, ccRecipients);
+    const sensitiveEmailResult = await sendGraphMail(senderMailbox, sensitiveRecipients, subject, hostKeyHtml);
 
     let plainEmailResult: { success: boolean; error?: string } = { success: true };
     if (plainRecipients.length > 0) {
