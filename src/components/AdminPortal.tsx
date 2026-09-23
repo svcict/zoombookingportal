@@ -64,7 +64,7 @@ export default function AdminPortal() {
 
   // No session at all yet - show the login form.
   if (!authUser) {
-    return <M365AuthGate onAuthenticated={(user) => setAuthUser(user)} />;
+    return <M365AuthGate variant="admin" onAuthenticated={(user) => setAuthUser(user)} />;
   }
 
   // Signed in, but not an admin - never render admin content for them. Their
