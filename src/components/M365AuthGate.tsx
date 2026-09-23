@@ -10,6 +10,7 @@ import {
 import { M365User } from '../types';
 import { AyalaFoundationLogo } from './AyalaFoundationLogo';
 import microsoftLogoImg from '../assets/images/microsoft_icon.svg';
+import zoomLogoImg from '../assets/images/zoom_logo.svg';
 
 interface M365AuthGateProps {
   onAuthenticated: (user: M365User) => void;
@@ -223,14 +224,14 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
   }, []);
 
   return (
-    <div className={`min-h-screen flex flex-col justify-center items-center p-4 sm:p-6 font-sans select-none ${isAdminVariant ? 'bg-[#0F1115]' : 'bg-[#F0F2F5]'}`}>
+    <div className="min-h-screen bg-[#F0F2F5] flex flex-col justify-center items-center p-4 sm:p-6 font-sans select-none">
 
       {/* Background Subtle Accent Gradients */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden flex items-center justify-center">
         {isAdminVariant ? (
           <>
-            <div className="w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-3xl absolute -top-40 -left-40" />
-            <div className="w-[500px] h-[500px] bg-fuchsia-500/10 rounded-full blur-3xl absolute -bottom-40 -right-40" />
+            <div className="w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-3xl absolute -top-40 -left-40" />
+            <div className="w-[500px] h-[500px] bg-fuchsia-500/5 rounded-full blur-3xl absolute -bottom-40 -right-40" />
           </>
         ) : (
           <>
@@ -243,35 +244,32 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
       <div className="w-full max-w-md relative z-10 space-y-4">
 
         {/* Sign In Card */}
-        <div className={`rounded-2xl shadow-xl overflow-hidden border ${isAdminVariant ? 'bg-[#171A21] border-white/10' : 'bg-white border-gray-200'}`}>
+        <div className={`bg-white rounded-2xl shadow-xl overflow-hidden border ${isAdminVariant ? 'border-purple-200' : 'border-gray-200'}`}>
 
           {/* Card Header */}
-          <div className={`p-6 sm:p-7 border-b ${isAdminVariant ? 'border-white/10 bg-[#171A21]' : 'border-gray-100 bg-white'}`}>
+          <div className={`p-6 sm:p-7 bg-white border-b ${isAdminVariant ? 'border-purple-100' : 'border-gray-100'}`}>
             <div className="flex items-center justify-between gap-3">
               {/* Ayala Foundation Logo */}
-              <div className={`flex items-center ${isAdminVariant ? 'brightness-0 invert opacity-90' : ''}`}>
+              <div className="flex items-center">
                 <AyalaFoundationLogo height={65} width={180} />
               </div>
 
               {/* Portal Badge */}
               {isAdminVariant ? (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-500/15 text-purple-300 rounded-full border border-purple-400/30 text-xs font-semibold shrink-0">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 text-purple-700 rounded-full border border-purple-200 text-xs font-semibold shrink-0">
                   <ShieldCheck className="w-3 h-3" />
                   <span>Admin Portal</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-[#0b5cff] rounded-full border border-blue-100 text-xs font-semibold shrink-0">
-                  <span className="w-2 h-2 rounded-full bg-[#0b5cff]" />
-                  <span>Zoom Portal</span>
-                </div>
+                <img src={zoomLogoImg} alt="Zoom" className="h-6 w-auto shrink-0" />
               )}
             </div>
 
             <div className="mt-5 text-center">
-              <h1 className={`text-xl font-extrabold tracking-tight text-center ${isAdminVariant ? 'text-white' : 'text-gray-900'}`}>
+              <h1 className="text-xl font-extrabold tracking-tight text-center text-gray-900">
                 {isAdminVariant ? 'Admin Sign In' : 'Sign In'}
               </h1>
-              <p className={`text-xs mt-1 ${isAdminVariant ? 'text-gray-400' : 'text-gray-500'}`}>
+              <p className="text-xs mt-1 text-gray-500">
                 {isAdminVariant
                   ? 'Restricted to authorized administrators only'
                   : 'Sign in with your Microsoft 365 account to access the Zoom Booking Portal'}
@@ -324,59 +322,6 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
               </div>
             )}
 
-            {/* Quick Login Test Accounts - real, working accounts that always
-                log in immediately on click, regardless of Supabase setup.
-                The admin portal only ever offers the admin test account -
-                offering "Standard User" here would just bounce into the
-                "Admins Only" refusal screen. */}
-            <div className="pt-1">
-              <div className={`text-[11px] font-semibold mb-1.5 flex items-center justify-between ${isAdminVariant ? 'text-gray-400' : 'text-gray-500'}`}>
-                <span>Test Credentials:</span>
-                <span className={`text-[10px] font-medium ${isAdminVariant ? 'text-purple-400' : 'text-blue-600'}`}>Click to log in</span>
-              </div>
-              <div className={isAdminVariant ? '' : 'grid grid-cols-2 gap-2'}>
-                {!isAdminVariant && (
-                  <button
-                    type="button"
-                    disabled={isIpBlocked || (isLockedOut && lockoutRemaining > 0) || isAuthenticating}
-                    onClick={() => handleQuickLogin('user@local.test')}
-                    className="p-2 rounded-xl bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-300 text-left transition-all group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <div className="text-[11px] font-bold text-gray-800 group-hover:text-blue-600 truncate">
-                      Standard User
-                    </div>
-                    <div className="text-[10px] text-gray-500 font-mono truncate">
-                      user@local.test
-                    </div>
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  disabled={isIpBlocked || (isLockedOut && lockoutRemaining > 0) || isAuthenticating}
-                  onClick={() => handleQuickLogin('admin@local.test')}
-                  className={
-                    isAdminVariant
-                      ? 'w-full p-2 rounded-xl bg-[#0F1115] hover:bg-purple-950/40 border border-white/10 hover:border-purple-500/40 text-left transition-all group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
-                      : 'p-2 rounded-xl bg-gray-50 hover:bg-purple-50 border border-gray-200 hover:border-purple-300 text-left transition-all group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
-                  }
-                >
-                  <div className={`text-[11px] font-bold truncate ${isAdminVariant ? 'text-gray-200 group-hover:text-purple-300' : 'text-gray-800 group-hover:text-purple-600'}`}>
-                    Admin User
-                  </div>
-                  <div className={`text-[10px] font-mono truncate ${isAdminVariant ? 'text-gray-500' : 'text-gray-500'}`}>
-                    admin@local.test
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="relative flex items-center justify-center pt-2 pb-1">
-              <div className={`border-t w-full ${isAdminVariant ? 'border-white/10' : 'border-gray-200'}`} />
-              <span className={`px-3 text-[11px] font-semibold uppercase tracking-wider ${isAdminVariant ? 'bg-[#171A21] text-gray-500' : 'bg-white text-gray-400'}`}>or</span>
-            </div>
-
             {/* Login Using Microsoft Button (SSO) */}
             <div>
               <button
@@ -385,7 +330,7 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
                 disabled={isIpBlocked || (isLockedOut && lockoutRemaining > 0) || isAuthenticating || isSsoLoading}
                 className={
                   isAdminVariant
-                    ? 'w-full py-2.5 px-4 rounded-xl border border-white/10 bg-[#0F1115] hover:bg-[#1c2028] disabled:opacity-50 disabled:cursor-not-allowed text-gray-300 font-semibold text-xs shadow-2xs transition-all flex items-center justify-center gap-2.5 cursor-pointer relative group'
+                    ? 'w-full py-2.5 px-4 rounded-xl border border-purple-200 bg-purple-50/60 hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed text-purple-800 font-semibold text-xs shadow-2xs transition-all flex items-center justify-center gap-2.5 cursor-pointer relative group'
                     : 'w-full py-2.5 px-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed text-gray-600 font-semibold text-xs shadow-2xs transition-all flex items-center justify-center gap-2.5 cursor-pointer relative group'
                 }
               >
@@ -397,13 +342,13 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
                 />
                 <span>Login using Microsoft 365</span>
                 {!m365Configured && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ml-1 ${isAdminVariant ? 'bg-white/10 text-gray-400' : 'bg-gray-200 text-gray-600'}`}>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ml-1 ${isAdminVariant ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-600'}`}>
                     Unconfigured
                   </span>
                 )}
               </button>
               {!m365Configured && (
-                <p className={`text-[10px] text-center mt-1 ${isAdminVariant ? 'text-gray-500' : 'text-gray-600'}`}>
+                <p className="text-[10px] text-center mt-1 text-gray-600">
                   * Microsoft 365 login is disabled until Azure Entra ID credentials are configured
                 </p>
               )}
@@ -416,13 +361,62 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
         {/* Security & Authentication Footnote - reflects what's actually
             configured, rather than always claiming Supabase regardless of
             whether it's set up or the user is signing in via M365 SSO. */}
-        <div className={`flex items-center justify-center gap-1.5 text-xs text-center ${isAdminVariant ? 'text-gray-500' : 'text-gray-600'}`}>
-          <ShieldCheck className={`w-3.5 h-3.5 shrink-0 ${isAdminVariant ? 'text-purple-400' : 'text-emerald-600'}`} />
+        <div className="flex items-center justify-center gap-1.5 text-xs text-center text-gray-600">
+          <ShieldCheck className={`w-3.5 h-3.5 shrink-0 ${isAdminVariant ? 'text-purple-600' : 'text-emerald-600'}`} />
           <span>
             Brute-force Protected
             {supabaseConfigured && ' • Supabase Database Authentication'}
             {m365Configured && ' • Microsoft Entra ID SSO'}
           </span>
+        </div>
+
+        {/* Quick Login Test Accounts - real, working accounts that always
+            log in immediately on click, regardless of Supabase setup. Below
+            the card and the trust footnote so it reads as a secondary,
+            testing-only affordance rather than part of the main sign-in
+            flow. The admin portal only ever offers the admin test account -
+            offering "Standard User" here would just bounce into the
+            "Admins Only" refusal screen. */}
+        <div className="pt-1">
+          <div className="text-[11px] font-semibold mb-1.5 flex items-center justify-between text-gray-500">
+            <span>Test Credentials:</span>
+            <span className={`text-[10px] font-medium ${isAdminVariant ? 'text-purple-600' : 'text-blue-600'}`}>Click to log in</span>
+          </div>
+          <div className={isAdminVariant ? '' : 'grid grid-cols-2 gap-2'}>
+            {!isAdminVariant && (
+              <button
+                type="button"
+                disabled={isIpBlocked || (isLockedOut && lockoutRemaining > 0) || isAuthenticating}
+                onClick={() => handleQuickLogin('user@local.test')}
+                className="p-2 rounded-xl bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-300 text-left transition-all group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
+              >
+                <div className="text-[11px] font-bold text-gray-800 group-hover:text-blue-600 truncate">
+                  Standard User
+                </div>
+                <div className="text-[10px] text-gray-500 font-mono truncate">
+                  user@local.test
+                </div>
+              </button>
+            )}
+
+            <button
+              type="button"
+              disabled={isIpBlocked || (isLockedOut && lockoutRemaining > 0) || isAuthenticating}
+              onClick={() => handleQuickLogin('admin@local.test')}
+              className={
+                isAdminVariant
+                  ? 'w-full p-2 rounded-xl bg-white hover:bg-purple-50 border border-gray-200 hover:border-purple-300 text-left transition-all group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs'
+                  : 'p-2 rounded-xl bg-white hover:bg-purple-50 border border-gray-200 hover:border-purple-300 text-left transition-all group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs'
+              }
+            >
+              <div className="text-[11px] font-bold text-gray-800 group-hover:text-purple-600 truncate">
+                Admin User
+              </div>
+              <div className="text-[10px] text-gray-500 font-mono truncate">
+                admin@local.test
+              </div>
+            </button>
+          </div>
         </div>
 
       </div>
