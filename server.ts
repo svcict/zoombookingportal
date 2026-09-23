@@ -1637,9 +1637,10 @@ function buildBookingConfirmationEmail(booking: any, realHostLabel: string): { s
 
   const topic = escapeHtml(booking.meetingTitle);
   const when = `${escapeHtml(booking.date)} at ${escapeHtml(booking.timeSlot)} (${escapeHtml(booking.timezone)})`;
-  // The real Zoom account hosting this meeting, NOT booking.hostName - that
-  // field is a cosmetic display persona picked per meeting type, unrelated
-  // to which of the 2 rotating Zoom accounts actually creates the meeting.
+  // The real Zoom account hosting this meeting - passed in explicitly
+  // rather than read off booking.hostName so this function still works for
+  // any caller that hasn't resolved it (booking.hostName is now set to the
+  // same resolved value at creation time, see POST /api/bookings).
   const host = escapeHtml(realHostLabel);
   const joinUrl = escapeHtml(zd.joinUrl || '');
   const meetingId = escapeHtml(zd.formattedMeetingId || zd.meetingId || '');
@@ -2693,6 +2694,14 @@ app.post('/api/bookings', async (req, res) => {
       });
     }
 
+    // Resolve the real hosting Zoom account's actual name up front, so the
+    // booking record itself (not just the confirmation email) shows who's
+    // really hosting - the meeting-type's "host persona" (e.g. "Sarah
+    // Jenkins") is a cosmetic label for which of the 2 rotating Zoom
+    // accounts to route to, not who Zoom will show as host.
+    const senderMailbox = zoomAccountKey ? (process.env[`ZOOM_ACCOUNT_${zoomAccountKey}_USER_ID`] || '') : '';
+    const realHostLabel = (zoomAccountKey ? await getZoomAccountRealName(zoomAccountKey) : null) || senderMailbox || assignedHost.name;
+
     let zoomDetails;
     let usedAlternativeHosts = '';
     try {
@@ -2720,7 +2729,7 @@ app.post('/api/bookings', async (req, res) => {
       meetingTypeId: meetingType.id,
       meetingTitle: finalMeetingTitle,
       duration: meetingType.duration,
-      hostName: assignedHost.name,
+      hostName: realHostLabel,
       hostEmail: assignedHost.email,
       hostAvatar: assignedHost.avatar,
       hostAccountId: assignedHost.id,
@@ -2781,8 +2790,6 @@ app.post('/api/bookings', async (req, res) => {
     // hosts this specific meeting (its real M365 mailbox), not a fixed
     // sender - to the participant and every invitee.
     const emailRecipients = [newBooking.participantEmail, ...(newBooking.guestEmails || [])].filter(Boolean);
-    const senderMailbox = zoomAccountKey ? (process.env[`ZOOM_ACCOUNT_${zoomAccountKey}_USER_ID`] || '') : '';
-    const realHostLabel = (zoomAccountKey ? await getZoomAccountRealName(zoomAccountKey) : null) || senderMailbox || newBooking.hostName;
     const { subject, html } = buildBookingConfirmationEmail(newBooking, realHostLabel);
     const emailResult = await sendGraphMail(senderMailbox, emailRecipients, subject, html);
     newBooking.reminders.emailSent = emailResult.success;
