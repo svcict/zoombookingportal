@@ -3081,8 +3081,19 @@ async function cancelBookingReal(booking: any): Promise<{ success: boolean; mess
       if (zoomApiLogs.length > 30) zoomApiLogs.pop();
       persistZoomLog(cancelLog);
     } catch (zoomErr: any) {
-      console.error('Zoom API error while cancelling meeting:', zoomErr);
-      return { success: false, message: `Failed to cancel the Zoom meeting: ${zoomErr.message || 'Zoom API error'}` };
+      const errMessage = String(zoomErr?.message || '');
+      // Zoom already has nothing to delete - past meetings get cleaned up
+      // on Zoom's side automatically, and someone may have deleted it
+      // manually too. Either way the desired end state (no live Zoom
+      // meeting) is already true, so this isn't a real cancellation
+      // failure - proceed to mark it cancelled locally instead of leaving
+      // the booking stuck as "confirmed" forever.
+      const meetingAlreadyGone = errMessage.includes('"code":3001') || errMessage.includes('Meeting does not exist');
+      if (!meetingAlreadyGone) {
+        console.error('Zoom API error while cancelling meeting:', zoomErr);
+        return { success: false, message: `Failed to cancel the Zoom meeting: ${zoomErr.message || 'Zoom API error'}` };
+      }
+      console.warn(`Zoom meeting ${rawMeetingId} was already gone on Zoom's side - cancelling locally anyway.`);
     }
   } else {
     const mockCancelLog: ZoomApiLog = {
