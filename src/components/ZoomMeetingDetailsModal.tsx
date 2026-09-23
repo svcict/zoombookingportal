@@ -493,7 +493,8 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
               <span className="font-semibold text-gray-900">Waiting Room</span>
             </label>
             <p className="text-xs text-gray-500 pl-6">
-              Only users admitted by the host can join the meeting
+              Only users admitted by the host can join the meeting. This doesn't affect whether they
+              can join before the host - see &quot;Allow participants to join anytime&quot; below for that.
             </p>
           </div>
 
@@ -740,6 +741,10 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 />
                 <span>Allow participants to join anytime</span>
               </label>
+              <p className="text-xs text-gray-500 pl-6">
+                Leave this unchecked and participants will see &quot;waiting for host to start&quot;
+                regardless of the Waiting Room setting above - this is the toggle that actually controls that.
+              </p>
 
               {/* Mute participants upon entry */}
               <label className="flex items-center gap-2.5 cursor-pointer select-none text-gray-800">

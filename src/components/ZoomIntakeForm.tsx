@@ -468,6 +468,10 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
               />
               <span>Waiting Room</span>
             </label>
+            <p className="text-xs text-gray-500 pl-6 -mt-1.5">
+              Only controls admission once someone tries to join - it doesn't affect whether they
+              can join before the host. See &quot;Allow participants to join anytime&quot; under Advanced for that.
+            </p>
             <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-800">
               <input
                 type="checkbox"
@@ -556,6 +560,10 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
               />
               <span>Allow participants to join anytime</span>
             </label>
+            <p className="text-xs text-gray-500 pl-6 -mt-1.5">
+              Leave this unchecked and participants will see &quot;waiting for host to start&quot;
+              regardless of the Waiting Room setting above - this is the toggle that actually controls that.
+            </p>
             <label className="flex items-center gap-2.5 cursor-pointer select-none text-sm text-gray-800">
               <input
                 type="checkbox"
