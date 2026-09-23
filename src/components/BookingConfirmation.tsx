@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import {
   CheckCircle2,
@@ -7,7 +7,6 @@ import {
   Copy,
   Check,
   ExternalLink,
-  Download,
   Phone,
   ShieldCheck,
   RotateCcw,
@@ -15,6 +14,8 @@ import {
   Layers,
   ChevronDown,
   ChevronUp,
+  CalendarPlus,
+  Calendar,
   Eye,
   EyeOff,
   Pencil,
@@ -53,6 +54,19 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
   const [countdown, setCountdown] = useState<string>('');
   const [pushState, setPushState] = useState<'idle' | 'enabling' | 'enabled' | 'error'>('idle');
   const [pushError, setPushError] = useState<string | null>(null);
+  const [showAddToCalendarMenu, setShowAddToCalendarMenu] = useState(false);
+  const addToCalendarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showAddToCalendarMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (addToCalendarRef.current && !addToCalendarRef.current.contains(e.target as Node)) {
+        setShowAddToCalendarMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showAddToCalendarMenu]);
 
   useEffect(() => {
     setCurrentBooking(booking);
@@ -407,32 +421,56 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
 
           <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
             <span className="text-gray-500 font-medium">Add to</span>
-            <div className="flex flex-wrap items-center gap-2.5">
-              <a
-                href={outlookCalendarUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 rounded-lg text-xs font-semibold text-gray-800 cursor-pointer"
-              >
-                <div className="w-4 h-4 rounded bg-[#0078D4] text-white flex items-center justify-center text-[9px] font-bold">O</div>
-                <span>Outlook Calendar {isOrgMember && <span className="text-[#0b5cff]">(Organization)</span>}</span>
-              </a>
-              <a
-                href={getGoogleCalendarUrl(currentBooking)}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 rounded-lg text-xs font-semibold text-gray-800 cursor-pointer"
-              >
-                <div className="w-4 h-4 rounded bg-red-500 text-white flex items-center justify-center text-[9px] font-bold">G</div>
-                <span>Google Calendar</span>
-              </a>
+            <div className="relative inline-block" ref={addToCalendarRef}>
               <button
-                onClick={() => downloadIcsFile(currentBooking)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 rounded-lg text-xs font-semibold text-gray-800 cursor-pointer"
+                type="button"
+                onClick={() => setShowAddToCalendarMenu((v) => !v)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg text-xs font-semibold text-gray-800 cursor-pointer"
               >
-                <Download className="w-3.5 h-3.5 text-gray-600" />
-                <span>Other (.ics)</span>
+                <CalendarPlus className="w-3.5 h-3.5 text-gray-600" />
+                <span>Add to Calendar</span>
+                <ChevronDown className={`w-3.5 h-3.5 text-gray-500 transition-transform ${showAddToCalendarMenu ? 'rotate-180' : ''}`} />
               </button>
+
+              {showAddToCalendarMenu && (
+                <div className="absolute left-0 top-full mt-1.5 w-52 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-10">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      downloadIcsFile(currentBooking);
+                      setShowAddToCalendarMenu(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-gray-50 text-left cursor-pointer"
+                  >
+                    <div className="w-5 h-5 rounded bg-gray-800 text-white flex items-center justify-center shrink-0">
+                      <Calendar className="w-3 h-3" />
+                    </div>
+                    <span className="text-xs font-medium text-gray-800">Apple Calendar</span>
+                  </button>
+                  <a
+                    href={getGoogleCalendarUrl(currentBooking)}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => setShowAddToCalendarMenu(false)}
+                    className="flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-gray-50 text-left cursor-pointer border-t border-gray-100"
+                  >
+                    <div className="w-5 h-5 rounded bg-white border border-gray-200 text-[#4285F4] flex items-center justify-center text-[10px] font-bold shrink-0">G</div>
+                    <span className="text-xs font-medium text-gray-800">Google Calendar</span>
+                  </a>
+                  <a
+                    href={outlookCalendarUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => setShowAddToCalendarMenu(false)}
+                    className="flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-gray-50 text-left cursor-pointer border-t border-gray-100"
+                  >
+                    <div className="w-5 h-5 rounded bg-[#0078D4] text-white flex items-center justify-center text-[10px] font-bold shrink-0">O</div>
+                    <span className="text-xs font-medium text-gray-800">
+                      Microsoft 365 {isOrgMember && <span className="text-[#0b5cff]">(Organization)</span>}
+                    </span>
+                  </a>
+                </div>
+              )}
             </div>
           </div>
 
@@ -472,7 +510,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               <div className="space-y-1 text-gray-900">
                 {currentBooking.zoomConfig?.joinAnytime && <div>Allow participants to join anytime</div>}
                 {currentBooking.zoomConfig?.muteOnEntry && <div>Mute participants upon entry</div>}
-                {currentBooking.zoomConfig?.autoRecord && <div>Automatically record meeting on the local computer</div>}
+                {currentBooking.zoomConfig?.autoRecord && <div>Automatically record meeting to the cloud</div>}
               </div>
             </div>
           )}
