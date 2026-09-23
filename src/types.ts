@@ -93,6 +93,12 @@ export interface ZoomDetails {
   encryption: 'Enhanced (AES-256)' | 'End-to-End Encrypted';
   apiGenerated?: boolean;
   zoomApiEndpoint?: string;
+  // The hosting Zoom account's real Host Key (PIN for "Claim Host") - lets
+  // ANY participant become host during the meeting regardless of license
+  // tier, unlike Alternative Host which only works for Licensed users on
+  // the same Zoom account. Undefined when it couldn't be retrieved (never a
+  // fabricated value).
+  hostKey?: string;
 }
 
 export interface ZoomMeetingConfig {

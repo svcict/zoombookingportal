@@ -30,6 +30,7 @@ import {
   updateZoomMeeting,
   deleteZoomMeeting,
   getZoomUserProfile,
+  getZoomUserSettings,
   mapZoomMeetingResponse
 } from './src/lib/zoomApi';
 import { persistenceEnabled, loadTable, upsertRow, deleteRow, seedTableIfEmpty, clearTable } from './src/lib/db';
@@ -1573,6 +1574,48 @@ async function getZoomAccountRealName(key: ZoomAccountKey): Promise<string | nul
   }
 }
 
+// Real Host Key (the PIN this Zoom account uses for "Claim Host") for the
+// rotating account that actually hosts a meeting - unlike Alternative Host,
+// this works for ANY participant regardless of license tier or which Zoom
+// account they're signed into, so it's the fallback for bookers who aren't
+// a Licensed seat on this org's Zoom account. Reading it needs an
+// admin-level scope Zoom gates specifically for this field (see README);
+// on any failure this returns null rather than guessing, so the
+// confirmation email/screen simply omits the section instead of showing a
+// blank or wrong key.
+const zoomHostKeyCache = new Map<ZoomAccountKey, { hostKey: string; fetchedAt: number }>();
+const ZOOM_HOST_KEY_CACHE_TTL_MS = 60 * 60 * 1000;
+
+async function getZoomAccountHostKey(key: ZoomAccountKey): Promise<string | null> {
+  const cached = zoomHostKeyCache.get(key);
+  if (cached && Date.now() - cached.fetchedAt < ZOOM_HOST_KEY_CACHE_TTL_MS) {
+    return cached.hostKey;
+  }
+  if (!isAccountConfigured(key)) return null;
+
+  try {
+    const result = await getZoomUserSettings(key);
+    // Zoom's documented location for this is schedule_meeting.host_key, but
+    // it's returned inconsistently across account/API versions - checking a
+    // couple of plausible spots rather than assuming one is guaranteed
+    // future-proofing against exactly that, without ever fabricating a value.
+    const settings = result.data || {};
+    const hostKey =
+      settings.schedule_meeting?.host_key ||
+      settings.feature?.host_key ||
+      settings.host_key ||
+      null;
+    if (hostKey) {
+      zoomHostKeyCache.set(key, { hostKey: String(hostKey), fetchedAt: Date.now() });
+      return String(hostKey);
+    }
+    return null;
+  } catch (err) {
+    console.error(`Failed to fetch host key for Zoom account ${key}:`, err);
+    return null;
+  }
+}
+
 // ----------------------------------------------------
 // REAL EMAIL SENDING - Microsoft Graph sendMail (app-only), sent AS
 // whichever rotating Zoom account actually hosts the meeting.
@@ -1659,6 +1702,7 @@ function buildBookingConfirmationEmail(booking: any, realHostLabel: string): { s
   const joinUrl = escapeHtml(zd.joinUrl || '');
   const meetingId = escapeHtml(zd.formattedMeetingId || zd.meetingId || '');
   const passcode = escapeHtml(zd.passcode || '');
+  const hostKey = escapeHtml(zd.hostKey || '');
 
   const dialInRows = (zd.dialInNumbers || [])
     .slice(0, 4)
@@ -1698,6 +1742,13 @@ function buildBookingConfirmationEmail(booking: any, realHostLabel: string): { s
           <td style="padding:0 16px 12px;color:#111827;font-size:14px;font-family:monospace;">${passcode}</td>
         </tr>
       </table>
+
+      ${hostKey ? `
+      <div style="margin-top:16px;padding:14px 16px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;">
+        <p style="margin:0 0 4px;color:#9a3412;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;">Host Key</p>
+        <p style="margin:0 0 6px;color:#111827;font-size:14px;font-family:monospace;">${hostKey}</p>
+        <p style="margin:0;color:#9a3412;font-size:11.5px;">If the meeting hasn't started yet or you don't already have host controls, open Participants in Zoom, choose Claim Host, and enter this key. It's a personal PIN reused across this account's meetings, so keep it to people who need it.</p>
+      </div>` : ''}
 
       ${dialInRows ? `
       <div style="margin-top:20px;">
@@ -2743,6 +2794,14 @@ app.post('/api/bookings', async (req, res) => {
         error: `Failed to create the Zoom meeting: ${zoomErr.message || 'Zoom API error'}`
       });
     }
+
+    // Real Host Key for this meeting's hosting account - lets any
+    // participant Claim Host during the meeting even if Alternative Host
+    // doesn't apply to them (external guest, or Basic/unlicensed seat).
+    // null when it can't be read (missing scope, account doesn't have one
+    // set, etc.) - never fabricated, so the email/screen just omits it.
+    const hostKey = zoomAccountKey ? await getZoomAccountHostKey(zoomAccountKey) : null;
+    if (hostKey) zoomDetails.hostKey = hostKey;
 
     const newBooking = {
       id: `zm-${Math.floor(100000 + Math.random() * 900000)}`,

@@ -48,6 +48,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [showDialIn, setShowDialIn] = useState(false);
   const [showPasscode, setShowPasscode] = useState(false);
+  const [showHostKey, setShowHostKey] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [countdown, setCountdown] = useState<string>('');
   const [pushState, setPushState] = useState<'idle' | 'enabling' | 'enabled' | 'error'>('idle');
@@ -303,6 +304,28 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
             <span className="text-gray-500 font-medium">Meeting ID</span>
             <span className="text-gray-900 font-mono">{currentBooking.zoomDetails.formattedMeetingId}</span>
           </div>
+
+          {currentBooking.zoomDetails.hostKey && (
+            <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm bg-amber-50/60">
+              <span className="text-gray-500 font-medium">Host Key</span>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-gray-900">
+                  <span className="font-mono">{showHostKey ? currentBooking.zoomDetails.hostKey : '•'.repeat(currentBooking.zoomDetails.hostKey.length)}</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowHostKey(!showHostKey)}
+                    className="text-[#0b5cff] hover:underline text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                  >
+                    {showHostKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    {showHostKey ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+                <p className="text-xs text-amber-800">
+                  If nobody has host controls yet, use Participants → Claim Host in Zoom and enter this key. Works regardless of your Zoom license.
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
             <span className="text-gray-500 font-medium">Security</span>

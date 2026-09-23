@@ -223,6 +223,10 @@ For each of the two Zoom accounts/licenses you want to rotate between, repeat th
    - `meeting:update:meeting`
    - `meeting:delete:meeting`
    - `user:read:user`
+   - `user:read:user:admin` (or whichever admin-level user-read scope Zoom
+     offers for your app type) — needed for the Host Key feature below;
+     `user:read:user` alone doesn't return it, since Zoom treats it as
+     sensitive.
 4. Activate the app. Zoom shows you an **Account ID**, **Client ID**, and **Client Secret** —
    copy all three.
 5. Note the Zoom user (email or user ID) under that account that should host the meetings —
@@ -245,6 +249,33 @@ page's "Test API Ping" button to confirm both accounts authenticate successfully
 Admins can also add, edit, or swap either account's credentials directly from the **Zoom API
 Integration** page (click the pencil icon on an account card) instead of hand-editing `.env` —
 changes are written to `.env` and take effect immediately, no restart needed.
+
+### Host Key / Claim Host (for bookers who can't use Alternative Host)
+
+Every booking sets the booker as **Alternative Host** by default (see "Alternative host" in Key
+Features), but that Zoom feature only works if the booker is a **Licensed** user on the *same*
+Zoom account - it silently does nothing for external guests or for internal staff on a Basic/
+Workplace Basic seat. There's no error in that case; the booker just joins as a regular
+participant with no host controls, which looks identical to a bug.
+
+Zoom's real fix for this is the account's **Host Key** - a personal PIN (Zoom web portal:
+**Profile > Host Key**) that *any* participant can enter via **Participants > Claim Host** during
+the meeting to become host, regardless of license tier or which Zoom account they're signed into.
+This app now looks up that key for whichever rotating account hosts a meeting (`GET /users/
+{userId}/settings`) and includes it, when found, in both the confirmation email and the booking
+confirmation screen, right next to the Meeting ID and Passcode.
+
+**Setup**: this needs the `user:read:user:admin` scope added above, admin-consented the same way
+as the other scopes. If it's missing (or the account simply has no host key set), the app doesn't
+error or show a blank value - it just omits the Host Key section entirely, exactly like the
+Meeting ID/Passcode section already behaves when a meeting falls back to mock data.
+
+**One caveat worth knowing**: the exact JSON field Zoom returns this under isn't fully pinned down
+from this codebase alone - the code checks a couple of plausible spots (`schedule_meeting.host_key`
+first) but hasn't been confirmed against a live account with real credentials yet. If you grant the
+scope and the Host Key section still doesn't appear, that's the first thing to check - inspect what
+`GET /users/{userId}/settings` actually returns for your account and adjust `getZoomAccountHostKey`
+in `server.ts` to match.
 
 ## Zoom Event Webhook Listener
 

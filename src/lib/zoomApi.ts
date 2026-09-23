@@ -237,6 +237,21 @@ export async function getZoomUserProfile(key: ZoomAccountKey) {
   return zoomRequest(key, 'GET', `/users/${encodeURIComponent(creds.userId)}`);
 }
 
+// Real host key lookup - the personal PIN set on this Zoom account's profile
+// (Zoom web portal: Profile > Host Key). Any participant can use it during
+// the meeting (Participants > Claim Host) to become host, regardless of
+// license tier or which Zoom account they're signed into - unlike
+// alternative host, which only works for Licensed users on the SAME Zoom
+// account. Requires the Server-to-Server OAuth app's Client ID/Secret owner
+// to have granted an admin-level user-read scope (see README) - Zoom
+// treats the host key as sensitive and doesn't return it under the plain
+// user:read:user scope already used elsewhere in this app.
+export async function getZoomUserSettings(key: ZoomAccountKey) {
+  const creds = readCredentials(key);
+  if (!creds) throw new Error(`Zoom account ${key} is not configured`);
+  return zoomRequest(key, 'GET', `/users/${encodeURIComponent(creds.userId)}/settings`);
+}
+
 export interface MappedZoomDetails {
   meetingId: string;
   formattedMeetingId: string;
