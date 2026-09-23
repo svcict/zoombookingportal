@@ -1,13 +1,15 @@
 import React from 'react';
 import { Img, staticFile } from 'remotion';
-import { Bell, Calendar, ChevronDown, Video } from 'lucide-react';
+import { Bell, Calendar, ChevronDown, Globe, Video } from 'lucide-react';
 import { theme } from '../theme';
 
-// Replicates Header.tsx: white sticky bar, Ayala logo + divider + product
-// name, nav tabs (active = blue-50/blue text), timezone pill + bell on the right.
-export const AppShell: React.FC<{ activeTab?: 'dashboard' | 'booking'; children?: React.ReactNode }> = ({
+// Pixel-referenced against a live screenshot of Header.tsx (not hand-approximated):
+// slim 64px white bar, Ayala logo + divider + product name, "Dashboard"/"Schedule"
+// tabs (active = blue-50 pill), timezone pill with live clock, bell, round avatar.
+export const AppShell: React.FC<{ activeTab?: 'dashboard' | 'booking'; children?: React.ReactNode; clock?: string }> = ({
   activeTab = 'booking',
   children,
+  clock = '9:56:12 PM',
 }) => {
   return (
     <div style={{ position: 'absolute', inset: 0, background: theme.page, fontFamily: theme.sans, display: 'flex', flexDirection: 'column' }}>
@@ -15,72 +17,63 @@ export const AppShell: React.FC<{ activeTab?: 'dashboard' | 'booking'; children?
         style={{
           background: theme.white,
           borderBottom: `1px solid ${theme.border}`,
-          height: 96,
+          height: 68,
           display: 'flex',
           alignItems: 'center',
-          padding: '0 56px',
+          padding: '0 32px',
           justifyContent: 'space-between',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <Img src={staticFile('ayala_logo.png')} style={{ height: 44, objectFit: 'contain' }} />
-            <div style={{ width: 1, height: 28, background: theme.border }} />
-            <span style={{ fontWeight: 700, color: theme.gray700, fontSize: 18 }}>Zoom Booking Portal</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Img src={staticFile('ayala_logo.png')} style={{ height: 30, objectFit: 'contain' }} />
+            <div style={{ width: 1, height: 22, background: theme.border }} />
+            <span style={{ fontWeight: 700, color: theme.gray900, fontSize: 16 }}>Zoom Booking Portal</span>
           </div>
 
-          <nav style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 24, borderLeft: `1px solid ${theme.border}` }}>
-            <Tab icon={<Calendar size={17} />} label="Dashboard" active={activeTab === 'dashboard'} />
-            <Tab icon={<Video size={17} />} label="Schedule Meeting" active={activeTab === 'booking'} />
+          <nav style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Tab icon={<Calendar size={15} />} label="Dashboard" active={activeTab === 'dashboard'} />
+            <Tab icon={<Video size={15} />} label="Schedule" active={activeTab === 'booking'} />
           </nav>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
-              padding: '8px 16px',
-              borderRadius: 999,
+              gap: 6,
+              padding: '7px 12px',
+              borderRadius: 8,
               border: `1px solid ${theme.border}`,
-              color: theme.gray500,
-              fontSize: 14,
+              color: theme.gray700,
+              fontSize: 13,
               fontWeight: 600,
             }}
           >
-            Asia/Manila
-            <ChevronDown size={14} />
+            <Globe size={14} color={theme.blue} />
+            {`UTC (${clock})`}
+            <ChevronDown size={13} color={theme.gray400} />
           </div>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 999,
-              border: `1px solid ${theme.border}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: theme.gray500,
-            }}
-          >
-            <Bell size={18} />
-          </div>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 999,
-              background: theme.blue,
-              color: '#fff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 700,
-              fontSize: 15,
-            }}
-          >
-            AS
+          <Bell size={18} color={theme.gray500} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 999,
+                background: `linear-gradient(135deg, ${theme.blue}, #6366f1)`,
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+                fontSize: 12,
+              }}
+            >
+              AS
+            </div>
+            <ChevronDown size={13} color={theme.gray400} />
           </div>
         </div>
       </div>
@@ -95,10 +88,10 @@ const Tab: React.FC<{ icon: React.ReactNode; label: string; active: boolean }> =
     style={{
       display: 'flex',
       alignItems: 'center',
-      gap: 8,
-      padding: '10px 18px',
-      borderRadius: 10,
-      fontSize: 15,
+      gap: 6,
+      padding: '8px 14px',
+      borderRadius: 8,
+      fontSize: 14,
       fontWeight: 600,
       color: active ? theme.blue : theme.gray500,
       background: active ? theme.blue50 : 'transparent',

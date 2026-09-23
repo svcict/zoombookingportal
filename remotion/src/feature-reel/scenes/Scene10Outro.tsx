@@ -20,7 +20,11 @@ export const Scene10Outro: React.FC = () => {
         fontFamily: theme.sans,
       }}
     >
-      <Img src={staticFile('ayala_logo.png')} style={{ height: 70, objectFit: 'contain', marginBottom: 24 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 24 }}>
+        <Img src={staticFile('ayala_logo.png')} style={{ height: 54, objectFit: 'contain' }} />
+        <div style={{ width: 1, height: 36, background: theme.border }} />
+        <Img src={staticFile('zoom_logo.png')} style={{ height: 32, objectFit: 'contain' }} />
+      </div>
       <div style={{ fontSize: 38, fontWeight: 800, color: theme.gray900, marginBottom: 10 }}>
         Real availability. Real Zoom meetings.
       </div>

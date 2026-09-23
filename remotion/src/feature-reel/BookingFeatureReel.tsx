@@ -5,14 +5,11 @@ import { BEATS } from './data';
 import { Callout } from './components/Callout';
 import { Scene0Intro } from './scenes/Scene0Intro';
 import { Scene1SignIn } from './scenes/Scene1SignIn';
-import { Scene2Availability } from './scenes/Scene2Availability';
-import { Scene3Duration } from './scenes/Scene3Duration';
+import { Scene2SchedulePage } from './scenes/Scene2SchedulePage';
 import { Scene4Intake } from './scenes/Scene4Intake';
-import { Scene5Confirmation } from './scenes/Scene5Confirmation';
-import { Scene6HostKey } from './scenes/Scene6HostKey';
-import { Scene7AddToCalendar } from './scenes/Scene7AddToCalendar';
-import { Scene8Push } from './scenes/Scene8Push';
-import { Scene9ManageCancel } from './scenes/Scene9ManageCancel';
+import { Scene5ConfirmationIntro } from './scenes/Scene5ConfirmationIntro';
+import { Scene6ConfirmationDetails } from './scenes/Scene6ConfirmationDetails';
+import { Scene7ManageCancel } from './scenes/Scene7ManageCancel';
 import { Scene10Outro } from './scenes/Scene10Outro';
 
 const seq = (beat: { from: number; to: number }) => ({ from: beat.from, durationInFrames: beat.to - beat.from });
@@ -26,29 +23,20 @@ export const BookingFeatureReel: React.FC = () => {
       <Sequence {...seq(BEATS.signIn)}>
         <Scene1SignIn />
       </Sequence>
-      <Sequence {...seq(BEATS.availability)}>
-        <Scene2Availability />
-      </Sequence>
-      <Sequence {...seq(BEATS.duration)}>
-        <Scene3Duration />
+      <Sequence {...seq(BEATS.schedulePage)}>
+        <Scene2SchedulePage />
       </Sequence>
       <Sequence {...seq(BEATS.intake)}>
         <Scene4Intake />
       </Sequence>
-      <Sequence {...seq(BEATS.confirmation)}>
-        <Scene5Confirmation />
+      <Sequence {...seq(BEATS.confirmationIntro)}>
+        <Scene5ConfirmationIntro />
       </Sequence>
-      <Sequence {...seq(BEATS.hostKey)}>
-        <Scene6HostKey />
-      </Sequence>
-      <Sequence {...seq(BEATS.addToCalendar)}>
-        <Scene7AddToCalendar />
-      </Sequence>
-      <Sequence {...seq(BEATS.push)}>
-        <Scene8Push />
+      <Sequence {...seq(BEATS.confirmationDetails)}>
+        <Scene6ConfirmationDetails />
       </Sequence>
       <Sequence {...seq(BEATS.manageCancel)}>
-        <Scene9ManageCancel />
+        <Scene7ManageCancel />
       </Sequence>
       <Sequence {...seq(BEATS.outro)}>
         <Scene10Outro />

@@ -12,7 +12,7 @@ export const Scene0Intro: React.FC = () => {
       style={{
         position: 'absolute',
         inset: 0,
-        background: theme.page,
+        background: 'linear-gradient(160deg, #EFF3FA 0%, #F7F9FA 60%)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -22,9 +22,13 @@ export const Scene0Intro: React.FC = () => {
       }}
     >
       <div style={{ transform: `scale(${scale})`, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <Img src={staticFile('ayala_logo.png')} style={{ height: 90, objectFit: 'contain', marginBottom: 28 }} />
-        <div style={{ fontSize: 52, fontWeight: 800, color: theme.gray900, marginBottom: 12 }}>Zoom Booking Portal</div>
-        <div style={{ fontSize: 24, fontWeight: 500, color: theme.gray500 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 28, marginBottom: 32 }}>
+          <Img src={staticFile('ayala_logo.png')} style={{ height: 64, objectFit: 'contain' }} />
+          <div style={{ width: 1, height: 48, background: theme.border }} />
+          <Img src={staticFile('zoom_logo.png')} style={{ height: 40, objectFit: 'contain' }} />
+        </div>
+        <div style={{ fontSize: 48, fontWeight: 800, color: theme.gray900, marginBottom: 12 }}>Zoom Booking Portal</div>
+        <div style={{ fontSize: 22, fontWeight: 500, color: theme.gray500 }}>
           {'Book. Confirm. Show up. — no back-and-forth required.'}
         </div>
       </div>
