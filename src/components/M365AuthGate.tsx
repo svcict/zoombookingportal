@@ -10,7 +10,7 @@ import {
 import { M365User } from '../types';
 import { AyalaFoundationLogo } from './AyalaFoundationLogo';
 import microsoftLogoImg from '../assets/images/microsoft_icon.svg';
-import zoomLogoImg from '../assets/images/zoom_logo.svg';
+import zoomLogoImg from '../assets/images/zoom_logo.png';
 
 interface M365AuthGateProps {
   onAuthenticated: (user: M365User) => void;
