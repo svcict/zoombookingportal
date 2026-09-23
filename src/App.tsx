@@ -10,6 +10,7 @@ import { HostBookingsView } from './components/HostBookingsView';
 import { TimezoneSelector } from './components/TimezoneSelector';
 import { Office365CalendarDashboard, DashboardWelcomeCard } from './components/Office365CalendarDashboard';
 import { ZoomMeetingDetailsModal } from './components/ZoomMeetingDetailsModal';
+import { SlotUnavailableModal } from './components/SlotUnavailableModal';
 import { MeetingType, TimeSlot, Booking, M365CalendarState, M365User, HostAccount } from './types';
 import { INITIAL_MEETING_TYPES, INITIAL_HOST_ACCOUNTS, INITIAL_M365_STATE } from './data/initialData';
 import { generateLocalAvailabilitySlots } from './utils/availability';
@@ -88,6 +89,7 @@ export default function App() {
 
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
+  const [isSlotUnavailableModalOpen, setIsSlotUnavailableModalOpen] = useState(false);
   const [bannerNotice, setBannerNotice] = useState<string | null>(null);
 
   // Without this, navigating to a new view/step (e.g. the intake form to
@@ -294,11 +296,17 @@ export default function App() {
         setBookings((prev) => [data.data, ...prev]);
         setBookingStep('confirmed');
         playZoomNotificationSound('chime');
-        
+
         // Trigger simulated browser notification
         sendBrowserPushNotification(`Zoom Scheduled: ${data.data.meetingTitle || selectedMeetingType.title}`, {
           body: `Date: ${selectedDate} at ${selectedSlot.formattedTime}\nMeeting ID: ${data.data.zoomDetails.meetingId}`,
         });
+      } else if (res.status === 409) {
+        // Both rotating Zoom accounts got booked out from under this
+        // slot between page load and submit - a real, expected capacity
+        // limit, not an error, so it gets a calm modal instead of a raw
+        // browser alert() with the server's internal wording.
+        setIsSlotUnavailableModalOpen(true);
       } else {
         alert(data.error || 'Failed to schedule booking');
       }
@@ -619,6 +627,19 @@ export default function App() {
             } catch (e) {
               console.error('Failed to update booking:', e);
             }
+          }}
+        />
+      )}
+
+      {/* Slot Unavailable Modal (both rotating Zoom accounts got booked first) */}
+      {isSlotUnavailableModalOpen && (
+        <SlotUnavailableModal
+          onClose={() => setIsSlotUnavailableModalOpen(false)}
+          onChooseAnotherSlot={() => {
+            setIsSlotUnavailableModalOpen(false);
+            setSelectedSlot(null);
+            setBookingStep('slots');
+            fetchAvailability();
           }}
         />
       )}
