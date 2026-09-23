@@ -7,10 +7,6 @@ import { TimeSlotGrid } from './components/TimeSlotGrid';
 import { ZoomIntakeForm } from './components/ZoomIntakeForm';
 import { BookingConfirmation } from './components/BookingConfirmation';
 import { HostBookingsView } from './components/HostBookingsView';
-import { M365SyncView } from './components/M365SyncView';
-import { ZoomApiIntegrationView } from './components/ZoomApiIntegrationView';
-import { AdminSecurityAuditView } from './components/AdminSecurityAuditView';
-import { AdminUsersView } from './components/AdminUsersView';
 import { TimezoneSelector } from './components/TimezoneSelector';
 import { Office365CalendarDashboard, DashboardWelcomeCard } from './components/Office365CalendarDashboard';
 import { ZoomMeetingDetailsModal } from './components/ZoomMeetingDetailsModal';
@@ -44,24 +40,11 @@ export default function App() {
   const authHeaders = useMemo(() => buildAuthHeaders(authUser), [authUser]);
 
   // Navigation View State - Defaults to Office365 Dashboard when user logs in.
-  // /admin is the one view with a real, bookmarkable/linkable URL - visiting
-  // it directly (or refreshing while on it) opens straight into Admin Users
-  // instead of always landing on the dashboard.
-  const [currentView, setCurrentView] = useState<'dashboard' | 'booking' | 'm365' | 'zoom-api' | 'security-logs' | 'admin-users'>(() =>
-    window.location.pathname === '/admin' ? 'admin-users' : 'dashboard'
-  );
-
-  // Keep the URL in sync with the admin view specifically (every other view
-  // stays state-only, matching this app's existing single-page navigation).
-  useEffect(() => {
-    const wantsAdminUrl = currentView === 'admin-users';
-    const onAdminUrl = window.location.pathname === '/admin';
-    if (wantsAdminUrl && !onAdminUrl) {
-      window.history.pushState({}, '', '/admin');
-    } else if (!wantsAdminUrl && onAdminUrl) {
-      window.history.pushState({}, '', '/');
-    }
-  }, [currentView]);
+  // Admin tools (Zoom API, M365 sync, login audits, admin grants) are not
+  // part of this app at all - they live on the separate /admin portal (see
+  // AdminPortal.tsx and main.tsx), so this component only ever needs these
+  // two regular-staff views.
+  const [currentView, setCurrentView] = useState<'dashboard' | 'booking'>('dashboard');
 
   // Selected Booking for Detailed Modal inspection
   const [selectedBookingForDetails, setSelectedBookingForDetails] = useState<Booking | null>(null);
@@ -246,16 +229,6 @@ export default function App() {
     fetchAvailability();
   }, [fetchAvailability, m365State.lastCheckedAt]);
 
-  // Ensure non-admin users cannot access admin views. Skipped while signed
-  // out (authUser null) so landing on /admin pre-login doesn't get bounced
-  // to 'booking' before the sign-in even resolves whether they're an admin.
-  useEffect(() => {
-    if (!authUser) return;
-    if (!isAdmin && (currentView === 'zoom-api' || currentView === 'm365' || currentView === 'security-logs' || currentView === 'admin-users')) {
-      setCurrentView('booking');
-    }
-  }, [authUser, isAdmin, currentView]);
-
   // Handle Sign Out
   const handleSignOut = () => {
     localStorage.removeItem('m365_auth_user');
@@ -377,30 +350,6 @@ export default function App() {
       console.error(e);
       alert('A connection error occurred while cancelling bookings.');
     }
-  };
-
-  // Toggle M365 Sync (Admin Only)
-  const handleToggleM365Sync = async () => {
-    try {
-      const res = await fetch('/api/m365/sync-toggle', { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        setM365State(data.data);
-        setBannerNotice(data.message);
-        setTimeout(() => setBannerNotice(null), 4000);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  // Live-check both rotating Zoom accounts' real M365 calendars for a date
-  // (Admin Only) - returns what Microsoft Graph actually reports.
-  const handleCheckM365Now = async (date: string) => {
-    const res = await fetch(`/api/m365/check-now?date=${encodeURIComponent(date)}`);
-    const data = await res.json();
-    setM365State((prev) => ({ ...prev, lastCheckedAt: new Date().toISOString() }));
-    return data;
   };
 
   // If user is not authenticated with Microsoft 365, show Auth Gate
@@ -635,36 +584,6 @@ export default function App() {
             )}
 
           </div>
-        )}
-
-        {/* VIEW 3: ZOOM API INTEGRATION & DIAGNOSTICS (Admin Only) */}
-        {currentView === 'zoom-api' && isAdmin && (
-          <ZoomApiIntegrationView adminEmail={authUser?.email} authHeaders={authHeaders} />
-        )}
-
-        {/* VIEW 4: MICROSOFT 365 CALENDAR SYNC SETTINGS (Admin Only) */}
-        {currentView === 'm365' && isAdmin && (
-          <M365SyncView
-            m365State={m365State}
-            onToggleSync={handleToggleM365Sync}
-            onCheckNow={handleCheckM365Now}
-            adminEmail={authUser?.email}
-            authHeaders={authHeaders}
-          />
-        )}
-
-        {/* VIEW 5: SECURITY AUDITS & FAILED LOGINS (Admin Only) */}
-        {currentView === 'security-logs' && isAdmin && (
-          <AdminSecurityAuditView
-            onBackToSchedule={() => setCurrentView('booking')}
-            adminEmail={authUser?.email}
-            authHeaders={authHeaders}
-          />
-        )}
-
-        {/* VIEW 6: ADMIN USERS - GRANT/REVOKE ADMIN ACCESS (Admin Only) */}
-        {currentView === 'admin-users' && isAdmin && (
-          <AdminUsersView adminEmail={authUser?.email} authHeaders={authHeaders} />
         )}
 
       </main>

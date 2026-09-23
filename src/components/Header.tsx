@@ -1,34 +1,26 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Video, 
-  Calendar, 
-  Clock, 
-  Globe, 
-  Bell, 
-  BellRing, 
-  CheckCircle2,
-  ShieldCheck,
-  ExternalLink,
-  ChevronDown, 
-  LogOut, 
-  Cpu, 
-  User, 
+import React, { useState, useEffect } from 'react';
+import {
+  Video,
+  Calendar,
+  Clock,
+  Globe,
+  Bell,
+  BellRing,
+  ChevronDown,
+  LogOut,
   Sparkles,
-  Shield,
   Database,
   RefreshCw,
   Server,
-  ShieldAlert,
-  Sliders,
-  Workflow
+  ShieldCheck
 } from 'lucide-react';
 import { M365CalendarState, M365User } from '../types';
 import { requestPushPermission, playZoomNotificationSound } from '../utils/notifications';
 import { AyalaFoundationLogo } from './AyalaFoundationLogo';
 
 interface HeaderProps {
-  currentView: 'dashboard' | 'booking' | 'm365' | 'zoom-api' | 'security-logs' | 'admin-users';
-  onViewChange: (view: 'dashboard' | 'booking' | 'm365' | 'zoom-api' | 'security-logs' | 'admin-users') => void;
+  currentView: 'dashboard' | 'booking';
+  onViewChange: (view: 'dashboard' | 'booking') => void;
   m365State: M365CalendarState;
   authUser: M365User | null;
   onSignOut: () => void;
@@ -36,6 +28,12 @@ interface HeaderProps {
   onOpenTimezoneModal: () => void;
 }
 
+// This header serves only the regular staff booking experience - admin
+// tools (Zoom API, M365 sync, login audits, admin grants) live entirely on
+// the separate /admin portal (see AdminPortal.tsx), not as tabs here, so
+// the two audiences never share a page. An admin viewing this header still
+// sees a link out to /admin, since they're staff too and may want to book
+// a meeting themselves.
 export const Header: React.FC<HeaderProps> = ({
   currentView,
   onViewChange,
@@ -48,9 +46,6 @@ export const Header: React.FC<HeaderProps> = ({
   const [pushStatus, setPushStatus] = useState<string>('default');
   const [currentTimeStr, setCurrentTimeStr] = useState<string>('');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isIntegrationMenuOpen, setIsIntegrationMenuOpen] = useState(false);
-  const [isMobileIntegrationOpen, setIsMobileIntegrationOpen] = useState(false);
-  const integrationMenuRef = useRef<HTMLDivElement>(null);
   const [supabaseStatus, setSupabaseStatus] = useState<{
     connected: boolean;
     url?: string | null;
@@ -59,17 +54,6 @@ export const Header: React.FC<HeaderProps> = ({
     authUsersCount?: number;
   } | null>(null);
   const [isCheckingSb, setIsCheckingSb] = useState(false);
-
-  // Close integration dropdown on click outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (integrationMenuRef.current && !integrationMenuRef.current.contains(event.target as Node)) {
-        setIsIntegrationMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const fetchSupabaseStatus = async () => {
     setIsCheckingSb(true);
@@ -91,7 +75,8 @@ export const Header: React.FC<HeaderProps> = ({
   }, [isUserMenuOpen]);
 
   // Trusts only the server-verified flag issued at login - never a guess
-  // from the email or role string.
+  // from the email or role string. Used here only to show/hide the "Open
+  // Admin Portal" link, never to render admin tools in this page.
   const isAdmin = Boolean(authUser?.isAdmin);
 
   useEffect(() => {
@@ -132,10 +117,10 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Top Navigation Bar */}
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          
+
           {/* Logo and Brand */}
           <div className="flex items-center gap-4 sm:gap-6">
-            <button 
+            <button
               onClick={() => onViewChange('dashboard')}
               className="flex items-center gap-3 group focus:outline-none cursor-pointer"
             >
@@ -146,9 +131,8 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </button>
 
-            {/* Navigation Tabs - Role Based Access Control */}
+            {/* Navigation Tabs */}
             <nav className="hidden md:flex items-center space-x-1 pl-4 border-l border-gray-200">
-              {/* 0. Dashboard Tab (Office 365 Calendar - Visible to all) */}
               <button
                 onClick={() => onViewChange('dashboard')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
@@ -161,7 +145,6 @@ export const Header: React.FC<HeaderProps> = ({
                 Dashboard
               </button>
 
-              {/* 1. Schedule Tab (Visible to all users & admin) */}
               <button
                 onClick={() => onViewChange('booking')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
@@ -173,121 +156,6 @@ export const Header: React.FC<HeaderProps> = ({
                 <Video className="w-3.5 h-3.5" />
                 Schedule
               </button>
-
-              {/* Admin-Only Tabs: Integration Dropdown & Security Audits */}
-              {isAdmin && (
-                <>
-                  {/* Single Integration Dropdown Menu */}
-                  <div className="relative" ref={integrationMenuRef}>
-                    <button
-                      type="button"
-                      onClick={() => setIsIntegrationMenuOpen(!isIntegrationMenuOpen)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
-                        currentView === 'zoom-api' || currentView === 'm365'
-                          ? 'bg-blue-50 text-[#0b5cff] font-semibold'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                      }`}
-                    >
-                      <Workflow className="w-3.5 h-3.5 text-[#0b5cff]" />
-                      <span>Integration</span>
-                      <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${isIntegrationMenuOpen ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {isIntegrationMenuOpen && (
-                      <div className="absolute left-0 mt-2 w-60 bg-white rounded-2xl shadow-xl border border-gray-200 py-1.5 z-50 animate-in fade-in zoom-in-95">
-                        <div className="px-3 py-1.5 border-b border-gray-100">
-                          <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">
-                            API &amp; Calendar Integrations
-                          </span>
-                        </div>
-
-                        {/* Zoom API Option */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsIntegrationMenuOpen(false);
-                            onViewChange('zoom-api');
-                          }}
-                          className={`w-full px-3 py-2.5 text-left text-xs flex items-center gap-3 hover:bg-gray-50 transition-colors cursor-pointer ${
-                            currentView === 'zoom-api' ? 'bg-blue-50 text-[#0b5cff] font-bold' : 'text-gray-700'
-                          }`}
-                        >
-                          <div className="w-7 h-7 rounded-xl bg-blue-50 text-[#0b5cff] flex items-center justify-center shrink-0 border border-blue-100">
-                            <Cpu className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-bold text-gray-900 flex items-center justify-between">
-                              <span>Zoom API</span>
-                              {currentView === 'zoom-api' && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#0b5cff]" />
-                              )}
-                            </div>
-                            <div className="text-[11px] text-gray-600 font-normal truncate">
-                              Server-to-Server OAuth &amp; tokens
-                            </div>
-                          </div>
-                        </button>
-
-                        {/* M365 Sync Option */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsIntegrationMenuOpen(false);
-                            onViewChange('m365');
-                          }}
-                          className={`w-full px-3 py-2.5 text-left text-xs flex items-center gap-3 hover:bg-gray-50 transition-colors cursor-pointer ${
-                            currentView === 'm365' ? 'bg-blue-50 text-[#0b5cff] font-bold' : 'text-gray-700'
-                          }`}
-                        >
-                          <div className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
-                            <Calendar className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-bold text-gray-900 flex items-center justify-between">
-                              <span className="flex items-center gap-1.5">
-                                M365 Sync
-                                <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-                              </span>
-                              {currentView === 'm365' && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#0b5cff]" />
-                              )}
-                            </div>
-                            <div className="text-[11px] text-gray-600 font-normal truncate">
-                              Outlook calendar sync &amp; meetings
-                            </div>
-                          </div>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Security Log Audits */}
-                  <button
-                    onClick={() => onViewChange('security-logs')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
-                      currentView === 'security-logs'
-                        ? 'bg-red-50 text-red-700 font-semibold'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
-                    Login Audits
-                  </button>
-
-                  {/* Admin Users */}
-                  <button
-                    onClick={() => onViewChange('admin-users')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
-                      currentView === 'admin-users'
-                        ? 'bg-purple-50 text-purple-700 font-semibold'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
-                    Admin Users
-                  </button>
-                </>
-              )}
             </nav>
           </div>
 
@@ -415,24 +283,22 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                       </div>
 
-                      {/* Admin Security Fast Link */}
+                      {/* Admins are also staff, so this links out to the
+                          separate /admin portal rather than opening any
+                          admin tool inside this page. */}
                       {isAdmin && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsUserMenuOpen(false);
-                            onViewChange('security-logs');
-                          }}
-                          className="w-full py-2 px-3 rounded-xl text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 flex items-center justify-between transition-colors cursor-pointer"
+                        <a
+                          href="/admin"
+                          className="w-full py-2 px-3 rounded-xl text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 flex items-center justify-between transition-colors cursor-pointer"
                         >
                           <div className="flex items-center gap-1.5">
-                            <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
-                            <span>Failed Login Audits</span>
+                            <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+                            <span>Open Admin Portal</span>
                           </div>
-                          <span className="text-[10px] bg-red-200/70 text-red-800 px-1.5 py-0.2 rounded font-bold">
-                            Live
+                          <span className="text-[10px] bg-purple-200/70 text-purple-800 px-1.5 py-0.2 rounded font-bold">
+                            /admin
                           </span>
-                        </button>
+                        </a>
                       )}
                     </div>
 
@@ -457,7 +323,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Mobile Navigation Bar - Role Based Access Control */}
+        {/* Mobile Navigation Bar */}
         <div className="flex md:hidden items-center justify-around py-2 border-t border-gray-100 text-xs font-medium">
           <button
             onClick={() => onViewChange('dashboard')}
@@ -472,68 +338,9 @@ export const Header: React.FC<HeaderProps> = ({
             Schedule
           </button>
           {isAdmin && (
-            <>
-              {/* Mobile Integration Dropdown */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setIsMobileIntegrationOpen(!isMobileIntegrationOpen)}
-                  className={`py-1 px-2 rounded cursor-pointer flex items-center gap-1 ${
-                    currentView === 'zoom-api' || currentView === 'm365' ? 'text-[#0b5cff] font-bold' : 'text-gray-600'
-                  }`}
-                >
-                  <span>Integration</span>
-                  <ChevronDown className={`w-3 h-3 transition-transform ${isMobileIntegrationOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                {isMobileIntegrationOpen && (
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-200 py-1.5 z-50 animate-in fade-in zoom-in-95">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMobileIntegrationOpen(false);
-                        onViewChange('zoom-api');
-                      }}
-                      className={`w-full px-3 py-2 text-left text-xs flex items-center gap-2.5 hover:bg-gray-50 transition-colors ${
-                        currentView === 'zoom-api' ? 'text-[#0b5cff] font-bold bg-blue-50' : 'text-gray-700'
-                      }`}
-                    >
-                      <Cpu className="w-3.5 h-3.5 text-[#0b5cff]" />
-                      <span>Zoom API</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMobileIntegrationOpen(false);
-                        onViewChange('m365');
-                      }}
-                      className={`w-full px-3 py-2 text-left text-xs flex items-center gap-2.5 hover:bg-gray-50 transition-colors ${
-                        currentView === 'm365' ? 'text-[#0b5cff] font-bold bg-blue-50' : 'text-gray-700'
-                      }`}
-                    >
-                      <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-                      <span className="flex items-center gap-1.5">
-                        M365 Sync
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                      </span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <button
-                onClick={() => onViewChange('security-logs')}
-                className={`py-1 px-2 rounded cursor-pointer ${currentView === 'security-logs' ? 'text-red-600 font-bold' : 'text-gray-600'}`}
-              >
-                Audits
-              </button>
-              <button
-                onClick={() => onViewChange('admin-users')}
-                className={`py-1 px-2 rounded cursor-pointer ${currentView === 'admin-users' ? 'text-purple-600 font-bold' : 'text-gray-600'}`}
-              >
-                Admins
-              </button>
-            </>
+            <a href="/admin" className="py-1 px-2 rounded cursor-pointer text-purple-600 font-bold">
+              Admin Portal
+            </a>
           )}
         </div>
       </div>
