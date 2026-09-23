@@ -14,9 +14,9 @@ type AdminView = 'admin-users' | 'zoom-api' | 'm365' | 'security-logs';
 
 // The dedicated /admin portal - a completely separate page from the regular
 // staff booking app (App.tsx), not a tab bolted onto it. Sign-in reuses the
-// same login mechanism (Supabase, local test accounts, Microsoft 365 SSO)
-// since it's still the same identity system, but this page renders nothing
-// beyond the login form unless the signed-in account is a real, server-
+// same Microsoft 365 SSO login mechanism since it's still the same identity
+// system, but this page renders nothing beyond the login form unless the
+// signed-in account is a real, server-
 // verified admin - a non-admin signing in here sees a clear refusal, never
 // any admin content.
 export default function AdminPortal() {

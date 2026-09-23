@@ -78,20 +78,6 @@ Supabase is configured (`SUPABASE_URL` + `SUPABASE_ANON_KEY` in `.env`):
 The frontend always sends both headers (see `src/utils/auth.ts`); which one the server actually
 honors depends entirely on its own Supabase configuration, not anything the client requests.
 
-### Local test accounts (always available, with or without Supabase)
-
-The login screen's "Standard User"/"Admin User" quick-login cards sign in with two hardcoded
-accounts on a reserved, non-routable domain (`.test`, per RFC 2606 - it can never collide with a
-real email) — any password (or none) works for these two exact addresses:
-
-- `admin@local.test` — logs in as an admin
-- `user@local.test` — logs in as a regular staff member
-
-Unlike the Supabase-backed demo accounts below, these work **regardless of whether Supabase is
-configured** — they're checked first, before any Supabase call is attempted, and are also exempt
-from login rate-limiting/lockout (there's no real account behind them to brute-force). Every
-other email still goes through the normal Supabase/demo-login checks below.
-
 ### Admin Access
 
 Admin status used to be decided by an `email.includes('admin')` heuristic almost everywhere (Microsoft 365
@@ -157,36 +143,28 @@ A demo login gets its own short-lived, signed token (12 hours), verified indepen
 Supabase — not a real Supabase session. Removing an email from `DEMO_LOGIN_EMAILS` immediately
 invalidates any outstanding token for it, even before it would otherwise expire.
 
-The login form's password field also has no client-side `required` validation, so demo accounts
-(and the two `admin@local.test`/`user@local.test` local-testing accounts above) can submit a
-blank password. This is only a UX convenience, not a security boundary — the real gate is
-entirely server-side (`authenticateLocalUser`), which only ever accepts a blank password for an
-email explicitly listed in `DEMO_LOGIN_EMAILS` or one of the two `.test` accounts. Client-side
-validation can always be bypassed by anyone calling the API directly, so it was never providing
-real protection either way.
+The login screen itself is SSO-only now (no email/password form) - `DEMO_LOGIN_EMAILS` and
+`authenticateLocalUser` remain reachable only by calling `/api/auth/m365/login` directly, not
+through any UI. There's no client-side validation to speak of here anymore; the real gate is
+entirely server-side, and always was.
 
 ## Before Going to Production
 
-Last run against this codebase on 2026-09-22 - status of each item below. Items marked "confirm on your
+Last run against this codebase on 2026-09-23 - status of each item below. Items marked "confirm on your
 server" can't be checked from a dev/CI checkout since they depend on that deployment's real `.env`.
 
+- [x] **Remove the `admin@local.test`/`user@local.test` handling** in `authenticateLocalUser`
+  (`src/lib/supabase.ts`) and the two quick-login cards in `M365AuthGate.tsx`. **Done** - confirmed
+  first that a real `ADMIN_BOOTSTRAP_EMAILS` admin and a regular staff account can both sign in via
+  Microsoft 365 SSO end-to-end, so removing these can't lock anyone out.
 - [ ] **Set `ADMIN_BOOTSTRAP_EMAILS` to your real admin(s), then run
-  `supabase/migrations/0003_admin_emails.sql`.** Do this *before* the next two items - it's what lets a real
-  admin sign in at all once the local test accounts are gone. See "Admin Access" above. *(Confirm on your
-  server - can't be checked from here.)*
-- [ ] **Set `DEMO_LOGIN_EMAILS` to empty/unset.** Closes the Supabase-backed passwordless login path.
-  *(Confirm on your server.)*
-- [ ] **Remove the `admin@local.test`/`user@local.test` handling** in `authenticateLocalUser`
-  (`src/lib/supabase.ts`) and the two quick-login cards in `M365AuthGate.tsx`. These are separate
-  from `DEMO_LOGIN_EMAILS` and unsetting that env var does **not** disable them - they're
-  hardcoded and always active regardless of environment config. **Not done yet, on purpose** - keep these
-  until you've confirmed a real `ADMIN_BOOTSTRAP_EMAILS` admin can sign in and reach the Admin Users page,
-  so you can't lock yourself out of the admin views.
+  `supabase/migrations/0003_admin_emails.sql`.** See "Admin Access" above. *(Confirm on your server -
+  can't be checked from here.)*
+- [ ] **Set `DEMO_LOGIN_EMAILS` to empty/unset.** Closes the Supabase-backed passwordless login path
+  (unreachable from the UI already, but still live at the API level until unset). *(Confirm on your
+  server.)*
 - [ ] Confirm `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` point at your real
   production project, not a test one. *(Confirm on your server.)*
-- Skipped by design: re-adding `required` to the password `<input>` in `M365AuthGate.tsx`. It would block
-  the documented "leave blank for demo accounts" flow that's still in use for local testing - revisit once
-  the item above (removing local test accounts) is actually done, since only then does that flow go away.
 
 ## Push Notifications
 

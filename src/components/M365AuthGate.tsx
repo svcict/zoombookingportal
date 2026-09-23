@@ -23,7 +23,6 @@ interface M365AuthGateProps {
 export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, variant = 'staff' }) => {
   const isAdminVariant = variant === 'admin';
 
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isSsoLoading, setIsSsoLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   
@@ -106,69 +105,6 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // Local test accounts only - real staff/admin sign-in is SSO-only (see
-  // handleMicrosoftSSO). This still goes through the same
-  // /api/auth/m365/login + rate-limit path as before, just without a
-  // manual email/password form in front of it.
-  const handleQuickLogin = async (email: string) => {
-    if (isIpBlocked) {
-      setAuthError('Your IP address is permanently blocked. Please contact an administrator.');
-      return;
-    }
-    if (isLockedOut && lockoutRemaining > 0) {
-      setAuthError(`Too many failed login attempts. Please wait ${formatCountdown(lockoutRemaining)} before trying again.`);
-      return;
-    }
-
-    setIsAuthenticating(true);
-    setAuthError(null);
-
-    try {
-      const res = await fetch('/api/auth/m365/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          password: '',
-          authMethod: 'local'
-        })
-      });
-
-      const data = await res.json();
-
-      if (res.status === 403 || data.blocked) {
-        // IP Blocked
-        setIsIpBlocked(true);
-        setIsLockedOut(true);
-        setAuthError('Invalid credentials. Your IP address has been permanently blocked due to repeated failed login attempts. Please contact an administrator.');
-        return;
-      }
-
-      if (res.status === 429 || data.lockedOut) {
-        // Rate limited / Locked out
-        setIsLockedOut(true);
-        const remSec = data.remainingSeconds || (data.lockoutCycle === 1 ? 60 : 180);
-        setLockoutRemaining(remSec);
-        setLockoutCycle(data.lockoutCycle || 1);
-        setAuthError(`Invalid credentials. Too many failed attempts. Login temporarily disabled for ${formatCountdown(remSec)}.`);
-        return;
-      }
-
-      if (res.ok && data.success && data.user) {
-        localStorage.setItem('m365_auth_user', JSON.stringify(data.user));
-        onAuthenticated(data.user);
-      } else {
-        // Normal failure: "Invalid credentials."
-        setAuthError(data.message || 'Invalid credentials.');
-      }
-    } catch (err: any) {
-      console.error(err);
-      setAuthError('Connection error contacting authentication service.');
-    } finally {
-      setIsAuthenticating(false);
-    }
   };
 
   // Trigger Microsoft 365 Single Sign-On (SSO): a real redirect to
@@ -327,7 +263,7 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
               <button
                 type="button"
                 onClick={handleMicrosoftSSO}
-                disabled={isIpBlocked || (isLockedOut && lockoutRemaining > 0) || isAuthenticating || isSsoLoading}
+                disabled={isIpBlocked || (isLockedOut && lockoutRemaining > 0) || isSsoLoading}
                 className={
                   isAdminVariant
                     ? 'w-full py-2.5 px-4 rounded-xl border border-purple-200 bg-purple-50/60 hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed text-purple-800 font-semibold text-xs shadow-2xs transition-all flex items-center justify-center gap-2.5 cursor-pointer relative group'
@@ -371,55 +307,6 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
               Data Privacy Policy
             </a>
           </span>
-        </div>
-
-        {/* Quick Login Test Accounts - real, working accounts that always
-            log in immediately on click, regardless of Supabase setup. Below
-            the card and the trust footnote so it reads as a secondary,
-            testing-only affordance rather than part of the main sign-in
-            flow. The admin portal only ever offers the admin test account -
-            offering "Standard User" here would just bounce into the
-            "Admins Only" refusal screen. */}
-        <div className="pt-1">
-          <div className="text-[11px] font-semibold mb-1.5 flex items-center justify-between text-gray-500">
-            <span>Test Credentials:</span>
-            <span className={`text-[10px] font-medium ${isAdminVariant ? 'text-purple-600' : 'text-blue-600'}`}>Click to log in</span>
-          </div>
-          <div className={isAdminVariant ? '' : 'grid grid-cols-2 gap-2'}>
-            {!isAdminVariant && (
-              <button
-                type="button"
-                disabled={isIpBlocked || (isLockedOut && lockoutRemaining > 0) || isAuthenticating}
-                onClick={() => handleQuickLogin('user@local.test')}
-                className="p-2 rounded-xl bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-300 text-left transition-all group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
-              >
-                <div className="text-[11px] font-bold text-gray-800 group-hover:text-blue-600 truncate">
-                  Standard User
-                </div>
-                <div className="text-[10px] text-gray-500 font-mono truncate">
-                  user@local.test
-                </div>
-              </button>
-            )}
-
-            <button
-              type="button"
-              disabled={isIpBlocked || (isLockedOut && lockoutRemaining > 0) || isAuthenticating}
-              onClick={() => handleQuickLogin('admin@local.test')}
-              className={
-                isAdminVariant
-                  ? 'w-full p-2 rounded-xl bg-white hover:bg-purple-50 border border-gray-200 hover:border-purple-300 text-left transition-all group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs'
-                  : 'p-2 rounded-xl bg-white hover:bg-purple-50 border border-gray-200 hover:border-purple-300 text-left transition-all group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs'
-              }
-            >
-              <div className="text-[11px] font-bold text-gray-800 group-hover:text-purple-600 truncate">
-                Admin User
-              </div>
-              <div className="text-[10px] text-gray-500 font-mono truncate">
-                admin@local.test
-              </div>
-            </button>
-          </div>
         </div>
 
       </div>
@@ -466,7 +353,7 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
                 <li>MICROSOFT_TENANT_ID (Directory ID)</li>
               </ul>
               <p className="text-gray-500 text-[11px] pt-1">
-                Until then, only the local test accounts above can sign in.
+                Until then, nobody can sign in to this portal.
               </p>
             </div>
 
