@@ -43,8 +43,25 @@ export default function App() {
   // only a fallback the server uses when it has no Supabase configured.
   const authHeaders = useMemo(() => buildAuthHeaders(authUser), [authUser]);
 
-  // Navigation View State - Defaults to Office365 Dashboard when user logs in
-  const [currentView, setCurrentView] = useState<'dashboard' | 'booking' | 'm365' | 'zoom-api' | 'security-logs' | 'admin-users'>('dashboard');
+  // Navigation View State - Defaults to Office365 Dashboard when user logs in.
+  // /admin is the one view with a real, bookmarkable/linkable URL - visiting
+  // it directly (or refreshing while on it) opens straight into Admin Users
+  // instead of always landing on the dashboard.
+  const [currentView, setCurrentView] = useState<'dashboard' | 'booking' | 'm365' | 'zoom-api' | 'security-logs' | 'admin-users'>(() =>
+    window.location.pathname === '/admin' ? 'admin-users' : 'dashboard'
+  );
+
+  // Keep the URL in sync with the admin view specifically (every other view
+  // stays state-only, matching this app's existing single-page navigation).
+  useEffect(() => {
+    const wantsAdminUrl = currentView === 'admin-users';
+    const onAdminUrl = window.location.pathname === '/admin';
+    if (wantsAdminUrl && !onAdminUrl) {
+      window.history.pushState({}, '', '/admin');
+    } else if (!wantsAdminUrl && onAdminUrl) {
+      window.history.pushState({}, '', '/');
+    }
+  }, [currentView]);
 
   // Selected Booking for Detailed Modal inspection
   const [selectedBookingForDetails, setSelectedBookingForDetails] = useState<Booking | null>(null);
@@ -229,12 +246,15 @@ export default function App() {
     fetchAvailability();
   }, [fetchAvailability, m365State.lastCheckedAt]);
 
-  // Ensure non-admin users cannot access admin views
+  // Ensure non-admin users cannot access admin views. Skipped while signed
+  // out (authUser null) so landing on /admin pre-login doesn't get bounced
+  // to 'booking' before the sign-in even resolves whether they're an admin.
   useEffect(() => {
+    if (!authUser) return;
     if (!isAdmin && (currentView === 'zoom-api' || currentView === 'm365' || currentView === 'security-logs' || currentView === 'admin-users')) {
       setCurrentView('booking');
     }
-  }, [isAdmin, currentView]);
+  }, [authUser, isAdmin, currentView]);
 
   // Handle Sign Out
   const handleSignOut = () => {
