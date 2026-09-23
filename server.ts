@@ -30,7 +30,6 @@ import {
   updateZoomMeeting,
   deleteZoomMeeting,
   getZoomUserProfile,
-  getZoomUserSettings,
   mapZoomMeetingResponse
 } from './src/lib/zoomApi';
 import { persistenceEnabled, loadTable, upsertRow, deleteRow, seedTableIfEmpty, clearTable } from './src/lib/db';
@@ -1611,37 +1610,27 @@ async function getZoomAccountHostKey(key: ZoomAccountKey): Promise<string | null
   if (!isAccountConfigured(key)) return null;
 
   try {
-    const result = await getZoomUserSettings(key);
-    // Zoom's documented location for this is schedule_meeting.host_key, but
-    // it's returned inconsistently across account/API versions - checking a
-    // couple of plausible spots rather than assuming one is guaranteed
-    // future-proofing against exactly that, without ever fabricating a value.
-    const settings = result.data || {};
-    const hostKey =
-      settings.schedule_meeting?.host_key ||
-      settings.feature?.host_key ||
-      settings.host_key ||
-      settings.in_meeting?.host_key ||
-      null;
+    // Confirmed live: this is NOT on the /settings object at all (checked
+    // exhaustively across two rounds, including via custom_query_fields,
+    // on an account that DOES have a Host Key configured) - trying the
+    // plain user profile (GET /users/{userId}) instead, the same call
+    // already used for the real account display name. Whether the
+    // existing scope also surfaces host_key there, or a 4711-style error
+    // means yet another scope is needed, is what this next test confirms.
+    const result = await getZoomUserProfile(key);
+    const profile = result.data || {};
+    const hostKey = profile.host_key || null;
     if (hostKey) {
       zoomHostKeyCache.set(key, { hostKey: String(hostKey), fetchedAt: Date.now() });
       return String(hostKey);
     }
-    // None of the guessed spots had it - log every sub-object's own keys
-    // (not just schedule_meeting/feature) so this can be fixed from server
-    // logs instead of guessing again blind.
-    const subObjectKeySummary = Object.entries(settings)
-      .filter(([, v]) => v && typeof v === 'object' && !Array.isArray(v))
-      .map(([k, v]) => `${k}: ${Object.keys(v as object).join(', ')}`)
-      .join(' | ');
     console.warn(
-      `[hostKey] No host_key found in GET /users/.../settings for Zoom account ${key}. ` +
-      `Top-level keys: ${Object.keys(settings).join(', ') || '(none)'}. ` +
-      `Sub-object keys: ${subObjectKeySummary || '(none)'}.`
+      `[hostKey] No host_key field on GET /users/.../ profile for Zoom account ${key}, ` +
+      `even though a Host Key is confirmed set on this account. Top-level keys: ${Object.keys(profile).join(', ') || '(none)'}.`
     );
     return null;
   } catch (err: any) {
-    console.error(`[hostKey] Failed to fetch settings for Zoom account ${key}: ${err?.message || err}`);
+    console.error(`[hostKey] Failed to fetch profile for Zoom account ${key}: ${err?.message || err}`);
     return null;
   }
 }

@@ -231,35 +231,18 @@ export async function deleteZoomMeeting(key: ZoomAccountKey, meetingId: string) 
   return zoomRequest(key, 'DELETE', `/meetings/${encodeURIComponent(meetingId)}`);
 }
 
+// Also carries host_key - the personal PIN set on this Zoom account's
+// profile (Zoom web portal: Profile > Host Key). Any participant can use
+// it during the meeting (Participants > Claim Host) to become host,
+// regardless of license tier or which Zoom account they're signed into -
+// unlike alternative host, which only works for Licensed users on the
+// SAME Zoom account. Confirmed live: host_key is NOT on the /settings
+// endpoint (checked exhaustively, including via custom_query_fields, on
+// an account that does have one configured) - it's a plain field here.
 export async function getZoomUserProfile(key: ZoomAccountKey) {
   const creds = readCredentials(key);
   if (!creds) throw new Error(`Zoom account ${key} is not configured`);
   return zoomRequest(key, 'GET', `/users/${encodeURIComponent(creds.userId)}`);
-}
-
-// Real host key lookup - the personal PIN set on this Zoom account's profile
-// (Zoom web portal: Profile > Host Key). Any participant can use it during
-// the meeting (Participants > Claim Host) to become host, regardless of
-// license tier or which Zoom account they're signed into - unlike
-// alternative host, which only works for Licensed users on the SAME Zoom
-// account. Requires the Server-to-Server OAuth app's Client ID/Secret owner
-// to have granted an admin-level user-read scope (see README) - Zoom
-// treats the host key as sensitive and doesn't return it under the plain
-// user:read:user scope already used elsewhere in this app.
-//
-// Confirmed live (with the admin scope correctly granted): host_key is
-// still absent from schedule_meeting/feature/every other key in the
-// default response body - Zoom withholds sensitive fields like this one
-// unless explicitly requested via custom_query_fields, so it's asked for
-// by its documented dotted path here.
-export async function getZoomUserSettings(key: ZoomAccountKey) {
-  const creds = readCredentials(key);
-  if (!creds) throw new Error(`Zoom account ${key} is not configured`);
-  return zoomRequest(
-    key,
-    'GET',
-    `/users/${encodeURIComponent(creds.userId)}/settings?custom_query_fields=schedule_meeting.host_key`
-  );
 }
 
 export interface MappedZoomDetails {
