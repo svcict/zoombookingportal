@@ -1,5 +1,6 @@
 import { TimeSlot, HostAccount, Booking, MeetingType } from '../types';
 import { INITIAL_HOST_ACCOUNTS } from '../data/initialData';
+import { zonedTimeToUtc, getDetectedTimezone } from './timezone';
 
 export function generateLocalAvailabilitySlots(params: {
   meetingType: MeetingType;
@@ -7,13 +8,15 @@ export function generateLocalAvailabilitySlots(params: {
   selectedAccountId?: string;
   bookings?: Booking[];
   syncEnabled?: boolean;
+  timezone?: string;
 }): { slots: TimeSlot[]; hostAccountsSummary: HostAccount[] } {
   const {
     meetingType,
     date,
     selectedAccountId = 'all',
     bookings = [],
-    syncEnabled = true
+    syncEnabled = true,
+    timezone = getDetectedTimezone()
   } = params;
 
   const duration = meetingType.duration || 30;
@@ -53,7 +56,8 @@ export function generateLocalAvailabilitySlots(params: {
       const hour12 = h % 12 === 0 ? 12 : h % 12;
       const ampm = h >= 12 ? 'PM' : 'AM';
       const formattedTime = `${hour12}:${String(m).padStart(2, '0')} ${ampm}`;
-      const slotIso = `${date}T${timeStr}:00.000Z`;
+      const slotIso = zonedTimeToUtc(date, h, m, timezone).toISOString();
+      const isPast = new Date(slotIso).getTime() <= Date.now();
 
       if (isWeekend) {
         slots.push({
@@ -73,6 +77,11 @@ export function generateLocalAvailabilitySlots(params: {
       const unavailableForSlot: Array<{ account: HostAccount; reason: string }> = [];
 
       targetAccounts.forEach((acc) => {
+        if (isPast) {
+          unavailableForSlot.push({ account: acc, reason: 'This time has already passed' });
+          return;
+        }
+
         // Check Zoom Bookings
         const existingBooking = bookings.find(
           (b) =>

@@ -9,7 +9,6 @@ import {
   registerSupabaseUser,
   testSupabaseConnection,
   isSupabaseConfigured,
-  getSupabase,
   verifySessionToken,
   verifyDemoSessionToken,
   issueM365SsoSessionToken,
@@ -2446,7 +2445,19 @@ app.get('/api/availability', async (req, res) => {
         const availableForSlot: HostAccount[] = [];
         const unavailableForSlot: Array<{ account: HostAccount; reason: string }> = [];
 
+        // A slot whose start time has already passed (in the booker's own
+        // timezone) can never be booked, regardless of account/calendar
+        // availability - without this, "today" always showed every slot as
+        // open even hours after they'd already elapsed.
+        const slotStart = new Date(slotIso).getTime();
+        const isPast = slotStart <= Date.now();
+
         targetAccounts.forEach((acc) => {
+          if (isPast) {
+            unavailableForSlot.push({ account: acc, reason: 'This time has already passed' });
+            return;
+          }
+
           // Check Zoom Bookings
           const existingBooking = bookings.find(
             (b) =>
@@ -2458,7 +2469,6 @@ app.get('/api/availability', async (req, res) => {
 
           // Real capacity check: is at least one rotating Zoom account free
           // (both Zoom-side and real M365) at this exact time?
-          const slotStart = new Date(slotIso).getTime();
           const slotEnd = slotStart + duration * 60 * 1000;
           const noZoomAccountFree =
             configuredZoomAccounts.length > 0 &&
@@ -2661,6 +2671,16 @@ app.post('/api/bookings', async (req, res) => {
     const endDate = new Date(startDate.getTime() + (meetingType.duration || 30) * 60000);
     const startIso = startDate.toISOString();
     const endIso = endDate.toISOString();
+
+    // Reject a slot that's already elapsed - the availability grid should
+    // already gray these out, but a stale page, cached response, or a
+    // direct API call could still try to submit one.
+    if (startDate.getTime() <= Date.now()) {
+      return res.status(400).json({
+        success: false,
+        error: 'This time has already passed. Please choose a future time slot.'
+      });
+    }
 
     // Assign one of the two rotating Zoom accounts and provision the meeting
     // (real Zoom REST API call when that account has credentials configured,

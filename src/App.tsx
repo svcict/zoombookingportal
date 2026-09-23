@@ -77,7 +77,8 @@ export default function App() {
       date: initialDateStr,
       selectedAccountId: 'all',
       bookings: [],
-      syncEnabled: true
+      syncEnabled: true,
+      timezone: selectedTimezone
     });
     return initial.slots;
   });
@@ -194,7 +195,8 @@ export default function App() {
       date: selectedDate,
       selectedAccountId,
       bookings,
-      syncEnabled: m365State.syncEnabled
+      syncEnabled: m365State.syncEnabled,
+      timezone: selectedTimezone
     });
 
     try {

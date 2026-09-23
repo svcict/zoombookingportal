@@ -117,3 +117,37 @@ export function getTimezoneOptions(): TimezoneOption[] {
     };
   });
 }
+
+/**
+ * Converts a wall-clock date/time as it would read in `timeZone` into the
+ * correct UTC instant - e.g. 4:00 PM in Asia/Manila becomes the UTC instant
+ * 8 hours earlier, not literally "16:00 UTC". Mirrors the same helper in
+ * server.ts; kept in sync there since both need to agree on what a booked
+ * time actually means.
+ */
+export function zonedTimeToUtc(dateStr: string, hour: number, minute: number, timeZone: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const guessMs = Date.UTC(year, month - 1, day, hour, minute, 0);
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    }).formatToParts(new Date(guessMs));
+  } catch {
+    return new Date(guessMs);
+  }
+  const map: Record<string, string> = {};
+  for (const p of parts) map[p.type] = p.value;
+  const asIfLocalMs = Date.UTC(
+    Number(map.year), Number(map.month) - 1, Number(map.day),
+    Number(map.hour), Number(map.minute), Number(map.second)
+  );
+  return new Date(guessMs + (guessMs - asIfLocalMs));
+}
