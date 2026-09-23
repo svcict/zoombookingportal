@@ -99,6 +99,11 @@ export interface ZoomDetails {
   // the same Zoom account. Undefined when it couldn't be retrieved (never a
   // fabricated value).
   hostKey?: string;
+  // Zoom's own "Copy Shareable Link" URL for this meeting's cloud
+  // recording, filled in only after Zoom's real recording.completed
+  // webhook fires - undefined until then (no meeting was recorded, or the
+  // recording is still processing), never a placeholder/fabricated value.
+  recordingUrl?: string;
 }
 
 export interface ZoomMeetingConfig {

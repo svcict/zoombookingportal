@@ -15,7 +15,8 @@ import {
   ChevronDown,
   ChevronUp,
   Layers,
-  Archive
+  Archive,
+  PlayCircle
 } from 'lucide-react';
 import { Booking, MeetingType } from '../types';
 
@@ -181,6 +182,20 @@ const BookingCard: React.FC<BookingCardProps> = ({
             <div className="font-mono font-bold text-gray-900 mt-0.5">{booking.zoomDetails.passcode}</div>
           </div>
         </div>
+
+        {booking.zoomDetails.recordingUrl && (
+          <div className="bg-blue-50 p-3.5 rounded-xl border border-blue-100">
+            <a
+              href={booking.zoomDetails.recordingUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-[#0b5cff] hover:underline font-semibold cursor-pointer"
+            >
+              <PlayCircle className="w-4 h-4" />
+              View Cloud Recording
+            </a>
+          </div>
+        )}
 
         {/* Custom Intake Form Answers */}
         {booking.answers && Object.keys(booking.answers).length > 0 && (

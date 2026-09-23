@@ -277,16 +277,17 @@ Meeting ID/Passcode section already behaves when a meeting falls back to mock da
 
 ## Zoom Event Webhook Listener
 
-The portal also listens for real-time Zoom meeting events (`meeting.started`, `meeting.ended`,
-`meeting.participant_joined`) and matches them to the corresponding booking by Zoom meeting ID.
-To wire this up against a real Zoom app:
+The portal also listens for real-time Zoom events - `meeting.started`, `meeting.ended`,
+`meeting.participant_joined`, and `recording.completed` - and matches them to the corresponding
+booking by Zoom meeting ID. To wire this up against a real Zoom app:
 
 1. In the same Zoom Server-to-Server OAuth app (or a separate one), go to **Feature > Event
    Subscriptions** and add a subscription.
 2. Set the **Event notification endpoint URL** to `{APP_URL}/api/zoom/webhooks` (e.g.
    `https://your-deployment.example.com/api/zoom/webhooks`).
-3. Subscribe to the **Meeting** events: `Meeting Started`, `Meeting Ended`, and
-   `Meeting Participant/Host has joined`.
+3. Subscribe to the **Meeting** events (`Meeting Started`, `Meeting Ended`,
+   `Meeting Participant/Host has joined`) and, if you want recording links to show up
+   automatically (see below), the **Recording** event `All Recordings have completed`.
 4. Copy the **Secret Token** shown on that page and set it in `.env`:
    ```
    ZOOM_WEBHOOK_SECRET_TOKEN=...
@@ -297,3 +298,15 @@ To wire this up against a real Zoom app:
 Without that secret configured, the endpoint still accepts events (useful for local testing)
 but can't verify they actually came from Zoom, and can't complete Zoom's URL validation
 handshake — the **Zoom API Integration** page shows whether a secret is currently set.
+
+### Cloud Recording Links
+
+Since bookings now default to "Automatically record meeting to the cloud," this app surfaces
+the resulting recording automatically once Zoom finishes processing it - no manual step needed
+per meeting. When Zoom's `recording.completed` webhook fires (see above; the account must have
+Cloud Recording entitlement), the app takes `payload.object.share_url` - Zoom's own "Copy
+Shareable Link" for that recording - and stores it on the booking. It then shows up as a "View
+Cloud Recording" link on both the booking confirmation screen and the admin/host bookings list,
+and the booker gets a browser push notification ("Zoom Recording Ready") if push notifications
+are configured. If the webhook isn't set up, or a meeting wasn't recorded, that section simply
+doesn't appear - no placeholder, no fabricated link.

@@ -21,7 +21,8 @@ import {
   Pencil,
   Trash2,
   Bell,
-  BellOff
+  BellOff,
+  PlayCircle
 } from 'lucide-react';
 import { Booking, ZoomMeetingConfig } from '../types';
 import { downloadIcsFile, getOutlookWebCalendarUrl, getM365EnterpriseCalendarUrl, getGoogleCalendarUrl } from '../utils/calendar';
@@ -347,6 +348,21 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
                   If nobody has host controls yet, use Participants → Claim Host in Zoom and enter this key. Works regardless of your Zoom license.
                 </p>
               </div>
+            </div>
+          )}
+
+          {currentBooking.zoomDetails.recordingUrl && (
+            <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm bg-blue-50/60">
+              <span className="text-gray-500 font-medium">Recording</span>
+              <a
+                href={currentBooking.zoomDetails.recordingUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 w-fit text-[#0b5cff] hover:underline font-semibold cursor-pointer"
+              >
+                <PlayCircle className="w-4 h-4" />
+                View Cloud Recording
+              </a>
             </div>
           )}
 

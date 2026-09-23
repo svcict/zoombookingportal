@@ -3371,6 +3371,25 @@ app.post('/api/zoom/webhooks', (req: any, res) => {
   } else if (eventName === 'meeting.participant_joined' && booking) {
     const participantName = zoomObject?.participant?.user_name || 'Unknown participant';
     payloadSummary = `${participantName} joined "${booking.meetingTitle}" (${rawMeetingId})`;
+  } else if (eventName === 'recording.completed' && booking) {
+    // share_url is Zoom's own "Copy Shareable Link" for the cloud
+    // recording - a single URL that opens Zoom's hosted playback page,
+    // unlike download_url/play_url on individual recording_files entries
+    // which need an OAuth token or extra auth to actually use.
+    const shareUrl = zoomObject?.share_url;
+    if (shareUrl) {
+      booking.zoomDetails.recordingUrl = shareUrl;
+      payloadSummary = `Recording ready: "${booking.meetingTitle}" (${rawMeetingId})`;
+      upsertRow('bookings', booking.id, booking).catch(() => {});
+      sendPushToEmail(booking.participantEmail, {
+        title: 'Zoom Recording Ready',
+        body: `The cloud recording for "${booking.meetingTitle}" is ready to view.`,
+        tag: `recording-${booking.id}`,
+        url: '/'
+      }).catch(() => {});
+    } else {
+      payloadSummary = `recording.completed for "${booking.meetingTitle}" (${rawMeetingId}) had no share_url`;
+    }
   } else if (rawMeetingId && !booking) {
     payloadSummary = `${eventName || 'Event'} for meeting ${rawMeetingId} - no matching booking found`;
   } else if (!secretToken) {
