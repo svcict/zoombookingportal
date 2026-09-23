@@ -183,11 +183,17 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
                 <AyalaFoundationLogo height={65} width={180} />
               </div>
 
-              {/* Portal Badge */}
+              {/* Zoom Logo - same image as the staff login, so both are
+                  recognizably part of the same product; the "Admin Portal"
+                  label underneath is what actually keeps this screen
+                  visually distinct, not a different logo. */}
               {isAdminVariant ? (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-[#0b5cff] rounded-full border border-blue-200 text-xs font-semibold shrink-0">
-                  <ShieldCheck className="w-3 h-3" />
-                  <span>Admin Portal</span>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <img src={zoomLogoImg} alt="Zoom" className="h-6 w-auto" />
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-[#0b5cff] rounded-full border border-blue-200 text-xs font-semibold">
+                    <ShieldCheck className="w-3 h-3" />
+                    <span>Admin Portal</span>
+                  </div>
                 </div>
               ) : (
                 <img src={zoomLogoImg} alt="Zoom" className="h-6 w-auto shrink-0" />
