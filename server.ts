@@ -617,6 +617,21 @@ async function pickZoomAccount(startIso: string, endIso: string): Promise<ZoomAc
   return next;
 }
 
+// Whether a Zoom API error means the requested alternative host isn't
+// eligible right now, rather than some other failure that should propagate.
+// Zoom uses more than one error code for this depending on why: 1114
+// ("cannot be selected at this time") and 1115 ("not licensed") are the two
+// seen so far in real testing - matched by message text since Zoom may add
+// others we haven't hit yet.
+function isIneligibleAlternativeHostError(message: string): boolean {
+  return (
+    message.includes('"code":1114') ||
+    message.includes('"code":1115') ||
+    message.includes('cannot be selected') ||
+    message.includes('not licensed')
+  );
+}
+
 // Creates a meeting on the given Zoom account via the real REST API, falling
 // back to the local mock generator when that account has no credentials configured.
 async function provisionZoomMeeting(
@@ -643,10 +658,12 @@ async function provisionZoomMeeting(
   // "Make Host"/co-host themselves in directly if they're a Licensed user
   // on this same Zoom account - an explicit zoomConfig.alternativeHosts
   // always wins. Zoom validates this at creation time and REJECTS the
-  // whole meeting (error 1114, "cannot be selected at this time") if that
-  // person isn't eligible - not a silent no-op like assumed earlier - so
-  // on that specific error, retry once with no alternative host rather
-  // than failing the entire booking.
+  // whole meeting if that person isn't eligible - not a silent no-op like
+  // assumed earlier - so on that specific error, retry once with no
+  // alternative host rather than failing the entire booking. Zoom has more
+  // than one error code for "not eligible" (1114 "cannot be selected at
+  // this time", 1115 "not licensed" - seen live), so this checks by
+  // pattern rather than a single hardcoded code.
   let alternativeHosts = zoomConfig?.alternativeHosts || participantEmail || '';
 
   const createPayload = {
@@ -673,7 +690,7 @@ async function provisionZoomMeeting(
     result = await createZoomMeeting(accountKey, { ...createPayload, alternativeHosts });
   } catch (err: any) {
     const message = String(err?.message || '');
-    if (alternativeHosts && (message.includes('"code":1114') || message.includes('cannot be selected'))) {
+    if (alternativeHosts && isIneligibleAlternativeHostError(message)) {
       alternativeHosts = '';
       result = await createZoomMeeting(accountKey, { ...createPayload, alternativeHosts: '' });
     } else {
@@ -2961,7 +2978,7 @@ app.patch('/api/bookings/:id', async (req, res) => {
         result = await updateZoomMeeting(accountKey, rawMeetingId, { ...updatePayload, alternativeHosts: appliedAlternativeHosts });
       } catch (err: any) {
         const message = String(err?.message || '');
-        if (appliedAlternativeHosts && (message.includes('"code":1114') || message.includes('cannot be selected'))) {
+        if (appliedAlternativeHosts && isIneligibleAlternativeHostError(message)) {
           appliedAlternativeHosts = '';
           result = await updateZoomMeeting(accountKey, rawMeetingId, { ...updatePayload, alternativeHosts: '' });
         } else {
