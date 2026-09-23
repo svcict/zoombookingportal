@@ -189,7 +189,9 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated }) =
 
     setIsSsoLoading(true);
     setAuthError(null);
-    window.location.href = '/api/auth/m365/authorize';
+    // Carries the current path (e.g. /admin) through the OAuth round-trip so
+    // landing there pre-login isn't lost once Microsoft redirects back.
+    window.location.href = '/api/auth/m365/authorize?returnPath=' + encodeURIComponent(window.location.pathname);
   };
 
   // Pick up the result of a completed Microsoft 365 SSO redirect: the

@@ -1381,24 +1381,47 @@ app.post('/api/admin/m365/test-connection', async (req, res) => {
 const OAUTH_STATE_SECRET = crypto.randomBytes(32).toString('hex');
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 
-function signOAuthState(): string {
-  const nonce = crypto.randomBytes(16).toString('hex');
-  const ts = Date.now().toString();
-  const raw = `${nonce}.${ts}`;
-  const sig = crypto.createHmac('sha256', OAUTH_STATE_SECRET).update(raw).digest('base64url');
-  return `${raw}.${sig}`;
+// Only ever used as a same-origin redirect target after SSO completes, so
+// this rejects anything that could send the browser off-site (a protocol,
+// or a path not starting with a single leading slash).
+function sanitizeReturnPath(path: unknown): string {
+  if (typeof path !== 'string') return '/';
+  if (!path.startsWith('/') || path.startsWith('//') || path.includes('://')) return '/';
+  return path;
 }
 
-function verifyOAuthState(state: string): boolean {
+// Carries the page to return to after SSO (e.g. /admin) through the OAuth
+// round-trip inside the signed state param itself, rather than a server-side
+// session - this server has no session store, and the state param already
+// has to survive the redirect to Microsoft and back.
+function signOAuthState(returnPath: string = '/'): string {
+  const payload = JSON.stringify({
+    nonce: crypto.randomBytes(16).toString('hex'),
+    ts: Date.now(),
+    returnPath: sanitizeReturnPath(returnPath)
+  });
+  const encodedPayload = Buffer.from(payload, 'utf8').toString('base64url');
+  const sig = crypto.createHmac('sha256', OAUTH_STATE_SECRET).update(encodedPayload).digest('base64url');
+  return `${encodedPayload}.${sig}`;
+}
+
+function verifyOAuthState(state: string): { valid: boolean; returnPath: string } {
+  const invalid = { valid: false, returnPath: '/' };
   const parts = (state || '').split('.');
-  if (parts.length !== 3) return false;
-  const [nonce, ts, sig] = parts;
-  const expected = crypto.createHmac('sha256', OAUTH_STATE_SECRET).update(`${nonce}.${ts}`).digest('base64url');
+  if (parts.length !== 2) return invalid;
+  const [encodedPayload, sig] = parts;
+  const expected = crypto.createHmac('sha256', OAUTH_STATE_SECRET).update(encodedPayload).digest('base64url');
   if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
-    return false;
+    return invalid;
   }
-  const age = Date.now() - Number(ts);
-  return age >= 0 && age < OAUTH_STATE_TTL_MS;
+  try {
+    const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
+    const age = Date.now() - Number(payload.ts);
+    if (!(age >= 0 && age < OAUTH_STATE_TTL_MS)) return invalid;
+    return { valid: true, returnPath: sanitizeReturnPath(payload.returnPath) };
+  } catch {
+    return invalid;
+  }
 }
 
 function getM365OAuthConfig(req: express.Request) {
@@ -1799,7 +1822,7 @@ app.get('/api/auth/m365/authorize', (req, res) => {
   authorizeUrl.searchParams.set('redirect_uri', redirectUri);
   authorizeUrl.searchParams.set('response_mode', 'query');
   authorizeUrl.searchParams.set('scope', scopes);
-  authorizeUrl.searchParams.set('state', signOAuthState());
+  authorizeUrl.searchParams.set('state', signOAuthState(typeof req.query.returnPath === 'string' ? req.query.returnPath : '/'));
   authorizeUrl.searchParams.set('prompt', 'select_account');
 
   res.redirect(authorizeUrl.toString());
@@ -1822,7 +1845,8 @@ app.get('/auth/callback', async (req, res) => {
   if (!code) {
     return failWith('Microsoft did not return an authorization code.');
   }
-  if (!state || !verifyOAuthState(state)) {
+  const { valid: stateValid, returnPath } = verifyOAuthState(state);
+  if (!state || !stateValid) {
     return failWith('Your Microsoft 365 sign-in request expired or was invalid. Please try again.');
   }
 
@@ -1887,7 +1911,7 @@ app.get('/auth/callback', async (req, res) => {
     };
 
     const encodedUser = Buffer.from(JSON.stringify(user), 'utf8').toString('base64url');
-    res.redirect(`/#m365_sso=${encodedUser}`);
+    res.redirect(`${returnPath}#m365_sso=${encodedUser}`);
   } catch (err: any) {
     console.error('M365 SSO callback error:', err);
     failWith(err?.message || 'Unexpected error completing Microsoft 365 sign-in.');
