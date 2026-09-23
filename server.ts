@@ -1678,7 +1678,11 @@ function escapeHtml(value: unknown): string {
   }[ch] as string));
 }
 
-function buildBookingConfirmationEmail(booking: any, realHostLabel: string): { subject: string; html: string } {
+function buildBookingConfirmationEmail(
+  booking: any,
+  realHostLabel: string,
+  includeHostKey: boolean = true
+): { subject: string; html: string } {
   const zd = booking.zoomDetails || {};
   const subject = `Confirmed: ${booking.meetingTitle} — ${booking.date} at ${booking.timeSlot}`;
 
@@ -1692,7 +1696,7 @@ function buildBookingConfirmationEmail(booking: any, realHostLabel: string): { s
   const joinUrl = escapeHtml(zd.joinUrl || '');
   const meetingId = escapeHtml(zd.formattedMeetingId || zd.meetingId || '');
   const passcode = escapeHtml(zd.passcode || '');
-  const hostKey = escapeHtml(zd.hostKey || '');
+  const hostKey = includeHostKey ? escapeHtml(zd.hostKey || '') : '';
   // A nominated "Meeting Host" (booking-on-behalf-of) is whoever
   // zoomConfig.alternativeHosts actually resolved to, when that's someone
   // other than the booker themselves - the plain booker-as-alternative-host
@@ -2871,14 +2875,37 @@ app.post('/api/bookings', async (req, res) => {
 
     // Real confirmation email, sent AS the rotating Zoom account that
     // hosts this specific meeting (its real M365 mailbox), not a fixed
-    // sender - to the participant and every invitee, CC'ing the standing
-    // organizational list on every booking regardless of who made it.
-    const emailRecipients = [newBooking.participantEmail, ...(newBooking.guestEmails || [])].filter(Boolean);
-    const ccRecipients = ALWAYS_CC_EMAILS.filter(
-      (cc) => !emailRecipients.some((to) => to.toLowerCase() === cc.toLowerCase())
+    // sender. Split into two variants for the Host Key's sake: only the
+    // booker and an explicitly nominated meeting host (see the "Meeting
+    // Host" intake field) should be able to start the meeting directly, so
+    // only their copy includes the Host Key - every other invitee gets an
+    // otherwise-identical email without that section. The standing CC list
+    // still goes out on the host-key copy (they're internal staff, not
+    // external invitees).
+    const nominatedHost = newBooking.zoomConfig?.alternativeHosts;
+    const isNominatedHost =
+      nominatedHost && nominatedHost.toLowerCase() !== newBooking.participantEmail.toLowerCase();
+    const sensitiveRecipients = [newBooking.participantEmail, ...(isNominatedHost ? [nominatedHost] : [])];
+    const plainRecipients = (newBooking.guestEmails || []).filter(
+      (g: string) => !sensitiveRecipients.some((s) => s.toLowerCase() === g.toLowerCase())
     );
-    const { subject, html } = buildBookingConfirmationEmail(newBooking, realHostLabel);
-    const emailResult = await sendGraphMail(senderMailbox, emailRecipients, subject, html, ccRecipients);
+    const ccRecipients = ALWAYS_CC_EMAILS.filter(
+      (cc) => ![...sensitiveRecipients, ...plainRecipients].some((to) => to.toLowerCase() === cc.toLowerCase())
+    );
+
+    const { subject, html: hostKeyHtml } = buildBookingConfirmationEmail(newBooking, realHostLabel, true);
+    const sensitiveEmailResult = await sendGraphMail(senderMailbox, sensitiveRecipients, subject, hostKeyHtml, ccRecipients);
+
+    let plainEmailResult: { success: boolean; error?: string } = { success: true };
+    if (plainRecipients.length > 0) {
+      const { html: plainHtml } = buildBookingConfirmationEmail(newBooking, realHostLabel, false);
+      plainEmailResult = await sendGraphMail(senderMailbox, plainRecipients, subject, plainHtml);
+    }
+
+    const emailResult = {
+      success: sensitiveEmailResult.success && plainEmailResult.success,
+      error: [sensitiveEmailResult.error, plainEmailResult.error].filter(Boolean).join(' ') || undefined
+    };
     newBooking.reminders.emailSent = emailResult.success;
     if (emailResult.success) {
       newBooking.reminders.emailSentAt = new Date().toISOString();
