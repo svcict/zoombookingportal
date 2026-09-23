@@ -7,10 +7,10 @@ import { Cursor } from '../components/Cursor';
 import { AppShell } from '../components/AppShell';
 
 const DURATIONS = [
-  { pill: '30 mins', title: '30 minutes', desc: 'Standard 30-minute Zoom session for quick discussions and strategy checkpoints.', link: 'Zoom Video Call' },
-  { pill: '45 mins', title: '45 minutes', desc: 'Extended 45-minute technical review, demo, and detailed discussion.', link: 'Zoom Video Call' },
-  { pill: '1 hour (60 mins)', title: '1 hour', desc: 'Comprehensive 60-minute consultation, architecture workshop, and deep dive.', link: 'Zoom Video Call' },
-  { pill: '1 hr 30 mins+', title: 'More than 1 hour', desc: 'Specify custom hours and minutes for extended workshops and reviews.', link: 'Configure time' },
+  { pill: '30 mins', title: '30 minutes', desc: 'Fast, focused strategy consultation with screen-sharing capabilities.', link: 'Zoom Video Call' },
+  { pill: '45 mins', title: '45 minutes', desc: 'Extended technical breakdown, architecture review, and live demo.', link: 'Zoom Video Call' },
+  { pill: '1 hour (60 mins)', title: '1 hour', desc: 'Comprehensive consultation, workshop session, and interactive deep dive.', link: 'Zoom Video Call' },
+  { pill: '1 hr 30 mins+', title: 'More than 1 hour', desc: 'Custom duration session for extended team workshops and reviews.', link: 'Configure time' },
 ];
 
 const TIMES = ['8:00 AM', '8:30 AM', '9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM', '1:00 PM', '1:30 PM'];
@@ -28,12 +28,9 @@ export const Scene2SchedulePage: React.FC = () => {
     <AppShell activeTab="booking">
       <div style={{ padding: '32px 48px', display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Card style={{ padding: '20px 28px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: theme.gray700 }}>
-              <Video size={15} color={theme.blue} />
-              TOPIC *
-            </div>
-            <span style={{ fontSize: 11, color: theme.gray400, fontFamily: theme.mono }}>Auto-generates Zoom & Outlook title</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: theme.gray700, marginBottom: 10 }}>
+            <Video size={15} color={theme.blue} />
+            TOPIC *
           </div>
           <div style={{ background: '#FAFAFA', border: `1px solid ${theme.border}`, borderRadius: 10, padding: '12px 16px' }}>
             <TypedText text="Q4 Partnership Review" from={5} to={70} style={{ fontSize: 15, color: theme.gray900, fontWeight: 500 }} />
