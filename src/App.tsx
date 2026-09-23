@@ -91,6 +91,14 @@ export default function App() {
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
   const [bannerNotice, setBannerNotice] = useState<string | null>(null);
 
+  // Without this, navigating to a new view/step (e.g. the intake form to
+  // the confirmation screen, or dashboard to booking) kept whatever scroll
+  // position the previous, often-taller screen was left at - landing the
+  // user partway down the new page instead of at its top.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [bookingStep, currentView]);
+
   // Initial Load: Fetch Meeting Types, Bookings, M365 status, Hosts gracefully
   useEffect(() => {
     let isMounted = true;
