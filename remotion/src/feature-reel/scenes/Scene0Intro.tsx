@@ -1,11 +1,12 @@
 import React from 'react';
-import { Img, interpolate, staticFile, useCurrentFrame } from 'remotion';
+import { Img, interpolate, spring, staticFile, useCurrentFrame } from 'remotion';
 import { theme } from '../theme';
+import { FPS } from '../data';
 
 export const Scene0Intro: React.FC = () => {
   const frame = useCurrentFrame();
   const opacity = interpolate(frame, [0, 15, 70, 90], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-  const scale = interpolate(frame, [0, 20], [0.96, 1], { extrapolateRight: 'clamp' });
+  const scale = spring({ frame, fps: FPS, config: { damping: 14, mass: 0.6 } }) * 0.06 + 0.94;
 
   return (
     <div

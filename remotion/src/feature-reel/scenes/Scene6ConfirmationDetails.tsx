@@ -1,5 +1,5 @@
 import React from 'react';
-import { interpolate, useCurrentFrame } from 'remotion';
+import { interpolate, spring, useCurrentFrame } from 'remotion';
 import {
   Calendar,
   CalendarPlus,
@@ -19,6 +19,7 @@ import { theme } from '../theme';
 import { Card } from '../components/ui';
 import { Cursor } from '../components/Cursor';
 import { AppShell } from '../components/AppShell';
+import { FPS } from '../data';
 
 const CAL_OPTIONS = [
   { label: 'Apple Calendar', bg: '#1f2937', fg: '#fff', mark: null as string | null },
@@ -35,11 +36,19 @@ export const Scene6ConfirmationDetails: React.FC = () => {
   const frame = useCurrentFrame();
   const hostKeyRevealed = frame >= 100 && frame < 140;
   const calOpen = frame >= 175;
+  const cardPop = spring({ frame, fps: FPS, config: { damping: 13, mass: 0.6 } });
 
   return (
     <AppShell activeTab="booking">
       <div style={{ padding: '32px 56px', display: 'flex', justifyContent: 'center' }}>
-        <Card style={{ width: 900, overflow: 'visible', opacity: interpolate(frame, [0, 15], [0, 1], { extrapolateRight: 'clamp' }) }}>
+        <Card
+          style={{
+            width: 900,
+            overflow: 'visible',
+            opacity: interpolate(frame, [0, 15], [0, 1], { extrapolateRight: 'clamp' }),
+            transform: `scale(${0.97 + cardPop * 0.03})`,
+          }}
+        >
           <div
             style={{
               background: theme.blue,
@@ -119,6 +128,8 @@ export const Scene6ConfirmationDetails: React.FC = () => {
                     boxShadow: '0 16px 32px rgba(15,23,42,0.15)',
                     zIndex: 10,
                     opacity: interpolate(frame, [175, 183], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
+                    transform: `scale(${0.9 + spring({ frame: frame - 175, fps: FPS, config: { damping: 11, mass: 0.4 } }) * 0.1})`,
+                    transformOrigin: 'top left',
                   }}
                 >
                   {CAL_OPTIONS.map((opt, i) => (

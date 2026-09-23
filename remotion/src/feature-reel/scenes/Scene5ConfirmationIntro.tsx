@@ -1,9 +1,10 @@
 import React from 'react';
-import { interpolate, useCurrentFrame } from 'remotion';
+import { interpolate, spring, useCurrentFrame } from 'remotion';
 import { Bell, Check, Clock, Sparkles } from 'lucide-react';
 import { theme } from '../theme';
 import { Card } from '../components/ui';
 import { AppShell } from '../components/AppShell';
+import { FPS } from '../data';
 
 // Local 0-120: the top confirmation card exactly as the real app shows it —
 // checkmark, "You are scheduled!", big heading, countdown pill, and the
@@ -11,7 +12,7 @@ import { AppShell } from '../components/AppShell';
 // in the sandbox when no mailbox is configured, not a feature to show).
 export const Scene5ConfirmationIntro: React.FC = () => {
   const frame = useCurrentFrame();
-  const checkScale = interpolate(frame, [5, 20], [0.4, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const checkScale = spring({ frame: frame - 5, fps: FPS, config: { damping: 10, mass: 0.5 } });
   const enabled = frame >= 85;
 
   return (

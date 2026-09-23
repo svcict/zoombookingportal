@@ -3,6 +3,7 @@ import { AbsoluteFill, Sequence } from 'remotion';
 import { theme } from './theme';
 import { BEATS } from './data';
 import { Callout } from './components/Callout';
+import { BrowserChrome } from './components/BrowserChrome';
 import { Scene0Intro } from './scenes/Scene0Intro';
 import { Scene1SignIn } from './scenes/Scene1SignIn';
 import { Scene2SchedulePage } from './scenes/Scene2SchedulePage';
@@ -17,34 +18,36 @@ const seq = (beat: { from: number; to: number }) => ({ from: beat.from, duration
 export const BookingFeatureReel: React.FC = () => {
   return (
     <AbsoluteFill style={{ background: theme.page, fontFamily: theme.sans }}>
-      <Sequence {...seq(BEATS.intro)}>
-        <Scene0Intro />
-      </Sequence>
-      <Sequence {...seq(BEATS.signIn)}>
-        <Scene1SignIn />
-      </Sequence>
-      <Sequence {...seq(BEATS.schedulePage)}>
-        <Scene2SchedulePage />
-      </Sequence>
-      <Sequence {...seq(BEATS.intake)}>
-        <Scene4Intake />
-      </Sequence>
-      <Sequence {...seq(BEATS.confirmationIntro)}>
-        <Scene5ConfirmationIntro />
-      </Sequence>
-      <Sequence {...seq(BEATS.confirmationDetails)}>
-        <Scene6ConfirmationDetails />
-      </Sequence>
-      <Sequence {...seq(BEATS.manageCancel)}>
-        <Scene7ManageCancel />
-      </Sequence>
-      <Sequence {...seq(BEATS.outro)}>
-        <Scene10Outro />
-      </Sequence>
+      <BrowserChrome>
+        <Sequence {...seq(BEATS.intro)}>
+          <Scene0Intro />
+        </Sequence>
+        <Sequence {...seq(BEATS.signIn)}>
+          <Scene1SignIn />
+        </Sequence>
+        <Sequence {...seq(BEATS.schedulePage)}>
+          <Scene2SchedulePage />
+        </Sequence>
+        <Sequence {...seq(BEATS.intake)}>
+          <Scene4Intake />
+        </Sequence>
+        <Sequence {...seq(BEATS.confirmationIntro)}>
+          <Scene5ConfirmationIntro />
+        </Sequence>
+        <Sequence {...seq(BEATS.confirmationDetails)}>
+          <Scene6ConfirmationDetails />
+        </Sequence>
+        <Sequence {...seq(BEATS.manageCancel)}>
+          <Scene7ManageCancel />
+        </Sequence>
+        <Sequence {...seq(BEATS.outro)}>
+          <Scene10Outro />
+        </Sequence>
 
-      {/* Callout lives outside the per-scene Sequences so its useCurrentFrame()
-          reads the absolute timeline position, matching data.ts directly. */}
-      <Callout />
+        {/* Callout lives outside the per-scene Sequences so its useCurrentFrame()
+            reads the absolute timeline position, matching data.ts directly. */}
+        <Callout />
+      </BrowserChrome>
     </AbsoluteFill>
   );
 };
