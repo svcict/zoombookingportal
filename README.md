@@ -223,10 +223,10 @@ For each of the two Zoom accounts/licenses you want to rotate between, repeat th
    - `meeting:update:meeting`
    - `meeting:delete:meeting`
    - `user:read:user`
-   - `user:read:user:admin` (or whichever admin-level user-read scope Zoom
-     offers for your app type) — needed for the Host Key feature below;
-     `user:read:user` alone doesn't return it, since Zoom treats it as
-     sensitive.
+   - `user:read:settings:admin` (or `user:read:settings`) — needed for the
+     Host Key feature below. Confirmed via a live 400 error naming this
+     exact scope; `user:read:user` alone doesn't return it, since Zoom
+     treats it as sensitive.
 4. Activate the app. Zoom shows you an **Account ID**, **Client ID**, and **Client Secret** —
    copy all three.
 5. Note the Zoom user (email or user ID) under that account that should host the meetings —
@@ -265,10 +265,10 @@ This app now looks up that key for whichever rotating account hosts a meeting (`
 {userId}/settings`) and includes it, when found, in both the confirmation email and the booking
 confirmation screen, right next to the Meeting ID and Passcode.
 
-**Setup**: this needs the `user:read:user:admin` scope added above, admin-consented the same way
-as the other scopes. If it's missing (or the account simply has no host key set), the app doesn't
-error or show a blank value - it just omits the Host Key section entirely, exactly like the
-Meeting ID/Passcode section already behaves when a meeting falls back to mock data.
+**Setup**: this needs the `user:read:settings:admin` scope added above, admin-consented the same
+way as the other scopes. If it's missing (or the account simply has no host key set), the app
+doesn't error or show a blank value - it just omits the Host Key section entirely, exactly like
+the Meeting ID/Passcode section already behaves when a meeting falls back to mock data.
 
 **One caveat worth knowing**: the exact JSON field Zoom returns this under isn't fully pinned down
 from this codebase alone - the code checks a couple of plausible spots (`schedule_meeting.host_key`
