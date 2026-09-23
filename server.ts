@@ -26,6 +26,7 @@ import {
   getAccountLabel,
   getMaskedAccountId,
   getAccountAdminView,
+  getAccountHostKey,
   createZoomMeeting,
   updateZoomMeeting,
   deleteZoomMeeting,
@@ -1594,46 +1595,16 @@ async function getZoomAccountRealName(key: ZoomAccountKey): Promise<string | nul
 // rotating account that actually hosts a meeting - unlike Alternative Host,
 // this works for ANY participant regardless of license tier or which Zoom
 // account they're signed into, so it's the fallback for bookers who aren't
-// a Licensed seat on this org's Zoom account. Reading it needs an
-// admin-level scope Zoom gates specifically for this field (see README);
-// on any failure this returns null rather than guessing, so the
-// confirmation email/screen simply omits the section instead of showing a
-// blank or wrong key.
-const zoomHostKeyCache = new Map<ZoomAccountKey, { hostKey: string; fetchedAt: number }>();
-const ZOOM_HOST_KEY_CACHE_TTL_MS = 60 * 60 * 1000;
-
-async function getZoomAccountHostKey(key: ZoomAccountKey): Promise<string | null> {
-  const cached = zoomHostKeyCache.get(key);
-  if (cached && Date.now() - cached.fetchedAt < ZOOM_HOST_KEY_CACHE_TTL_MS) {
-    return cached.hostKey;
-  }
-  if (!isAccountConfigured(key)) return null;
-
-  try {
-    // Confirmed live: this is NOT on the /settings object at all (checked
-    // exhaustively across two rounds, including via custom_query_fields,
-    // on an account that DOES have a Host Key configured) - trying the
-    // plain user profile (GET /users/{userId}) instead, the same call
-    // already used for the real account display name. Whether the
-    // existing scope also surfaces host_key there, or a 4711-style error
-    // means yet another scope is needed, is what this next test confirms.
-    const result = await getZoomUserProfile(key);
-    const profile = result.data || {};
-    const hostKey = profile.host_key || null;
-    if (hostKey) {
-      zoomHostKeyCache.set(key, { hostKey: String(hostKey), fetchedAt: Date.now() });
-      return String(hostKey);
-    }
-    console.warn(
-      `[hostKey] No host_key field on GET /users/.../ profile for Zoom account ${key}, ` +
-      `even though a Host Key is confirmed set on this account. Top-level keys: ${Object.keys(profile).join(', ') || '(none)'}.`
-    );
-    return null;
-  } catch (err: any) {
-    console.error(`[hostKey] Failed to fetch profile for Zoom account ${key}: ${err?.message || err}`);
-    return null;
-  }
-}
+// a Licensed seat on this org's Zoom account.
+//
+// This is read from an env var (ZOOM_ACCOUNT_<key>_HOST_KEY), not fetched
+// live from Zoom - confirmed across 4 separate live attempts (GET
+// /users/{id}/settings, both default and via custom_query_fields, and GET
+// /users/{id} both with and without the user:read:user:admin scope) that
+// Zoom's REST API never returns this field even when it's set on the
+// account. It's a static PIN the account owner sets once in the Zoom web
+// portal (Profile > Host Key) and rarely changes, so configuring it
+// directly here is no less "real" than fetching it live would have been.
 
 // ----------------------------------------------------
 // REAL EMAIL SENDING - Microsoft Graph sendMail (app-only), sent AS
@@ -2833,7 +2804,7 @@ app.post('/api/bookings', async (req, res) => {
     // doesn't apply to them (external guest, or Basic/unlicensed seat).
     // null when it can't be read (missing scope, account doesn't have one
     // set, etc.) - never fabricated, so the email/screen just omits it.
-    const hostKey = zoomAccountKey ? await getZoomAccountHostKey(zoomAccountKey) : null;
+    const hostKey = zoomAccountKey ? getAccountHostKey(zoomAccountKey) : null;
     if (hostKey) zoomDetails.hostKey = hostKey;
 
     const newBooking = {
@@ -3209,13 +3180,14 @@ app.get('/api/admin/zoom/config', async (req, res) => {
 app.post('/api/admin/zoom/config', async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
 
-  const { accountKey, label, accountId, clientId, clientSecret, userId } = req.body as {
+  const { accountKey, label, accountId, clientId, clientSecret, userId, hostKey } = req.body as {
     accountKey?: string;
     label?: string;
     accountId?: string;
     clientId?: string;
     clientSecret?: string;
     userId?: string;
+    hostKey?: string;
   };
 
   if (accountKey !== 'A' && accountKey !== 'B') {
@@ -3230,6 +3202,10 @@ app.post('/api/admin/zoom/config', async (req, res) => {
   if (accountId !== undefined) keys[`${prefix}_ID`] = accountId;
   if (clientId !== undefined) keys[`${prefix}_CLIENT_ID`] = clientId;
   if (userId !== undefined) keys[`${prefix}_USER_ID`] = userId;
+  // Unlike the client secret, this isn't sensitive-write-only - it's shown
+  // back in the admin view, so an empty string here means "clear it", not
+  // "keep the existing one".
+  if (hostKey !== undefined) keys[`${prefix}_HOST_KEY`] = hostKey;
   // Blank/omitted secret means "keep the existing one" - never blank it out
   // just because the field was left empty in the edit form.
   if (clientSecret) keys[`${prefix}_CLIENT_SECRET`] = clientSecret;

@@ -223,10 +223,8 @@ For each of the two Zoom accounts/licenses you want to rotate between, repeat th
    - `meeting:update:meeting`
    - `meeting:delete:meeting`
    - `user:read:user`
-   - `user:read:settings:admin` (or `user:read:settings`) — was required to
-     even call `GET /users/{userId}/settings` (confirmed via a live 400
-     naming this exact scope), though that turned out not to be where the
-     Host Key lives (see below) — harmless to leave granted either way.
+   - Host Key does NOT need a scope here at all - see below, it's configured
+     directly in `.env` rather than read from the API.
 4. Activate the app. Zoom shows you an **Account ID**, **Client ID**, and **Client Secret** —
    copy all three.
 5. Note the Zoom user (email or user ID) under that account that should host the meetings —
@@ -261,22 +259,21 @@ participant with no host controls, which looks identical to a bug.
 Zoom's real fix for this is the account's **Host Key** - a personal PIN (Zoom web portal:
 **Profile > Host Key**) that *any* participant can enter via **Participants > Claim Host** during
 the meeting to become host, regardless of license tier or which Zoom account they're signed into.
-This app now looks up that key for whichever rotating account hosts a meeting and includes it,
-when found, in both the confirmation email and the booking confirmation screen, right next to the
-Meeting ID and Passcode.
+This app includes it, when configured, in both the confirmation email and the booking confirmation
+screen, right next to the Meeting ID and Passcode.
 
-**Setup**: nothing extra should be needed beyond the scopes already listed above - the lookup
-reuses the same `GET /users/{userId}` profile call already used to resolve the account's real
-display name. If it's missing (or the account simply has no host key set), the app doesn't error
-or show a blank value - it just omits the Host Key section entirely, exactly like the Meeting
-ID/Passcode section already behaves when a meeting falls back to mock data.
-
-**One caveat worth knowing**: the exact field name/location took two rounds of live testing to
-pin down. It's genuinely NOT on `GET /users/{userId}/settings` - checked exhaustively, including
-via `custom_query_fields`, against an account that does have a Host Key configured - so the code
-now reads `host_key` off the plain user profile (`GET /users/{userId}`) instead. If it still
-doesn't show up after that, check `[hostKey]` warnings in the server log (it dumps the actual
-response's top-level keys) and adjust `getZoomAccountHostKey` in `server.ts` to match.
+**Setup**: copy each rotating account's Host Key from its Zoom Profile page into `.env` -
+`ZOOM_ACCOUNT_A_HOST_KEY` / `ZOOM_ACCOUNT_B_HOST_KEY` - or set it from the **Zoom API Integration**
+admin page (pencil icon on an account card). It's read directly from config, not fetched from
+Zoom's API: four separate live attempts (`GET /users/{id}/settings` both unfiltered and via
+`custom_query_fields`, and `GET /users/{id}` both with and without the `user:read:user:admin`
+scope) all came back successful but with `host_key` absent from the response, even against an
+account confirmed to have one set - Zoom's REST API appears not to return this field at all under
+a Server-to-Server app, likely because it's treated the same as a password rather than a readable
+profile field. Since it's a static PIN the account owner sets once and rarely changes, configuring
+it directly is no less "real" than a live lookup would have been. Leave it blank and the app
+doesn't error or show a placeholder - it just omits the Host Key section entirely, same as the
+Meeting ID/Passcode section already behaves when a meeting falls back to mock data.
 
 ## Zoom Event Webhook Listener
 

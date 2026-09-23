@@ -20,6 +20,7 @@ interface ZoomAccountAdminView {
   accountId: string;
   clientId: string;
   userId: string;
+  hostKey: string;
   hasClientSecret: boolean;
   configured: boolean;
 }
@@ -29,7 +30,7 @@ interface ZoomApiIntegrationViewProps {
   authHeaders?: Record<string, string>;
 }
 
-const emptyAccountForm = { label: '', accountId: '', clientId: '', clientSecret: '', userId: '' };
+const emptyAccountForm = { label: '', accountId: '', clientId: '', clientSecret: '', userId: '', hostKey: '' };
 
 export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ adminEmail, authHeaders = {} }) => {
   const [config, setConfig] = useState<ZoomApiConfig | null>(null);
@@ -88,7 +89,8 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
       accountId: acct.accountId,
       clientId: acct.clientId,
       clientSecret: '',
-      userId: acct.userId
+      userId: acct.userId,
+      hostKey: acct.hostKey
     });
     setAccountNotice(null);
   };
@@ -317,7 +319,7 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
 
             <div className="space-y-3 text-xs">
               {(adminAccounts.length > 0 ? adminAccounts : (['A', 'B'] as const).map((key) => ({
-                key, label: `Zoom Account ${key}`, accountId: '', clientId: '', userId: '', hasClientSecret: false, configured: false
+                key, label: `Zoom Account ${key}`, accountId: '', clientId: '', userId: '', hostKey: '', hasClientSecret: false, configured: false
               }))).map((acct) => (
                 <div key={acct.key} className="p-3 bg-[#F7F9FA] rounded-xl border border-gray-200">
                   <div className="flex items-center justify-between mb-1.5">
@@ -380,6 +382,20 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
                         onChange={(e) => setAccountForm((f) => ({ ...f, userId: e.target.value }))}
                         className="w-full px-2.5 py-1.5 bg-white rounded-lg border border-gray-300 text-[11px] font-mono focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
                       />
+                      <div>
+                        <input
+                          type="text"
+                          placeholder="Host Key (Zoom Profile > Host Key - optional)"
+                          value={accountForm.hostKey}
+                          onChange={(e) => setAccountForm((f) => ({ ...f, hostKey: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 bg-white rounded-lg border border-gray-300 text-[11px] font-mono focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+                        />
+                        <p className="text-[10px] text-gray-400 mt-1">
+                          Zoom's API doesn't expose this field, so it's entered here manually - copy it from this
+                          account's Zoom Profile page. Included on bookings so anyone who can't use Alternative Host
+                          can Claim Host instead.
+                        </p>
+                      </div>
                       <div className="flex items-center gap-2 pt-1">
                         <button
                           type="button"

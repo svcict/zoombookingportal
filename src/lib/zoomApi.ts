@@ -46,12 +46,24 @@ export function getMaskedAccountId(key: ZoomAccountKey): string | null {
   return `${creds.accountId.slice(0, 4)}${'*'.repeat(Math.max(0, creds.accountId.length - 4))}`;
 }
 
+// The account's Host Key (Zoom web portal: Profile > Host Key) - a personal
+// PIN any participant can use via Participants > Claim Host to become host,
+// regardless of license tier. Confirmed live across 4 separate API attempts
+// (default + custom_query_fields on GET /users/{id}/settings, plus GET
+// /users/{id} with and without the user:read:user:admin scope) that Zoom's
+// REST API never returns this field, even when it's set on the account -
+// so it's configured directly here instead of fetched live.
+export function getAccountHostKey(key: ZoomAccountKey): string | null {
+  return process.env[`ZOOM_ACCOUNT_${key}_HOST_KEY`] || null;
+}
+
 export interface ZoomAccountAdminView {
   key: ZoomAccountKey;
   label: string;
   accountId: string;
   clientId: string;
   userId: string;
+  hostKey: string;
   hasClientSecret: boolean;
   configured: boolean;
 }
@@ -66,6 +78,7 @@ export function getAccountAdminView(key: ZoomAccountKey): ZoomAccountAdminView {
     accountId: process.env[`${prefix}_ID`] || '',
     clientId: process.env[`${prefix}_CLIENT_ID`] || '',
     userId: process.env[`${prefix}_USER_ID`] || '',
+    hostKey: process.env[`${prefix}_HOST_KEY`] || '',
     hasClientSecret: Boolean(process.env[`${prefix}_CLIENT_SECRET`]),
     configured: isAccountConfigured(key)
   };
@@ -231,14 +244,6 @@ export async function deleteZoomMeeting(key: ZoomAccountKey, meetingId: string) 
   return zoomRequest(key, 'DELETE', `/meetings/${encodeURIComponent(meetingId)}`);
 }
 
-// Also carries host_key - the personal PIN set on this Zoom account's
-// profile (Zoom web portal: Profile > Host Key). Any participant can use
-// it during the meeting (Participants > Claim Host) to become host,
-// regardless of license tier or which Zoom account they're signed into -
-// unlike alternative host, which only works for Licensed users on the
-// SAME Zoom account. Confirmed live: host_key is NOT on the /settings
-// endpoint (checked exhaustively, including via custom_query_fields, on
-// an account that does have one configured) - it's a plain field here.
 export async function getZoomUserProfile(key: ZoomAccountKey) {
   const creds = readCredentials(key);
   if (!creds) throw new Error(`Zoom account ${key} is not configured`);
