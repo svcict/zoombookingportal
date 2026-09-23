@@ -214,6 +214,15 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           </p>
         )}
 
+        {currentBooking.zoomConfig?.alternativeHosts &&
+          currentBooking.zoomConfig.alternativeHosts !== currentBooking.participantEmail && (
+            <p className="text-xs text-gray-500 mt-1.5">
+              <strong>{currentBooking.zoomConfig.alternativeHosts}</strong> was nominated as this
+              meeting's host - they've been added to the invitees below and sent the confirmation
+              email (with the Host Key, if Zoom won't let them start it directly).
+            </p>
+          )}
+
         {/* Meeting Countdown Bar */}
         <div className="mt-5 inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 text-[#0b5cff] border border-blue-200 rounded-full text-xs font-semibold">
           <Clock className="w-3.5 h-3.5" />
@@ -359,6 +368,14 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               )}
             </div>
           </div>
+
+          {currentBooking.zoomConfig?.alternativeHosts &&
+            currentBooking.zoomConfig.alternativeHosts !== currentBooking.participantEmail && (
+              <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
+                <span className="text-gray-500 font-medium">Meeting Host</span>
+                <span className="text-gray-900">{currentBooking.zoomConfig.alternativeHosts}</span>
+              </div>
+            )}
 
           <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
             <span className="text-gray-500 font-medium">Invitees</span>

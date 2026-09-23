@@ -1731,6 +1731,15 @@ function buildBookingConfirmationEmail(booking: any, realHostLabel: string): { s
   const meetingId = escapeHtml(zd.formattedMeetingId || zd.meetingId || '');
   const passcode = escapeHtml(zd.passcode || '');
   const hostKey = escapeHtml(zd.hostKey || '');
+  // A nominated "Meeting Host" (booking-on-behalf-of) is whoever
+  // zoomConfig.alternativeHosts actually resolved to, when that's someone
+  // other than the booker themselves - the plain booker-as-alternative-host
+  // default isn't worth calling out separately.
+  const nominatedHost = booking.zoomConfig?.alternativeHosts;
+  const nominatedHostLabel =
+    nominatedHost && nominatedHost.toLowerCase() !== String(booking.participantEmail || '').toLowerCase()
+      ? escapeHtml(nominatedHost)
+      : '';
 
   const dialInRows = (zd.dialInNumbers || [])
     .slice(0, 4)
@@ -1756,6 +1765,11 @@ function buildBookingConfirmationEmail(booking: any, realHostLabel: string): { s
           <td style="padding:6px 0;color:#6b7280;font-size:13px;">Host</td>
           <td style="padding:6px 0;color:#111827;font-size:13px;">${host}</td>
         </tr>
+        ${nominatedHostLabel ? `
+        <tr>
+          <td style="padding:6px 0;color:#6b7280;font-size:13px;">Meeting Host</td>
+          <td style="padding:6px 0;color:#111827;font-size:13px;">${nominatedHostLabel} <span style="color:#9a3412;font-size:11.5px;">(set as Zoom Alternative Host - see Host Key below if Zoom doesn't let them start directly)</span></td>
+        </tr>` : ''}
       </table>
 
       <a href="${joinUrl}" style="display:inline-block;background:#2D8CFF;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 28px;border-radius:8px;">Join Zoom Meeting</a>
