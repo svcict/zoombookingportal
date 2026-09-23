@@ -246,10 +246,20 @@ export async function getZoomUserProfile(key: ZoomAccountKey) {
 // to have granted an admin-level user-read scope (see README) - Zoom
 // treats the host key as sensitive and doesn't return it under the plain
 // user:read:user scope already used elsewhere in this app.
+//
+// Confirmed live (with the admin scope correctly granted): host_key is
+// still absent from schedule_meeting/feature/every other key in the
+// default response body - Zoom withholds sensitive fields like this one
+// unless explicitly requested via custom_query_fields, so it's asked for
+// by its documented dotted path here.
 export async function getZoomUserSettings(key: ZoomAccountKey) {
   const creds = readCredentials(key);
   if (!creds) throw new Error(`Zoom account ${key} is not configured`);
-  return zoomRequest(key, 'GET', `/users/${encodeURIComponent(creds.userId)}/settings`);
+  return zoomRequest(
+    key,
+    'GET',
+    `/users/${encodeURIComponent(creds.userId)}/settings?custom_query_fields=schedule_meeting.host_key`
+  );
 }
 
 export interface MappedZoomDetails {

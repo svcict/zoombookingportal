@@ -1627,15 +1627,17 @@ async function getZoomAccountHostKey(key: ZoomAccountKey): Promise<string | null
       zoomHostKeyCache.set(key, { hostKey: String(hostKey), fetchedAt: Date.now() });
       return String(hostKey);
     }
-    // None of the guessed spots had it - log what Zoom actually sent back
-    // (top-level keys, plus the schedule_meeting/feature sub-objects if
-    // present) so this can be fixed from server logs instead of guessing
-    // again blind.
+    // None of the guessed spots had it - log every sub-object's own keys
+    // (not just schedule_meeting/feature) so this can be fixed from server
+    // logs instead of guessing again blind.
+    const subObjectKeySummary = Object.entries(settings)
+      .filter(([, v]) => v && typeof v === 'object' && !Array.isArray(v))
+      .map(([k, v]) => `${k}: ${Object.keys(v as object).join(', ')}`)
+      .join(' | ');
     console.warn(
       `[hostKey] No host_key found in GET /users/.../settings for Zoom account ${key}. ` +
       `Top-level keys: ${Object.keys(settings).join(', ') || '(none)'}. ` +
-      `schedule_meeting keys: ${settings.schedule_meeting ? Object.keys(settings.schedule_meeting).join(', ') : '(missing)'}. ` +
-      `feature keys: ${settings.feature ? Object.keys(settings.feature).join(', ') : '(missing)'}.`
+      `Sub-object keys: ${subObjectKeySummary || '(none)'}.`
     );
     return null;
   } catch (err: any) {
