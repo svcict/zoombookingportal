@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { Booking, ZoomMeetingConfig } from '../types';
 import { downloadIcsFile, getOutlookWebCalendarUrl, getM365EnterpriseCalendarUrl, getGoogleCalendarUrl } from '../utils/calendar';
-import { enablePushNotifications } from '../utils/pushSubscription';
+import { enablePushNotifications, disablePushNotifications } from '../utils/pushSubscription';
 import { ZoomMeetingDetailsModal } from './ZoomMeetingDetailsModal';
 
 interface BookingConfirmationProps {
@@ -167,6 +167,11 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
     }
   };
 
+  const handleDisablePush = async () => {
+    await disablePushNotifications();
+    setPushState('idle');
+  };
+
   const copyInvitation = () => {
     const cfg = currentBooking.zoomConfig;
     const lines = [
@@ -250,6 +255,13 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
             <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-full text-xs font-semibold">
               <Bell className="w-3.5 h-3.5" />
               <span>Notifications enabled for this browser</span>
+              <button
+                type="button"
+                onClick={handleDisablePush}
+                className="ml-1 pl-2 border-l border-green-300 text-green-600 hover:text-green-800 hover:underline cursor-pointer"
+              >
+                Turn off
+              </button>
             </div>
           ) : (
             <button
