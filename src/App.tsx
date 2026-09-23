@@ -436,7 +436,7 @@ export default function App() {
               </div>
 
               {/* Scheduled Meetings (User sees own meetings; Admin sees all) */}
-              <div className="xl:col-span-2 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto">
+              <div className="xl:col-span-2 xl:sticky xl:top-24 xl:self-start">
                 <HostBookingsView
                   bookings={visibleBookings}
                   meetingTypes={meetingTypes}
