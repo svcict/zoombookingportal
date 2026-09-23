@@ -15,8 +15,9 @@ import zoomLogoImg from '../assets/images/zoom_logo.png';
 interface M365AuthGateProps {
   onAuthenticated: (user: M365User) => void;
   // 'admin' gives the /admin portal's login screen a visually distinct look
-  // (dark/purple instead of light/blue, different copy) so it's never
-  // mistaken for the regular staff sign-in, even before anyone signs in.
+  // (a decorative glow + copy differences, same blue accent as the rest of
+  // the app) so it's never mistaken for the regular staff sign-in, even
+  // before anyone signs in.
   variant?: 'staff' | 'admin';
 }
 
@@ -158,7 +159,7 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
       <div className="fixed inset-0 pointer-events-none overflow-hidden flex items-center justify-center">
         {isAdminVariant ? (
           <>
-            <div className="w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-3xl absolute -top-40 -left-40" />
+            <div className="w-[600px] h-[600px] bg-[#0b5cff]/5 rounded-full blur-3xl absolute -top-40 -left-40" />
             <div className="w-[500px] h-[500px] bg-fuchsia-500/5 rounded-full blur-3xl absolute -bottom-40 -right-40" />
           </>
         ) : (
@@ -172,10 +173,10 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
       <div className="w-full max-w-md relative z-10 space-y-4">
 
         {/* Sign In Card */}
-        <div className={`bg-white rounded-2xl shadow-xl overflow-hidden border ${isAdminVariant ? 'border-purple-200' : 'border-gray-200'}`}>
+        <div className={`bg-white rounded-2xl shadow-xl overflow-hidden border ${isAdminVariant ? 'border-blue-200' : 'border-gray-200'}`}>
 
           {/* Card Header */}
-          <div className={`p-6 sm:p-7 bg-white border-b ${isAdminVariant ? 'border-purple-100' : 'border-gray-100'}`}>
+          <div className={`p-6 sm:p-7 bg-white border-b ${isAdminVariant ? 'border-blue-100' : 'border-gray-100'}`}>
             <div className="flex items-center justify-between gap-3">
               {/* Ayala Foundation Logo */}
               <div className="flex items-center">
@@ -184,7 +185,7 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
 
               {/* Portal Badge */}
               {isAdminVariant ? (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 text-purple-700 rounded-full border border-purple-200 text-xs font-semibold shrink-0">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-[#0b5cff] rounded-full border border-blue-200 text-xs font-semibold shrink-0">
                   <ShieldCheck className="w-3 h-3" />
                   <span>Admin Portal</span>
                 </div>
@@ -258,7 +259,7 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
                 disabled={isIpBlocked || (isLockedOut && lockoutRemaining > 0) || isSsoLoading}
                 className={
                   isAdminVariant
-                    ? 'w-full py-2.5 px-4 rounded-xl border border-purple-200 bg-purple-50/60 hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed text-purple-800 font-semibold text-xs shadow-2xs transition-all flex items-center justify-center gap-2.5 cursor-pointer relative group'
+                    ? 'w-full py-2.5 px-4 rounded-xl border border-blue-200 bg-blue-50/60 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed text-[#0b5cff] font-semibold text-xs shadow-2xs transition-all flex items-center justify-center gap-2.5 cursor-pointer relative group'
                     : 'w-full py-2.5 px-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed text-gray-600 font-semibold text-xs shadow-2xs transition-all flex items-center justify-center gap-2.5 cursor-pointer relative group'
                 }
               >
@@ -270,7 +271,7 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
                 />
                 <span>Login using Microsoft 365</span>
                 {!m365Configured && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ml-1 ${isAdminVariant ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-600'}`}>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ml-1 ${isAdminVariant ? 'bg-blue-100 text-[#0b5cff]' : 'bg-gray-200 text-gray-600'}`}>
                     Unconfigured
                   </span>
                 )}
@@ -294,7 +295,7 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
               href="https://ayalafoundation.org/privacy-policy"
               target="_blank"
               rel="noopener noreferrer"
-              className={`font-medium hover:underline ${isAdminVariant ? 'text-purple-700' : 'text-[#0b5cff]'}`}
+              className="font-medium hover:underline text-[#0b5cff]"
             >
               Data Privacy Policy
             </a>

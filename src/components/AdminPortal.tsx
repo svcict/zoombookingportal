@@ -120,7 +120,7 @@ export default function AdminPortal() {
               <AyalaFoundationLogo height={28} width="auto" className="h-7" />
               <div className="h-5 w-[1px] bg-gray-300 mx-1 hidden sm:block" />
               <span className="font-semibold text-gray-700 hidden sm:inline text-sm">Admin Portal</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-[#0b5cff] border border-blue-200">
                 Admins Only
               </span>
             </div>
@@ -132,7 +132,7 @@ export default function AdminPortal() {
                   onClick={() => setCurrentView(item.id)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
                     currentView === item.id
-                      ? 'bg-purple-50 text-purple-700 font-semibold'
+                      ? 'bg-blue-50 text-[#0b5cff] font-semibold'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                   }`}
                 >
@@ -152,7 +152,7 @@ export default function AdminPortal() {
               <span className="hidden sm:inline">Booking Portal</span>
             </a>
             <div className="flex items-center gap-2">
-              <img src={authUser.avatar} alt={authUser.name} className="w-8 h-8 rounded-full object-cover ring-2 ring-purple-500/30" />
+              <img src={authUser.avatar} alt={authUser.name} className="w-8 h-8 rounded-full object-cover ring-2 ring-[#0b5cff]/30" />
               <button
                 type="button"
                 onClick={handleSignOut}
@@ -171,7 +171,7 @@ export default function AdminPortal() {
             <button
               key={item.id}
               onClick={() => setCurrentView(item.id)}
-              className={`py-1 px-2 rounded cursor-pointer ${currentView === item.id ? 'text-purple-700 font-bold' : 'text-gray-600'}`}
+              className={`py-1 px-2 rounded cursor-pointer ${currentView === item.id ? 'text-[#0b5cff] font-bold' : 'text-gray-600'}`}
             >
               {item.label}
             </button>

@@ -265,6 +265,14 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
       {isOpen && (
         <div className="p-6 space-y-6 animate-in fade-in duration-200">
 
+          {/* 0. LOADING STATE - shown while the initial config fetch is in flight */}
+          {isLoading && (
+            <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-500">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              Loading current Microsoft 365 configuration...
+            </div>
+          )}
+
           {/* 1. LIVE VALIDATOR BANNER (ACCURATE REAL STATUS, NO FAKE GREEN) */}
           {config.connected ? (
             /* ACTIVE & VERIFIED GREEN BANNER */
@@ -355,6 +363,36 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                   <span>{isPinging ? 'Connecting to Azure...' : 'Validate Live Connection'}</span>
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Ping Result Toast - transient feedback right after clicking Validate/Re-Validate,
+              distinct from the persistent banner above which reflects the last-saved config state */}
+          {pingResult && (
+            <div className={`p-3 rounded-xl text-xs font-semibold flex items-center justify-between animate-in fade-in slide-in-from-top-2 ${
+              pingResult.connected
+                ? 'bg-green-50 border border-green-200 text-green-900'
+                : 'bg-red-50 border border-red-200 text-red-900'
+            }`}>
+              <div className="flex items-center gap-2">
+                {pingResult.connected ? (
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 text-red-600" />
+                )}
+                <span>
+                  {pingResult.connected
+                    ? `Ping succeeded${pingResult.latencyMs ? ` in ${pingResult.latencyMs}ms` : ''}.`
+                    : (pingResult.message || 'Ping failed.')}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPingResult(null)}
+                className="text-current opacity-60 hover:opacity-100 cursor-pointer"
+              >
+                &times;
+              </button>
             </div>
           )}
 
@@ -664,7 +702,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
             >
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-purple-600" />
+                  <Globe className="w-3.5 h-3.5 text-[#0b5cff]" />
                   <span>Organization Tenant Domain</span>
                   <Info className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#0b5cff] cursor-help transition-colors" />
                 </label>
@@ -697,7 +735,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
               {/* Hover Information Popup */}
               {activeHoverField === 'MICROSOFT_ORGANIZATION_DOMAIN' && (
                 <div className="absolute left-0 bottom-full mb-2 w-80 bg-gray-900 text-white p-3.5 rounded-xl shadow-xl z-50 border border-gray-700 animate-in fade-in zoom-in-95 pointer-events-none">
-                  <div className="text-xs font-bold text-purple-400 mb-1 flex items-center gap-1.5">
+                  <div className="text-xs font-bold text-blue-400 mb-1 flex items-center gap-1.5">
                     <Globe className="w-3.5 h-3.5" />
                     {FIELD_TOOLTIPS.MICROSOFT_ORGANIZATION_DOMAIN.title}
                   </div>

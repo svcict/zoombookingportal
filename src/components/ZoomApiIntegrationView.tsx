@@ -258,7 +258,7 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
         <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Rotation Pool</span>
-            <Activity className="w-4 h-4 text-purple-500" />
+            <Activity className="w-4 h-4 text-[#0b5cff]" />
           </div>
           <div className="text-xl font-extrabold text-gray-900 mt-2 font-mono">
             {(config?.accounts || []).filter((a) => a.configured).length} / 2
@@ -462,7 +462,7 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
           <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Webhook className="w-4 h-4 text-purple-600" />
+                <Webhook className="w-4 h-4 text-[#0b5cff]" />
                 <h3 className="font-bold text-gray-900 text-sm">Zoom Event Webhook Listener</h3>
               </div>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${

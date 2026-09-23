@@ -216,11 +216,11 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
 
         {/* Permanently Blocked IPs */}
         <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0">
             <Ban className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-2xl font-black text-purple-900">{auditData.permanentlyBlockedIpsCount}</div>
+            <div className="text-2xl font-black text-red-900">{auditData.permanentlyBlockedIpsCount}</div>
             <div className="text-xs font-semibold text-gray-500">Permanently Blocked IPs</div>
           </div>
         </div>
@@ -285,7 +285,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
                       ) : limit.lockoutCycle === 1 ? (
                         <span className="text-amber-700 font-semibold">1st Lockout (1 Min)</span>
                       ) : limit.lockoutCycle > 1 ? (
-                        <span className="text-purple-700 font-semibold">Repeat Cycle {limit.lockoutCycle - 1} (3 Min)</span>
+                        <span className="text-[#0b5cff] font-semibold">Repeat Cycle {limit.lockoutCycle - 1} (3 Min)</span>
                       ) : (
                         <span className="text-gray-500">None</span>
                       )}

@@ -95,8 +95,8 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({ adminEmail, auth
       <div className="bg-white rounded-2xl p-6 sm:p-8 border border-gray-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1.5 max-w-2xl">
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-[#0b5cff] border border-blue-200 flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#0b5cff]" />
               Admin Users
             </span>
             <span className="text-xs text-gray-500 font-medium">Admin Exclusive Access</span>
@@ -211,7 +211,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({ adminEmail, auth
               .map((email) => (
                 <div key={email} className="flex items-center justify-between px-5 sm:px-6 py-3.5">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0b5cff] flex items-center justify-center">
                       <ShieldCheck className="w-4 h-4" />
                     </div>
                     <div className="text-sm font-bold text-gray-900">{email}</div>

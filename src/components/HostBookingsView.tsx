@@ -310,9 +310,7 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
               <h1 className="text-lg font-bold text-gray-900">
                 {isAdmin ? 'All Scheduled Zoom Meetings' : 'My Booked Meetings'}
               </h1>
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold shrink-0 ${
-                isAdmin ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-blue-50 text-[#0b5cff] border border-blue-100'
-              }`}>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold shrink-0 bg-blue-50 text-[#0b5cff] border border-blue-100">
                 {bookings.length} {isAdmin ? 'Total System' : 'Booked'}
               </span>
             </div>

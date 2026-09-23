@@ -230,7 +230,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                     <div className="py-2 space-y-2 text-xs text-gray-600">
                       <div className="p-2.5 bg-gray-50 rounded-xl text-[11px] space-y-1.5 border border-gray-100">
-                        <div><strong>Role:</strong> {authUser.role} {isAdmin && <span className="text-purple-600 font-bold">(Administrator)</span>}</div>
+                        <div><strong>Role:</strong> {authUser.role} {isAdmin && <span className="text-[#0b5cff] font-bold">(Administrator)</span>}</div>
                         <div><strong>Tenant:</strong> {authUser.tenantName}</div>
                       </div>
 
@@ -285,13 +285,13 @@ export const Header: React.FC<HeaderProps> = ({
                       {isAdmin && (
                         <a
                           href="/admin"
-                          className="w-full py-2 px-3 rounded-xl text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 flex items-center justify-between transition-colors cursor-pointer"
+                          className="w-full py-2 px-3 rounded-xl text-xs font-semibold text-[#0b5cff] bg-blue-50 hover:bg-blue-100 flex items-center justify-between transition-colors cursor-pointer"
                         >
                           <div className="flex items-center gap-1.5">
-                            <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+                            <ShieldCheck className="w-3.5 h-3.5 text-[#0b5cff]" />
                             <span>Open Admin Portal</span>
                           </div>
-                          <span className="text-[10px] bg-purple-200/70 text-purple-800 px-1.5 py-0.2 rounded font-bold">
+                          <span className="text-[10px] bg-blue-200/70 text-blue-800 px-1.5 py-0.2 rounded font-bold">
                             /admin
                           </span>
                         </a>
@@ -334,7 +334,7 @@ export const Header: React.FC<HeaderProps> = ({
             Schedule
           </button>
           {isAdmin && (
-            <a href="/admin" className="py-1 px-2 rounded cursor-pointer text-purple-600 font-bold">
+            <a href="/admin" className="py-1 px-2 rounded cursor-pointer text-[#0b5cff] font-bold">
               Admin Portal
             </a>
           )}
