@@ -10,6 +10,7 @@ import { HostBookingsView } from './components/HostBookingsView';
 import { M365SyncView } from './components/M365SyncView';
 import { ZoomApiIntegrationView } from './components/ZoomApiIntegrationView';
 import { AdminSecurityAuditView } from './components/AdminSecurityAuditView';
+import { AdminUsersView } from './components/AdminUsersView';
 import { TimezoneSelector } from './components/TimezoneSelector';
 import { Office365CalendarDashboard, DashboardWelcomeCard } from './components/Office365CalendarDashboard';
 import { ZoomMeetingDetailsModal } from './components/ZoomMeetingDetailsModal';
@@ -32,16 +33,10 @@ export default function App() {
     }
   });
 
-  // Role check: Admin vs Standard User
-  const isAdmin = useMemo(() => {
-    if (!authUser) return false;
-    return Boolean(
-      authUser.isAdmin ||
-      authUser.role?.toLowerCase().includes('admin') ||
-      authUser.email?.toLowerCase().includes('admin') ||
-      authUser.email === 'sarah.jenkins@zoompartner.com'
-    );
-  }, [authUser]);
+  // Role check: Admin vs Standard User - trusts only the server-verified
+  // flag issued at login (see resolveIdentity/isGrantedAdminEmail in
+  // server.ts), never a guess from the email or role string.
+  const isAdmin = useMemo(() => Boolean(authUser?.isAdmin), [authUser]);
 
   // Identity headers sent with every API request - Authorization carries the
   // Supabase session token the server actually verifies; X-User-Email is
@@ -49,7 +44,7 @@ export default function App() {
   const authHeaders = useMemo(() => buildAuthHeaders(authUser), [authUser]);
 
   // Navigation View State - Defaults to Office365 Dashboard when user logs in
-  const [currentView, setCurrentView] = useState<'dashboard' | 'booking' | 'm365' | 'zoom-api' | 'security-logs'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'booking' | 'm365' | 'zoom-api' | 'security-logs' | 'admin-users'>('dashboard');
 
   // Selected Booking for Detailed Modal inspection
   const [selectedBookingForDetails, setSelectedBookingForDetails] = useState<Booking | null>(null);
@@ -236,7 +231,7 @@ export default function App() {
 
   // Ensure non-admin users cannot access admin views
   useEffect(() => {
-    if (!isAdmin && (currentView === 'zoom-api' || currentView === 'm365')) {
+    if (!isAdmin && (currentView === 'zoom-api' || currentView === 'm365' || currentView === 'security-logs' || currentView === 'admin-users')) {
       setCurrentView('booking');
     }
   }, [isAdmin, currentView]);
@@ -645,6 +640,11 @@ export default function App() {
             adminEmail={authUser?.email}
             authHeaders={authHeaders}
           />
+        )}
+
+        {/* VIEW 6: ADMIN USERS - GRANT/REVOKE ADMIN ACCESS (Admin Only) */}
+        {currentView === 'admin-users' && isAdmin && (
+          <AdminUsersView adminEmail={authUser?.email} authHeaders={authHeaders} />
         )}
 
       </main>
