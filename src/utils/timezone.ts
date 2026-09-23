@@ -40,22 +40,6 @@ export function getDetectedTimezone(): string {
 }
 
 /**
- * Returns formatted time in a target timezone
- */
-export function formatTimeInTimezone(
-  date: Date | string | number,
-  timeZone: string,
-  options: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit', hour12: true }
-): string {
-  const d = typeof date === 'string' || typeof date === 'number' ? new Date(date) : date;
-  try {
-    return new Intl.DateTimeFormat('en-US', { ...options, timeZone }).format(d);
-  } catch (err) {
-    return new Intl.DateTimeFormat('en-US', options).format(d);
-  }
-}
-
-/**
  * Formats full date in a target timezone (e.g. "Tuesday, August 25, 2026")
  */
 export function formatDateInTimezone(
