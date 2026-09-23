@@ -98,19 +98,11 @@ const BookingCard: React.FC<BookingCardProps> = ({
               <Clock className="w-3.5 h-3.5" />
               {booking.timeSlot} ({booking.timezone.split('/')[1]?.replace('_', ' ') || booking.timezone})
             </span>
-            <span className="flex items-start flex-wrap gap-x-1 gap-y-0.5">
-              <span className="flex items-center gap-1 shrink-0">
-                <User className="w-3.5 h-3.5 text-gray-400" />
-                <span className="font-medium text-gray-900">{booking.participantName}</span>
-              </span>
-              <span className="text-gray-500 break-all">({booking.participantEmail})</span>
+            <span className="flex items-center gap-1 shrink-0">
+              <Video className="w-3.5 h-3.5 text-gray-400" />
+              <span className="text-gray-500">Hosted by</span>
+              <span className="font-medium text-gray-900">{booking.hostName}</span>
             </span>
-            {booking.participantCompany && (
-              <span className="flex items-center gap-1 text-gray-500">
-                <Building className="w-3.5 h-3.5 text-gray-400" />
-                {booking.participantCompany}
-              </span>
-            )}
           </div>
         </div>
       </div>
@@ -159,6 +151,24 @@ const BookingCard: React.FC<BookingCardProps> = ({
     {/* Expanded Details Strip */}
     {isExpanded && (
       <div className="px-5 pb-5 pt-3 border-t border-gray-100 bg-[#F7F9FA] space-y-4 text-xs animate-in fade-in duration-150">
+
+        {/* Booker Info */}
+        <div className="bg-white p-3.5 rounded-xl border border-gray-200 space-y-1.5">
+          <span className="text-gray-500 font-bold uppercase tracking-wider text-[10px]">Booked By</span>
+          <div className="flex items-start flex-wrap gap-x-1.5 gap-y-1 text-gray-900">
+            <span className="flex items-center gap-1 shrink-0 font-medium">
+              <User className="w-3.5 h-3.5 text-gray-400" />
+              {booking.participantName}
+            </span>
+            <span className="text-gray-500 break-all">({booking.participantEmail})</span>
+          </div>
+          {booking.participantCompany && (
+            <div className="flex items-center gap-1 text-gray-500">
+              <Building className="w-3.5 h-3.5 text-gray-400" />
+              {booking.participantCompany}
+            </div>
+          )}
+        </div>
 
         {/* Zoom Meeting Info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-3.5 rounded-xl border border-gray-200">
