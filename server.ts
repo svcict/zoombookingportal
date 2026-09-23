@@ -1621,14 +1621,25 @@ async function getZoomAccountHostKey(key: ZoomAccountKey): Promise<string | null
       settings.schedule_meeting?.host_key ||
       settings.feature?.host_key ||
       settings.host_key ||
+      settings.in_meeting?.host_key ||
       null;
     if (hostKey) {
       zoomHostKeyCache.set(key, { hostKey: String(hostKey), fetchedAt: Date.now() });
       return String(hostKey);
     }
+    // None of the guessed spots had it - log what Zoom actually sent back
+    // (top-level keys, plus the schedule_meeting/feature sub-objects if
+    // present) so this can be fixed from server logs instead of guessing
+    // again blind.
+    console.warn(
+      `[hostKey] No host_key found in GET /users/.../settings for Zoom account ${key}. ` +
+      `Top-level keys: ${Object.keys(settings).join(', ') || '(none)'}. ` +
+      `schedule_meeting keys: ${settings.schedule_meeting ? Object.keys(settings.schedule_meeting).join(', ') : '(missing)'}. ` +
+      `feature keys: ${settings.feature ? Object.keys(settings.feature).join(', ') : '(missing)'}.`
+    );
     return null;
-  } catch (err) {
-    console.error(`Failed to fetch host key for Zoom account ${key}:`, err);
+  } catch (err: any) {
+    console.error(`[hostKey] Failed to fetch settings for Zoom account ${key}: ${err?.message || err}`);
     return null;
   }
 }
