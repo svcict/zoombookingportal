@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Claude Code local tooling (skills, agent config) - not app code, not shared
+.claude/
+.agents/
+skills-lock.json
