@@ -97,14 +97,14 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   // the booker isn't the meeting host (one of the two rotating Zoom
   // accounts is), so choosing meeting security isn't theirs to set.
   const [passcode] = useState(() => generateDefaultPasscode());
-  const [waitingRoom, setWaitingRoom] = useState(true);
+  const [waitingRoom, setWaitingRoom] = useState(false);
   const [requireAuth, setRequireAuth] = useState(false);
   const [hostVideo, setHostVideo] = useState(true);
   const [participantVideo, setParticipantVideo] = useState(true);
   const [audioOption, setAudioOption] = useState<'telephone' | 'computer' | 'both' | 'third_party'>('both');
   const [joinAnytime, setJoinAnytime] = useState(false);
   const [muteOnEntry, setMuteOnEntry] = useState(true);
-  const [autoRecord, setAutoRecord] = useState(false);
+  const [autoRecord, setAutoRecord] = useState(true);
 
   const handleAddGuest = () => {
     if (!guestEmailInput.trim() || !guestEmailInput.includes('@')) return;
