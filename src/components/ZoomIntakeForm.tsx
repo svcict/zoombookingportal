@@ -31,6 +31,7 @@ type IntakeZoomConfig = Pick<
   | 'joinAnytime'
   | 'muteOnEntry'
   | 'autoRecord'
+  | 'alternativeHosts'
 >;
 
 // 10 characters: Zoom's meeting password field caps out at 10 characters,
@@ -80,6 +81,12 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   const email = authUser?.email || '';
   const [guestEmailInput, setGuestEmailInput] = useState('');
   const [guestEmails, setGuestEmails] = useState<string[]>([]);
+  // Optional: when booking on someone else's behalf, this person becomes
+  // the Zoom Alternative Host (instead of defaulting to the booker) and is
+  // added to the invitee list so they also receive the confirmation email
+  // - including the Host Key, in case they're not eligible for Alternative
+  // Host (e.g. a Basic/Workplace Basic seat) and need to "Claim Host" instead.
+  const [hostOnBehalfEmail, setHostOnBehalfEmail] = useState('');
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -134,6 +141,9 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
     if (!fullName.trim()) newErrors.fullName = 'Full name is required';
     if (!email.trim() || !email.includes('@')) newErrors.email = 'Valid work email is required';
     if (guestEmails.length === 0) newErrors.guestEmails = 'At least one invitee is required';
+    if (hostOnBehalfEmail.trim() && !hostOnBehalfEmail.includes('@')) {
+      newErrors.hostOnBehalfEmail = 'Enter a valid email address';
+    }
 
     // Validate required custom questions
     meetingType.customQuestions.forEach((q) => {
@@ -150,10 +160,16 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
     e.preventDefault();
     if (!validate()) return;
 
+    const trimmedHostOnBehalf = hostOnBehalfEmail.trim();
+    const finalGuestEmails =
+      trimmedHostOnBehalf && !guestEmails.some((g) => g.toLowerCase() === trimmedHostOnBehalf.toLowerCase())
+        ? [...guestEmails, trimmedHostOnBehalf]
+        : guestEmails;
+
     await onSubmit({
       participantName: fullName.trim(),
       participantEmail: email.trim(),
-      guestEmails,
+      guestEmails: finalGuestEmails,
       answers,
       notes: `Registered for Zoom session via Zoom Scheduler Portal. Host: ${meetingType.hostName}`,
       meetingTopic: topic.trim() || meetingType.title,
@@ -168,6 +184,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
         joinAnytime,
         muteOnEntry,
         autoRecord,
+        ...(trimmedHostOnBehalf ? { alternativeHosts: trimmedHostOnBehalf } : {}),
       },
     });
   };
@@ -355,6 +372,38 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
             </div>
           )}
           {errors.guestEmails && <p className="text-red-500 text-xs mt-2">{errors.guestEmails}</p>}
+        </div>
+
+        {/* Section: Booking on someone else's behalf */}
+        <div className="pt-4 border-t border-gray-100">
+          <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
+            Meeting Host <span className="text-gray-400 normal-case font-normal">(optional)</span>
+          </label>
+          <p className="text-xs text-gray-400 mb-2">
+            Booking on someone else&apos;s behalf? Enter their email and they&apos;ll be set as the Zoom
+            Alternative Host and included on the confirmation email - with the Host Key, in case Zoom
+            doesn&apos;t let them start as host directly.
+          </p>
+          <div className="relative">
+            <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="email"
+              value={hostOnBehalfEmail}
+              onChange={(e) => {
+                setHostOnBehalfEmail(e.target.value);
+                if (errors.hostOnBehalfEmail) {
+                  setErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.hostOnBehalfEmail;
+                    return next;
+                  });
+                }
+              }}
+              placeholder="boss@company.com"
+              className="w-full pl-10 pr-4 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+            />
+          </div>
+          {errors.hostOnBehalfEmail && <p className="text-red-500 text-xs mt-2">{errors.hostOnBehalfEmail}</p>}
         </div>
 
         {/* Section: Custom Host Intake Questions */}
