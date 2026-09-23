@@ -1583,11 +1583,22 @@ async function getZoomAccountRealName(key: ZoomAccountKey): Promise<string | nul
 // this codebase. Without it, sendGraphMail fails with a permission error,
 // which is surfaced honestly via reminders.emailError rather than a fake
 // emailSent: true.
+
+// CC'd on every real Zoom booking confirmation email and Outlook calendar
+// invite (as optional attendees), regardless of who booked - a standing
+// organizational requirement, not something the booker/booking configures.
+const ALWAYS_CC_EMAILS = [
+  'quinto.ag@ayalafoundation.org',
+  'caniedo.wg@ayalafoundation.org',
+  'asticom.delrosariojm@ayalafoundation.org'
+];
+
 async function sendGraphMail(
   fromMailbox: string,
   toEmails: string[],
   subject: string,
-  htmlBody: string
+  htmlBody: string,
+  ccEmails: string[] = []
 ): Promise<{ success: boolean; error?: string }> {
   if (!fromMailbox) return { success: false, error: 'No sending mailbox configured for this Zoom account.' };
   if (toEmails.length === 0) return { success: false, error: 'No recipients to send to.' };
@@ -1606,7 +1617,10 @@ async function sendGraphMail(
         message: {
           subject,
           body: { contentType: 'HTML', content: htmlBody },
-          toRecipients: toEmails.map((email) => ({ emailAddress: { address: email } }))
+          toRecipients: toEmails.map((email) => ({ emailAddress: { address: email } })),
+          ...(ccEmails.length > 0
+            ? { ccRecipients: ccEmails.map((email) => ({ emailAddress: { address: email } })) }
+            : {})
         },
         saveToSentItems: true
       })
@@ -1723,9 +1737,15 @@ async function createGraphCalendarEvent(mailbox: string, booking: any): Promise<
   if (!token) return { success: false, error: 'Microsoft Graph is not configured (missing tenant/client credentials).' };
 
   const zd = booking.zoomDetails || {};
-  const attendees = [booking.participantEmail, ...(booking.guestEmails || [])]
-    .filter(Boolean)
-    .map((email: string) => ({ emailAddress: { address: email }, type: 'required' }));
+  const requiredEmails: string[] = [booking.participantEmail, ...(booking.guestEmails || [])].filter(Boolean);
+  const attendees = [
+    ...requiredEmails.map((email) => ({ emailAddress: { address: email }, type: 'required' })),
+    // CC equivalent for a calendar invite - "optional" attendees still get
+    // the real Outlook invite and see the meeting, just not marked required.
+    ...ALWAYS_CC_EMAILS.filter(
+      (cc) => !requiredEmails.some((req) => req.toLowerCase() === cc.toLowerCase())
+    ).map((email) => ({ emailAddress: { address: email }, type: 'optional' }))
+  ];
 
   try {
     const res = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(mailbox)}/events`, {
@@ -2788,10 +2808,14 @@ app.post('/api/bookings', async (req, res) => {
 
     // Real confirmation email, sent AS the rotating Zoom account that
     // hosts this specific meeting (its real M365 mailbox), not a fixed
-    // sender - to the participant and every invitee.
+    // sender - to the participant and every invitee, CC'ing the standing
+    // organizational list on every booking regardless of who made it.
     const emailRecipients = [newBooking.participantEmail, ...(newBooking.guestEmails || [])].filter(Boolean);
+    const ccRecipients = ALWAYS_CC_EMAILS.filter(
+      (cc) => !emailRecipients.some((to) => to.toLowerCase() === cc.toLowerCase())
+    );
     const { subject, html } = buildBookingConfirmationEmail(newBooking, realHostLabel);
-    const emailResult = await sendGraphMail(senderMailbox, emailRecipients, subject, html);
+    const emailResult = await sendGraphMail(senderMailbox, emailRecipients, subject, html, ccRecipients);
     newBooking.reminders.emailSent = emailResult.success;
     if (emailResult.success) {
       newBooking.reminders.emailSentAt = new Date().toISOString();
