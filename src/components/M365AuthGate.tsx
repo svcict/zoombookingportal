@@ -358,15 +358,18 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
 
         </div>
 
-        {/* Security & Authentication Footnote - reflects what's actually
-            configured, rather than always claiming Supabase regardless of
-            whether it's set up or the user is signing in via M365 SSO. */}
-        <div className="flex items-center justify-center gap-1.5 text-xs text-center text-gray-600">
-          <ShieldCheck className={`w-3.5 h-3.5 shrink-0 ${isAdminVariant ? 'text-purple-600' : 'text-emerald-600'}`} />
+        {/* Footer: copyright + privacy policy link */}
+        <div className="flex items-center justify-center gap-1.5 text-xs text-center text-gray-500">
           <span>
-            Brute-force Protected
-            {supabaseConfigured && ' • Supabase Database Authentication'}
-            {m365Configured && ' • Microsoft Entra ID SSO'}
+            © {new Date().getFullYear()} Ayala Foundation, Inc. |{' '}
+            <a
+              href="https://ayalafoundation.org/privacy-policy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`font-medium hover:underline ${isAdminVariant ? 'text-purple-700' : 'text-[#0b5cff]'}`}
+            >
+              Data Privacy Policy
+            </a>
           </span>
         </div>
 
