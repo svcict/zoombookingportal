@@ -4,6 +4,7 @@ import { ArrowLeft, Mail, ShieldCheck, User, Video } from 'lucide-react';
 import { theme } from '../theme';
 import { Card, Chip, PrimaryButton, TypedText } from '../components/ui';
 import { AppShell } from '../components/AppShell';
+import { Cursor } from '../components/Cursor';
 
 // Local 0-150: the real intake form — dark ribbon header, contact info,
 // invitees, meeting host nomination, agenda, and Zoom settings (checkboxes/
@@ -145,6 +146,16 @@ export const Scene4Intake: React.FC = () => {
           </Card>
         </div>
       </div>
+
+      <Cursor
+        keyframes={[
+          { frame: 20, x: 960, y: 648 },
+          { frame: 60, x: 960, y: 648 },
+          { frame: 120, x: 1185, y: 920 },
+          { frame: 149, x: 1185, y: 920 },
+        ]}
+        clicks={[149]}
+      />
     </AppShell>
   );
 };

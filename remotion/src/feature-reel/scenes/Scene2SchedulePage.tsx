@@ -201,10 +201,10 @@ export const Scene2SchedulePage: React.FC = () => {
 
       <Cursor
         keyframes={[
-          { frame: 90, x: 700, y: 470 },
-          { frame: 150, x: 1300, y: 700 },
-          { frame: 250, x: 1300, y: 540 },
-          { frame: 268, x: 1300, y: 480 },
+          { frame: 90, x: 400, y: 350 },
+          { frame: 170, x: 900, y: 500 },
+          { frame: 240, x: 828, y: 650 },
+          { frame: 268, x: 828, y: 625 },
         ]}
         clicks={[268]}
       />

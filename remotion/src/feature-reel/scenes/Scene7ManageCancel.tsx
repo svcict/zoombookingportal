@@ -150,7 +150,15 @@ export const Scene7ManageCancel: React.FC = () => {
         </div>
       </div>
 
-      <Cursor keyframes={[{ frame: 30, x: 1580, y: 470 }, { frame: 60, x: 1580, y: 470 }, { frame: 130, x: 1300, y: 780 }]} clicks={[60, 138]} />
+      <Cursor
+        keyframes={[
+          { frame: 20, x: 1600, y: 250 },
+          { frame: 60, x: 1825, y: 293 },
+          { frame: 100, x: 1825, y: 400 },
+          { frame: 138, x: 1785, y: 555 },
+        ]}
+        clicks={[60, 138]}
+      />
     </AppShell>
   );
 };

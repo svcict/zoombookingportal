@@ -102,8 +102,8 @@ export const Scene1SignIn: React.FC = () => {
       <Cursor
         keyframes={[
           { frame: 0, x: 960, y: 900 },
-          { frame: 30, x: 960, y: 780 },
-          { frame: 38, x: 960, y: 720 },
+          { frame: 30, x: 960, y: 760 },
+          { frame: 38, x: 960, y: 630 },
         ]}
         clicks={[38]}
       />

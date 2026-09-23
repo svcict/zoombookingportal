@@ -184,7 +184,7 @@ export const Scene6ConfirmationDetails: React.FC = () => {
         </Card>
       </div>
 
-      <Cursor keyframes={[{ frame: 90, x: 785, y: 500 }, { frame: 175, x: 785, y: 496 }]} clicks={[175]} />
+      <Cursor keyframes={[{ frame: 90, x: 785, y: 520 }, { frame: 175, x: 770, y: 511 }]} clicks={[175]} />
     </AppShell>
   );
 };
