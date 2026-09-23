@@ -200,11 +200,6 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           )}
         </p>
 
-        {currentBooking.m365SyncStatus === 'synced' && (
-          <p className="text-xs text-emerald-700 mt-1.5">
-            A real Outlook calendar invite was also created for this meeting.
-          </p>
-        )}
         {currentBooking.m365SyncStatus === 'failed' && (
           <p className="text-xs text-amber-700 mt-1.5">
             The Outlook calendar invite could not be created{currentBooking.m365SyncError ? `: ${currentBooking.m365SyncError}` : '.'}
