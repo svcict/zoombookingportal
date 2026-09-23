@@ -1,0 +1,25 @@
+// Dark-mode SaaS palette: Slate base, Indigo accent — matches the intent of
+// the real app's blue/indigo UI, adapted for a HUD-heavy technical video.
+export const theme = {
+  bg: '#0b1120',
+  bgGradientTo: '#0f172a',
+  panel: 'rgba(15, 23, 42, 0.92)',
+  panelSolid: '#0f172a',
+  panelAlt: '#111827',
+  border: '#1e293b',
+  borderLight: '#334155',
+  text: '#e2e8f0',
+  textDim: '#94a3b8',
+  textFaint: '#64748b',
+  indigo: '#6366f1',
+  indigoLight: '#818cf8',
+  indigoDark: '#3730a3',
+  green: '#22c55e',
+  greenDim: 'rgba(34, 197, 94, 0.15)',
+  red: '#ef4444',
+  redDim: 'rgba(239, 68, 68, 0.15)',
+  amber: '#f59e0b',
+  amberDim: 'rgba(245, 158, 11, 0.15)',
+  mono: `'SFMono-Regular', ui-monospace, Menlo, Consolas, monospace`,
+  sans: `-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`,
+} as const;
