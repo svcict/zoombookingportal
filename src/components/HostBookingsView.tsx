@@ -1,23 +1,19 @@
 import React, { useState } from 'react';
-import { 
-  Video, 
-  Calendar, 
-  Clock, 
-  User, 
-  Mail, 
-  Phone, 
-  Building, 
-  CheckCircle2, 
-  XCircle, 
-  ExternalLink, 
-  Copy, 
-  Check, 
-  Search, 
-  Filter, 
+import {
+  Video,
+  Calendar,
+  Clock,
+  User,
+  Building,
+  CheckCircle2,
+  XCircle,
+  ExternalLink,
+  Copy,
+  Check,
+  Search,
   Trash2,
   ChevronDown,
   ChevronUp,
-  Shield,
   Layers
 } from 'lucide-react';
 import { Booking, MeetingType } from '../types';
@@ -28,7 +24,6 @@ interface HostBookingsViewProps {
   isAdmin?: boolean;
   onCancelBooking: (id: string) => Promise<void>;
   onCancelAllMine?: () => Promise<void>;
-  onSelectBookingForDetails?: (booking: Booking) => void;
   onNavigateToSchedule?: () => void;
 }
 
@@ -38,7 +33,6 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
   isAdmin = false,
   onCancelBooking,
   onCancelAllMine,
-  onSelectBookingForDetails,
   onNavigateToSchedule,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');

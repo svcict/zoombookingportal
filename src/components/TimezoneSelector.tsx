@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Globe, Check, X, Clock } from 'lucide-react';
 import { getTimezoneOptions } from '../utils/timezone';
-import { TimezoneOption } from '../types';
 
 interface TimezoneSelectorProps {
   isOpen: boolean;

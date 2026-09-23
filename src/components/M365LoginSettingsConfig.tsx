@@ -11,17 +11,12 @@ import {
   RefreshCw, 
   Copy, 
   Check, 
-  Eye, 
-  EyeOff, 
-  FileCode, 
-  ExternalLink, 
-  Lock, 
-  Globe, 
-  Mail, 
-  Sparkles,
-  Server,
-  Zap,
-  XCircle
+  Eye,
+  EyeOff,
+  FileCode,
+  Lock,
+  Globe,
+  Zap
 } from 'lucide-react';
 import { M365SettingsConfig } from '../types';
 
@@ -165,7 +160,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
   // to write to .env on every pause, which the dev server's file watcher
   // picks up as an env change and forces a full page reload for - typing
   // would keep getting interrupted by the page reloading itself.
-  const handleFieldChange = (keyName: string, fieldStateProp: keyof M365SettingsConfig, value: string) => {
+  const handleFieldChange = (fieldStateProp: keyof M365SettingsConfig, value: string) => {
     setConfig(prev => ({
       ...prev,
       [fieldStateProp]: value
@@ -403,7 +398,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
               <input
                 type="text"
                 value={config.tenantId}
-                onChange={(e) => handleFieldChange('MICROSOFT_TENANT_ID', 'tenantId', e.target.value)}
+                onChange={(e) => handleFieldChange('tenantId', e.target.value)}
                 placeholder="e.g. 72f988bf-86f1-41af-91ab-2d7cd011db47"
                 className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0b5cff] focus:border-[#0b5cff] transition-all shadow-2xs"
               />
@@ -461,7 +456,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
               <input
                 type="text"
                 value={config.clientId}
-                onChange={(e) => handleFieldChange('MICROSOFT_CLIENT_ID', 'clientId', e.target.value)}
+                onChange={(e) => handleFieldChange('clientId', e.target.value)}
                 placeholder="e.g. 04b07795-8ddb-461a-bbee-02f9e1bf7b46"
                 className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0b5cff] focus:border-[#0b5cff] transition-all shadow-2xs"
               />
@@ -518,7 +513,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                 <input
                   type={showSecret ? 'text' : 'password'}
                   value={config.clientSecret}
-                  onChange={(e) => handleFieldChange('MICROSOFT_CLIENT_SECRET', 'clientSecret', e.target.value)}
+                  onChange={(e) => handleFieldChange('clientSecret', e.target.value)}
                   placeholder="Enter your Azure client secret"
                   className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0b5cff] focus:border-[#0b5cff] transition-all shadow-2xs"
                 />
@@ -575,7 +570,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
               <input
                 type="text"
                 value={config.redirectUri}
-                onChange={(e) => handleFieldChange('MICROSOFT_REDIRECT_URI', 'redirectUri', e.target.value)}
+                onChange={(e) => handleFieldChange('redirectUri', e.target.value)}
                 placeholder="https://your-domain.com/auth/callback"
                 className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0b5cff] focus:border-[#0b5cff] transition-all shadow-2xs"
               />
@@ -631,7 +626,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
               <input
                 type="text"
                 value={config.scopes}
-                onChange={(e) => handleFieldChange('MICROSOFT_GRAPH_SCOPES', 'scopes', e.target.value)}
+                onChange={(e) => handleFieldChange('scopes', e.target.value)}
                 placeholder="User.Read Calendars.ReadWrite Mail.Send offline_access"
                 className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0b5cff] focus:border-[#0b5cff] transition-all shadow-2xs"
               />
@@ -686,7 +681,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
               <input
                 type="text"
                 value={config.orgDomain}
-                onChange={(e) => handleFieldChange('MICROSOFT_ORGANIZATION_DOMAIN', 'orgDomain', e.target.value)}
+                onChange={(e) => handleFieldChange('orgDomain', e.target.value)}
                 placeholder="e.g. ayalafoundation.org"
                 className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0b5cff] focus:border-[#0b5cff] transition-all shadow-2xs"
               />

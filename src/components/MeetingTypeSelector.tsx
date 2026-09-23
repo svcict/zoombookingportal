@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, Globe, ChevronRight, Check, X, Timer, Sliders, Edit2 } from 'lucide-react';
+import { Clock, Globe, ChevronRight, Check, X, Timer, Sliders } from 'lucide-react';
 import { MeetingType } from '../types';
 
 interface MeetingTypeSelectorProps {

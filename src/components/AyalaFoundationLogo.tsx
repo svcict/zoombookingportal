@@ -5,14 +5,12 @@ interface AyalaFoundationLogoProps {
   className?: string;
   height?: number | string;
   width?: number | string;
-  showText?: boolean;
 }
 
 export const AyalaFoundationLogo: React.FC<AyalaFoundationLogoProps> = ({
   className = '',
   height = 80,
   width = 200,
-  showText = true,
 }) => {
   return (
     <div className={`inline-flex items-center ${className}`}>

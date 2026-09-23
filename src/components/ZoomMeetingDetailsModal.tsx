@@ -1,19 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  X, 
-  Info, 
-  Plus, 
-  Paperclip, 
-  ChevronDown, 
-  ChevronUp, 
-  Check, 
-  Lock, 
-  Video, 
-  Mic, 
-  Calendar, 
-  FileText, 
-  ShieldCheck,
-  Save,
+import {
+  X,
+  Info,
+  Plus,
+  Paperclip,
+  ChevronDown,
   CheckCircle2
 } from 'lucide-react';
 import { Booking, ZoomMeetingConfig } from '../types';

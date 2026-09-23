@@ -1,19 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Calendar as CalendarIcon, 
-  ChevronLeft, 
-  ChevronRight, 
-  Video, 
-  Clock, 
-  Plus, 
-  CheckCircle2, 
-  ExternalLink, 
-  User, 
-  Users, 
-  Lock,
-  Layers,
-  Info,
-  CalendarCheck,
+import {
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
+  Video,
+  Plus,
+  ExternalLink,
   CalendarDays,
   CalendarRange
 } from 'lucide-react';
@@ -34,7 +26,6 @@ interface Office365CalendarDashboardProps {
   onNavigateToSchedule?: () => void;
   onScheduleMeeting?: () => void;
   onSelectBookingForDetails: (booking: Booking) => void;
-  onRefreshCalendar?: () => Promise<void>;
   selectedTimezone?: string;
   userEmail?: string;
   userName?: string;
@@ -114,13 +105,11 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
   onNavigateToSchedule,
   onScheduleMeeting,
   onSelectBookingForDetails,
-  onRefreshCalendar,
   selectedTimezone = 'UTC+08:00 (Asia/Manila)',
   userEmail,
   userName,
   hideWelcomeCard = false,
 }) => {
-  const accountEmail = authUser?.email || userEmail || m365State?.accountEmail || 'buhatar@gmail.com';
   const accountName = authUser?.name || userName || 'Authorized User';
 
   const handleSchedule = () => {

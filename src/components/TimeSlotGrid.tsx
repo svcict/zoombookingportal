@@ -1,12 +1,11 @@
 import React from 'react';
-import { Clock, Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Clock, Sparkles, ArrowRight } from 'lucide-react';
 import { TimeSlot } from '../types';
 
 interface TimeSlotGridProps {
   slots: TimeSlot[];
   selectedSlot: TimeSlot | null;
   onSelectSlot: (slot: TimeSlot) => void;
-  selectedDate: string;
   formattedDate: string;
   selectedTimezone: string;
   isLoading?: boolean;
@@ -16,7 +15,6 @@ export const TimeSlotGrid: React.FC<TimeSlotGridProps> = ({
   slots,
   selectedSlot,
   onSelectSlot,
-  selectedDate,
   formattedDate,
   selectedTimezone,
   isLoading = false,

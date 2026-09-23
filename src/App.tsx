@@ -10,13 +10,13 @@ import { HostBookingsView } from './components/HostBookingsView';
 import { TimezoneSelector } from './components/TimezoneSelector';
 import { Office365CalendarDashboard, DashboardWelcomeCard } from './components/Office365CalendarDashboard';
 import { ZoomMeetingDetailsModal } from './components/ZoomMeetingDetailsModal';
-import { MeetingType, TimeSlot, Booking, M365CalendarState, M365User, HostAccount, ZoomMeetingConfig } from './types';
+import { MeetingType, TimeSlot, Booking, M365CalendarState, M365User, HostAccount } from './types';
 import { INITIAL_MEETING_TYPES, INITIAL_HOST_ACCOUNTS, INITIAL_M365_STATE } from './data/initialData';
 import { generateLocalAvailabilitySlots } from './utils/availability';
 import { getDetectedTimezone, formatDateInTimezone } from './utils/timezone';
 import { playZoomNotificationSound, sendBrowserPushNotification } from './utils/notifications';
 import { buildAuthHeaders } from './utils/auth';
-import { Video, ShieldCheck, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
+import { Video, Sparkles } from 'lucide-react';
 
 export default function App() {
   // 1. M365 Authentication State
@@ -77,7 +77,6 @@ export default function App() {
       date: initialDateStr,
       selectedAccountId: 'all',
       bookings: [],
-      syncEnabled: true,
       timezone: selectedTimezone
     });
     return initial.slots;
@@ -203,7 +202,6 @@ export default function App() {
       date: selectedDate,
       selectedAccountId,
       bookings,
-      syncEnabled: m365State.syncEnabled,
       timezone: selectedTimezone
     });
 
@@ -382,7 +380,6 @@ export default function App() {
             setSelectedSlot(null);
           }
         }}
-        m365State={m365State}
         authUser={authUser}
         onSignOut={handleSignOut}
         selectedTimezone={selectedTimezone}
@@ -446,7 +443,6 @@ export default function App() {
                   isAdmin={isAdmin}
                   onCancelBooking={handleCancelBooking}
                   onCancelAllMine={handleCancelAllMine}
-                  onSelectBookingForDetails={(booking) => setSelectedBookingForDetails(booking)}
                   onNavigateToSchedule={() => setCurrentView('booking')}
                 />
               </div>
@@ -541,7 +537,6 @@ export default function App() {
                       slots={slots}
                       selectedSlot={selectedSlot}
                       onSelectSlot={handleSelectSlot}
-                      selectedDate={selectedDate}
                       formattedDate={formattedDateStr}
                       selectedTimezone={selectedTimezone}
                       isLoading={isLoadingSlots}
@@ -558,8 +553,6 @@ export default function App() {
               <ZoomIntakeForm
                 meetingType={selectedMeetingType}
                 meetingTopic={meetingTopic || selectedMeetingType.title}
-                onUpdateMeetingTopic={(t) => setMeetingTopic(t)}
-                selectedDate={selectedDate}
                 formattedDate={formattedDateStr}
                 selectedSlot={selectedSlot}
                 selectedTimezone={selectedTimezone}

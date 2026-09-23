@@ -47,8 +47,6 @@ function generateDefaultPasscode(): string {
 interface ZoomIntakeFormProps {
   meetingType: MeetingType;
   meetingTopic?: string;
-  onUpdateMeetingTopic?: (topic: string) => void;
-  selectedDate: string;
   formattedDate: string;
   selectedSlot: TimeSlot;
   selectedTimezone: string;
@@ -69,8 +67,6 @@ interface ZoomIntakeFormProps {
 export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   meetingType,
   meetingTopic,
-  onUpdateMeetingTopic,
-  selectedDate,
   formattedDate,
   selectedSlot,
   selectedTimezone,
@@ -79,9 +75,9 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   onSubmit,
   isSubmitting = false,
 }) => {
-  const [topic, setTopic] = useState(meetingTopic || meetingType.title || 'Zoom Video Meeting');
-  const [fullName, setFullName] = useState(authUser?.name || '');
-  const [email, setEmail] = useState(authUser?.email || '');
+  const topic = meetingTopic || meetingType.title || 'Zoom Video Meeting';
+  const fullName = authUser?.name || '';
+  const email = authUser?.email || '';
   const [guestEmailInput, setGuestEmailInput] = useState('');
   const [guestEmails, setGuestEmails] = useState<string[]>([]);
   const [answers, setAnswers] = useState<Record<string, any>>({});

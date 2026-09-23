@@ -35,7 +35,6 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
 
   const [m365Configured, setM365Configured] = useState(false);
   const [showM365ConfigModal, setShowM365ConfigModal] = useState(false);
-  const [supabaseConfigured, setSupabaseConfigured] = useState(false);
 
   // Fetch initial rate limit status and M365 config
   const fetchRateLimitStatus = async () => {
@@ -70,13 +69,6 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
       .then((r) => r.json())
       .then((data) => {
         setM365Configured(Boolean(data.configured));
-      })
-      .catch(() => {});
-
-    fetch('/api/auth/supabase/status')
-      .then((r) => r.json())
-      .then((data) => {
-        setSupabaseConfigured(Boolean(data.configured));
       })
       .catch(() => {});
   }, []);

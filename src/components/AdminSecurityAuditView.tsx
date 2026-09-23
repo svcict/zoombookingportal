@@ -1,28 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  ShieldAlert, 
-  RefreshCw, 
-  Ban, 
-  Clock, 
-  Trash2, 
-  CheckCircle2, 
-  Search, 
+import {
+  ShieldAlert,
+  RefreshCw,
+  Ban,
+  Clock,
+  Trash2,
+  CheckCircle2,
+  Search,
   AlertTriangle,
   Lock,
   Unlock,
   ShieldCheck,
-  UserX,
-  Server
+  UserX
 } from 'lucide-react';
-import { LoginSecurityAudit, FailedLoginRecord, SecurityRateLimitInfo } from '../types';
+import { LoginSecurityAudit } from '../types';
 
 interface AdminSecurityAuditViewProps {
-  onBackToSchedule?: () => void;
   adminEmail?: string;
   authHeaders?: Record<string, string>;
 }
 
-export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ onBackToSchedule, adminEmail, authHeaders = {} }) => {
+export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ adminEmail, authHeaders = {} }) => {
   const [auditData, setAuditData] = useState<LoginSecurityAudit>({
     totalFailedAttempts: 0,
     activeLockoutsCount: 0,

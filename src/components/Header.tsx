@@ -2,26 +2,23 @@ import React, { useState, useEffect } from 'react';
 import {
   Video,
   Calendar,
-  Clock,
   Globe,
   Bell,
   BellRing,
   ChevronDown,
   LogOut,
-  Sparkles,
   Database,
   RefreshCw,
   Server,
   ShieldCheck
 } from 'lucide-react';
-import { M365CalendarState, M365User } from '../types';
+import { M365User } from '../types';
 import { requestPushPermission, playZoomNotificationSound } from '../utils/notifications';
 import { AyalaFoundationLogo } from './AyalaFoundationLogo';
 
 interface HeaderProps {
   currentView: 'dashboard' | 'booking';
   onViewChange: (view: 'dashboard' | 'booking') => void;
-  m365State: M365CalendarState;
   authUser: M365User | null;
   onSignOut: () => void;
   selectedTimezone: string;
@@ -37,7 +34,6 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   currentView,
   onViewChange,
-  m365State,
   authUser,
   onSignOut,
   selectedTimezone,

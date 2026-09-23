@@ -7,7 +7,6 @@ export function generateLocalAvailabilitySlots(params: {
   date: string;
   selectedAccountId?: string;
   bookings?: Booking[];
-  syncEnabled?: boolean;
   timezone?: string;
 }): { slots: TimeSlot[]; hostAccountsSummary: HostAccount[] } {
   const {
@@ -15,7 +14,6 @@ export function generateLocalAvailabilitySlots(params: {
     date,
     selectedAccountId = 'all',
     bookings = [],
-    syncEnabled = true,
     timezone = getDetectedTimezone()
   } = params;
 
