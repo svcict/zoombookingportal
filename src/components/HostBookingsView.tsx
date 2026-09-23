@@ -22,6 +22,7 @@ interface HostBookingsViewProps {
   bookings: Booking[];
   meetingTypes?: MeetingType[];
   isAdmin?: boolean;
+  currentUserEmail?: string;
   onCancelBooking: (id: string) => Promise<void>;
   onCancelAllMine?: () => Promise<void>;
   onNavigateToSchedule?: () => void;
@@ -31,6 +32,7 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
   bookings,
   meetingTypes = [],
   isAdmin = false,
+  currentUserEmail,
   onCancelBooking,
   onCancelAllMine,
   onNavigateToSchedule,
@@ -43,6 +45,15 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
   const [confirmCancelAll, setConfirmCancelAll] = useState(false);
 
   const activeCount = bookings.filter((b) => b.status !== 'cancelled').length;
+  // "Cancel All My Bookings" only ever cancels the caller's own bookings
+  // server-side (matched by participantEmail), regardless of admin status -
+  // so its count/label must reflect that too, not the admin's full-system
+  // `bookings` list, or the confirm dialog would misstate how many meetings
+  // are actually about to be cancelled.
+  const normalizedCurrentUserEmail = (currentUserEmail || '').toLowerCase().trim();
+  const myActiveCount = bookings.filter(
+    (b) => b.status !== 'cancelled' && (b.participantEmail || '').toLowerCase().trim() === normalizedCurrentUserEmail
+  ).length;
 
   const handleCancelAllMine = async () => {
     if (!onCancelAllMine) return;
@@ -105,7 +116,7 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
             </p>
           </div>
 
-          {!isAdmin && onCancelAllMine && activeCount > 0 && (
+          {onCancelAllMine && myActiveCount > 0 && (
             <button
               type="button"
               onClick={handleCancelAllMine}
@@ -122,8 +133,8 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
                 {isCancellingAll
                   ? 'Cancelling...'
                   : confirmCancelAll
-                  ? `Confirm: cancel all ${activeCount}?`
-                  : `Cancel All My Bookings (${activeCount})`}
+                  ? `Confirm: cancel all ${myActiveCount}?`
+                  : `Cancel All My Bookings (${myActiveCount})`}
               </span>
             </button>
           )}

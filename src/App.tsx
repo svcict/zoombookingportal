@@ -441,6 +441,7 @@ export default function App() {
                   bookings={visibleBookings}
                   meetingTypes={meetingTypes}
                   isAdmin={isAdmin}
+                  currentUserEmail={authUser?.email}
                   onCancelBooking={handleCancelBooking}
                   onCancelAllMine={handleCancelAllMine}
                   onNavigateToSchedule={() => setCurrentView('booking')}
