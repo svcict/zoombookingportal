@@ -1,14 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Lock, 
-  User, 
-  ArrowRight, 
+import {
   ShieldCheck,
   AlertTriangle,
   Info,
   X,
   Clock,
-  ShieldAlert,
   Ban
 } from 'lucide-react';
 import { M365User } from '../types';
@@ -25,9 +21,7 @@ interface M365AuthGateProps {
 
 export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, variant = 'staff' }) => {
   const isAdminVariant = variant === 'admin';
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  
+
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isSsoLoading, setIsSsoLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -113,20 +107,17 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Supabase Sign In (Strict - Authenticates with Supabase Auth / Profiles)
-  const handleSignIn = async (e?: React.FormEvent, quickLoginEmail?: string) => {
-    e?.preventDefault();
+  // Local test accounts only - real staff/admin sign-in is SSO-only (see
+  // handleMicrosoftSSO). This still goes through the same
+  // /api/auth/m365/login + rate-limit path as before, just without a
+  // manual email/password form in front of it.
+  const handleQuickLogin = async (email: string) => {
     if (isIpBlocked) {
       setAuthError('Your IP address is permanently blocked. Please contact an administrator.');
       return;
     }
     if (isLockedOut && lockoutRemaining > 0) {
       setAuthError(`Too many failed login attempts. Please wait ${formatCountdown(lockoutRemaining)} before trying again.`);
-      return;
-    }
-    const emailValue = quickLoginEmail || username.trim();
-    if (!emailValue) {
-      setAuthError('Please enter your email or username.');
       return;
     }
 
@@ -138,8 +129,8 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: emailValue,
-          password: quickLoginEmail ? '' : password.trim(),
+          email,
+          password: '',
           authMethod: 'local'
         })
       });
@@ -283,16 +274,13 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
               <p className={`text-xs mt-1 ${isAdminVariant ? 'text-gray-400' : 'text-gray-500'}`}>
                 {isAdminVariant
                   ? 'Restricted to authorized administrators only'
-                  : 'Enter your credentials to access the Zoom Booking Portal'}
+                  : 'Sign in with your Microsoft 365 account to access the Zoom Booking Portal'}
               </p>
             </div>
           </div>
 
-          {/* Form Content */}
-          <form 
-            onSubmit={handleSignIn} 
-            className="p-6 sm:p-7 space-y-4"
-          >
+          {/* Sign-In Content - SSO only, no manual email/password entry */}
+          <div className="p-6 sm:p-7 space-y-4">
             {/* IP Blocked Alert Card */}
             {isIpBlocked && (
               <div className="p-4 bg-red-50 border border-red-300 rounded-xl text-xs text-red-900 space-y-2">
@@ -336,84 +324,6 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
               </div>
             )}
 
-            {/* Email Field */}
-            <div>
-              <label className={`block text-xs font-bold mb-1 ${isAdminVariant ? 'text-gray-300' : 'text-gray-700'}`}>
-                Email or Username
-              </label>
-              <div className="relative">
-                <User className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 ${isAdminVariant ? 'text-gray-500' : 'text-gray-400'}`} />
-                <input
-                  type="text"
-                  required
-                  disabled={isIpBlocked || (isLockedOut && lockoutRemaining > 0) || isAuthenticating}
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="name@ayalafoundation.org or username"
-                  className={
-                    isAdminVariant
-                      ? 'w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-white/10 bg-[#0F1115] text-white placeholder:text-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed'
-                      : 'w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#0b5cff] focus:border-[#0b5cff] transition-all disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed'
-                  }
-                />
-              </div>
-            </div>
-
-            {/* Password Field */}
-            <div>
-              <label className={`block text-xs font-bold mb-1 ${isAdminVariant ? 'text-gray-300' : 'text-gray-700'}`}>
-                Password
-              </label>
-              <div className="relative">
-                <Lock className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 ${isAdminVariant ? 'text-gray-500' : 'text-gray-400'}`} />
-                <input
-                  type="password"
-                  disabled={isIpBlocked || (isLockedOut && lockoutRemaining > 0) || isAuthenticating}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password (leave blank for demo accounts)"
-                  className={
-                    isAdminVariant
-                      ? 'w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-white/10 bg-[#0F1115] text-white placeholder:text-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed'
-                      : 'w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#0b5cff] focus:border-[#0b5cff] transition-all disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed'
-                  }
-                />
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isIpBlocked || (isLockedOut && lockoutRemaining > 0) || isAuthenticating || isSsoLoading}
-              className={
-                isAdminVariant
-                  ? 'w-full py-3 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer mt-2'
-                  : 'w-full py-3 px-4 rounded-xl bg-[#0b5cff] hover:bg-[#0049d1] disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer mt-2'
-              }
-            >
-              {isAuthenticating ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Signing In...</span>
-                </>
-              ) : isLockedOut && lockoutRemaining > 0 ? (
-                <>
-                  <Clock className="w-4 h-4" />
-                  <span>Locked for {formatCountdown(lockoutRemaining)}</span>
-                </>
-              ) : isIpBlocked ? (
-                <>
-                  <ShieldAlert className="w-4 h-4" />
-                  <span>IP Blocked</span>
-                </>
-              ) : (
-                <>
-                  <span>Sign In</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
-
             {/* Quick Login Test Accounts - real, working accounts that always
                 log in immediately on click, regardless of Supabase setup.
                 The admin portal only ever offers the admin test account -
@@ -429,7 +339,7 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
                   <button
                     type="button"
                     disabled={isIpBlocked || (isLockedOut && lockoutRemaining > 0) || isAuthenticating}
-                    onClick={() => handleSignIn(undefined, 'user@local.test')}
+                    onClick={() => handleQuickLogin('user@local.test')}
                     className="p-2 rounded-xl bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-300 text-left transition-all group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div className="text-[11px] font-bold text-gray-800 group-hover:text-blue-600 truncate">
@@ -444,7 +354,7 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
                 <button
                   type="button"
                   disabled={isIpBlocked || (isLockedOut && lockoutRemaining > 0) || isAuthenticating}
-                  onClick={() => handleSignIn(undefined, 'admin@local.test')}
+                  onClick={() => handleQuickLogin('admin@local.test')}
                   className={
                     isAdminVariant
                       ? 'w-full p-2 rounded-xl bg-[#0F1115] hover:bg-purple-950/40 border border-white/10 hover:border-purple-500/40 text-left transition-all group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
@@ -499,7 +409,7 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
               )}
             </div>
 
-          </form>
+          </div>
 
         </div>
 
@@ -559,7 +469,7 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
                 <li>MICROSOFT_TENANT_ID (Directory ID)</li>
               </ul>
               <p className="text-gray-500 text-[11px] pt-1">
-                Please sign in with your email or username credentials above.
+                Until then, only the local test accounts above can sign in.
               </p>
             </div>
 
