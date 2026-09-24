@@ -130,6 +130,34 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
     ? `${formatDateLabel(selectedDate)} · ${formatTimeLabel(startTime)} – ${formatTimeLabel(endTime)}`
     : 'Select date and time';
 
+  // Shared live duration + availability readout, rendered both inside the
+  // popover (so it's visible in real time while still editing the range,
+  // instead of hidden behind the popover) and again once it's collapsed
+  // back to the single field, so it stays visible at a glance either way.
+  const availabilityReadout = isValidRange && (
+    <div className="flex flex-col items-center gap-2">
+      <span className="text-xs text-gray-500 font-medium">{durationMinutes} minute meeting</span>
+      {isPast ? (
+        <p className="text-xs text-red-500 font-medium">This time has already passed.</p>
+      ) : availability.status === 'checking' ? (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-xs font-semibold">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          Checking availability&hellip;
+        </span>
+      ) : availability.status === 'available' ? (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 border border-green-200 rounded-full text-xs font-semibold">
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          This time is available
+        </span>
+      ) : availability.status === 'blocked' ? (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full text-xs font-semibold text-center">
+          <XCircle className="w-3.5 h-3.5 shrink-0" />
+          {availability.reason || 'Blocked'}
+        </span>
+      ) : null}
+    </div>
+  );
+
   return (
     <div className="flex flex-col h-full p-5 sm:p-6 bg-white">
       <div className="pb-4 border-b border-gray-100 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -215,6 +243,8 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
               <p className="text-xs text-red-500 font-medium">End time must be after the start time.</p>
             )}
 
+            {availabilityReadout}
+
             <button
               type="button"
               onClick={() => setIsOpen(false)}
@@ -226,33 +256,9 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
         )}
       </div>
 
-      {/* Live duration + availability readout for the exact date/time range currently entered */}
-      <div className="mt-4 flex flex-col items-center gap-2">
-        {isValidRange && (
-          <span className="text-xs text-gray-500 font-medium">{durationMinutes} minute meeting</span>
-        )}
-
-        {isValidRange && (
-          isPast ? (
-            <p className="text-xs text-red-500 font-medium">This time has already passed.</p>
-          ) : availability.status === 'checking' ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-xs font-semibold">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              Checking availability&hellip;
-            </span>
-          ) : availability.status === 'available' ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 border border-green-200 rounded-full text-xs font-semibold">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              This time is available
-            </span>
-          ) : availability.status === 'blocked' ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full text-xs font-semibold text-center">
-              <XCircle className="w-3.5 h-3.5 shrink-0" />
-              {availability.reason || 'Blocked'}
-            </span>
-          ) : null
-        )}
-      </div>
+      {/* Same readout, shown here too once the popover is closed so it
+          stays visible at a glance */}
+      {!isOpen && <div className="mt-4">{availabilityReadout}</div>}
 
       <button
         type="button"
