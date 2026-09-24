@@ -2,8 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Header } from './components/Header';
 import { M365AuthGate } from './components/M365AuthGate';
 import { MeetingTypeSelector } from './components/MeetingTypeSelector';
-import { CalendarPicker } from './components/CalendarPicker';
-import { TimePicker } from './components/TimePicker';
+import { SimpleDateTimePicker } from './components/SimpleDateTimePicker';
 import { MeetingAgendaQuestions } from './components/MeetingAgendaQuestions';
 import { ZoomIntakeForm } from './components/ZoomIntakeForm';
 import { BookingConfirmation } from './components/BookingConfirmation';
@@ -185,7 +184,7 @@ export default function App() {
 
   // Refresh the rotating host-account summary for the selected meeting type/date.
   // The fixed-slot availability grid this used to also populate is gone now
-  // that time entry is free-form (see TimePicker) - real conflicts are still
+  // that time entry is free-form (see SimpleDateTimePicker) - real conflicts are still
   // caught server-side at submit (the existing 409 "both accounts booked" path).
   const fetchAvailability = useCallback(async () => {
     if (!selectedMeetingType || !selectedDate) return;
@@ -546,32 +545,20 @@ export default function App() {
                   onChangeTimezone={() => setIsTimezoneModalOpen(true)}
                 />
 
-                {/* Step 2: Calendar + free-form Time Picker */}
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-200 items-stretch">
-
-                  {/* Left Column: Interactive Monthly Calendar */}
-                  <div className="flex flex-col h-full">
-                    <CalendarPicker
-                      selectedDate={selectedDate}
-                      onSelectDate={(date) => {
-                        setSelectedDate(date);
-                        setSelectedSlot(null);
-                      }}
-                    />
-                  </div>
-
-                  {/* Right Column: Flexible Time Picker (not locked to preset intervals) */}
-                  <div className="flex flex-col h-full bg-[#FAFAFA]/50">
-                    <TimePicker
-                      selectedDate={selectedDate}
-                      formattedDate={formattedDateStr}
-                      selectedTimezone={selectedTimezone}
-                      meetingTypeId={selectedMeetingType?.id}
-                      duration={selectedMeetingType?.duration}
-                      onSelectTime={handleSelectSlot}
-                    />
-                  </div>
-
+                {/* Step 2: Simple native date + time picker */}
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
+                  <SimpleDateTimePicker
+                    selectedDate={selectedDate}
+                    onSelectDate={(date) => {
+                      setSelectedDate(date);
+                      setSelectedSlot(null);
+                    }}
+                    formattedDate={formattedDateStr}
+                    selectedTimezone={selectedTimezone}
+                    meetingTypeId={selectedMeetingType?.id}
+                    duration={selectedMeetingType?.duration}
+                    onSelectTime={handleSelectSlot}
+                  />
                 </div>
 
               </div>
