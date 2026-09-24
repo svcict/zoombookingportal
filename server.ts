@@ -2875,14 +2875,14 @@ app.post('/api/bookings', async (req, res) => {
       });
     }
 
-    // Real Host Key for this meeting's hosting account - lets any
-    // participant Claim Host during the meeting even if Alternative Host
-    // doesn't apply to them (external guest, or Basic/unlicensed seat).
-    // null when it can't be read (missing scope, account doesn't have one
-    // set, etc.) - never fabricated, so the email/screen just omits it.
-    // Only attached at all when the booker opted in via the intake form's
-    // "Send Host Key" toggle, since it grants host privileges to whoever
-    // it reaches.
+    // Real Host Key for this meeting's hosting account - this app's chosen
+    // way to hand real host privileges to whoever needs them (recording,
+    // etc.), regardless of their Zoom license or whether Alternative Host
+    // applies to them. Null when it can't be read (missing scope, account
+    // doesn't have one set, etc.) - never fabricated, so the email/screen
+    // just omits it. Only attached at all when the booker opted in via the
+    // intake form's "Send Host Key" toggle, since it grants those
+    // privileges to whoever it reaches.
     const hostKey = zoomAccountKey && sendHostKey ? getAccountHostKey(zoomAccountKey) : null;
     if (hostKey) zoomDetails.hostKey = hostKey;
 

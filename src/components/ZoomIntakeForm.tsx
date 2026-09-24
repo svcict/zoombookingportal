@@ -84,16 +84,16 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   const email = authUser?.email || '';
   const [guestEmailInput, setGuestEmailInput] = useState('');
   const [guestEmails, setGuestEmails] = useState<string[]>([]);
+  // Off by default. Sending the Host Key is this app's chosen way to hand
+  // real host privileges to whoever needs them, not a fallback only needed
+  // when someone happens to lack a Zoom license - so it's the entry point
+  // for the section below, and the Meeting Host field only appears once
+  // it's on.
+  const [sendHostKey, setSendHostKey] = useState(false);
   // Optional: when booking on someone else's behalf, this person becomes
   // the Zoom Alternative Host (instead of defaulting to the booker) and is
-  // added to the invitee list so they also receive the confirmation email
-  // - including the Host Key, in case they're not eligible for Alternative
-  // Host (e.g. a Basic/Workplace Basic seat) and need to "Claim Host" instead.
+  // added to the invitee list so they also receive the confirmation email.
   const [hostOnBehalfEmail, setHostOnBehalfEmail] = useState('');
-  // Off by default - the Host Key is only included on the confirmation
-  // once the booker explicitly opts in, since it grants host privileges
-  // (recording, etc.) to whoever it's shared with.
-  const [sendHostKey, setSendHostKey] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Zoom meeting settings - set here at booking time so the meeting is
@@ -365,45 +365,23 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
           {errors.guestEmails && <p className="text-red-500 text-xs mt-2">{errors.guestEmails}</p>}
         </div>
 
-        {/* Section: Booking on someone else's behalf */}
+        {/* Section: Send Host Key, and (once enabled) booking on someone
+            else's behalf */}
         <div className="pt-4 border-t border-gray-100">
-          <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
-            Meeting Host <span className="text-gray-400 normal-case font-normal">(optional)</span>
-          </label>
-          <p className="text-xs text-gray-400 mb-2">
-            Booking on someone else&apos;s behalf? Enter their email and they&apos;ll be set as the Zoom
-            Alternative Host and included on the confirmation email - with the Host Key, in case Zoom
-            doesn&apos;t let them start as host directly.
-          </p>
-          <div className="relative">
-            <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="email"
-              value={hostOnBehalfEmail}
-              onChange={(e) => {
-                setHostOnBehalfEmail(e.target.value);
-                if (errors.hostOnBehalfEmail) {
-                  setErrors((prev) => {
-                    const next = { ...prev };
-                    delete next.hostOnBehalfEmail;
-                    return next;
-                  });
-                }
-              }}
-              placeholder="boss@company.com"
-              className="w-full pl-10 pr-4 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
-            />
-          </div>
-          {errors.hostOnBehalfEmail && <p className="text-red-500 text-xs mt-2">{errors.hostOnBehalfEmail}</p>}
-
-          {/* Send Host Key toggle - off by default, only included on the
-              confirmation once the booker explicitly opts in */}
-          <div className="mt-4 flex items-start gap-3 p-3.5 bg-[#F7F9FA] rounded-xl">
+          <div className="flex items-start gap-3 p-3.5 bg-[#F7F9FA] rounded-xl">
             <button
               type="button"
               role="switch"
               aria-checked={sendHostKey}
-              onClick={() => setSendHostKey((v) => !v)}
+              onClick={() =>
+                setSendHostKey((v) => {
+                  const next = !v;
+                  // Hiding the Meeting Host field below also clears it, so a
+                  // nomination never lingers unnoticed while its field is gone.
+                  if (!next) setHostOnBehalfEmail('');
+                  return next;
+                })
+              }
               className={`relative shrink-0 w-10 h-6 rounded-full transition-colors cursor-pointer mt-0.5 ${
                 sendHostKey ? 'bg-[#0b5cff]' : 'bg-gray-300'
               }`}
@@ -425,6 +403,38 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
               </p>
             </div>
           </div>
+
+          {sendHostKey && (
+            <div className="mt-4">
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
+                Meeting Host <span className="text-gray-400 normal-case font-normal">(optional)</span>
+              </label>
+              <p className="text-xs text-gray-400 mb-2">
+                Booking on someone else&apos;s behalf? Enter their email and they&apos;ll be set as the Zoom
+                Alternative Host and included on the confirmation email with the Host Key.
+              </p>
+              <div className="relative">
+                <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="email"
+                  value={hostOnBehalfEmail}
+                  onChange={(e) => {
+                    setHostOnBehalfEmail(e.target.value);
+                    if (errors.hostOnBehalfEmail) {
+                      setErrors((prev) => {
+                        const next = { ...prev };
+                        delete next.hostOnBehalfEmail;
+                        return next;
+                      });
+                    }
+                  }}
+                  placeholder="boss@company.com"
+                  className="w-full pl-10 pr-4 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+                />
+              </div>
+              {errors.hostOnBehalfEmail && <p className="text-red-500 text-xs mt-2">{errors.hostOnBehalfEmail}</p>}
+            </div>
+          )}
         </div>
 
         {/* Section: Zoom Meeting Settings (set now, applied when the meeting is created) */}
