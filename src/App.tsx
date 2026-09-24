@@ -545,7 +545,7 @@ export default function App() {
 
                 {/* Simple native date + time picker - the only scheduling step,
                     no separate preset-duration selection */}
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-xs">
                   <SimpleDateTimePicker
                     selectedDate={selectedDate}
                     onSelectDate={(date) => {
