@@ -91,8 +91,9 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   // it's on.
   const [sendHostKey, setSendHostKey] = useState(false);
   // Optional: when booking on someone else's behalf, this person becomes
-  // the Zoom Alternative Host (instead of defaulting to the booker) and is
-  // added to the invitee list so they also receive the confirmation email.
+  // the meeting's designated host (technically Zoom's Alternative Host
+  // field, instead of defaulting to the booker) and is added to the
+  // invitee list so they also receive the confirmation email.
   const [hostOnBehalfEmail, setHostOnBehalfEmail] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -410,8 +411,8 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                 Meeting Host <span className="text-gray-400 normal-case font-normal">(optional)</span>
               </label>
               <p className="text-xs text-gray-500 mb-2">
-                Booking on someone else&apos;s behalf? Enter their email and they&apos;ll be set as the Zoom
-                Alternative Host and included on the confirmation email with the Host Key.
+                Booking on someone else&apos;s behalf? Enter their email and they&apos;ll be set as the
+                designated host and included on the confirmation email with the Host Key.
               </p>
               <div className="relative">
                 <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
