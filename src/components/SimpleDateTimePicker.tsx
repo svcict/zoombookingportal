@@ -254,7 +254,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
         </button>
 
         {isOpen && (
-          <div className="absolute z-10 mt-1 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+          <div className="mt-2 bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
             {/* Step indicator */}
             <div className="flex items-center gap-2 px-5 pt-4">
               <span className={`text-[11px] font-bold uppercase tracking-wider ${step === 'start' ? 'text-[#0b5cff]' : 'text-gray-400'}`}>
