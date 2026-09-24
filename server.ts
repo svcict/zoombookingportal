@@ -2781,6 +2781,7 @@ app.post('/api/bookings', async (req, res) => {
       topic,
       zoomConfig,
       duration,
+      sendHostKey = false,
     } = req.body;
 
     if (!participantName || !participantEmail || !date || !timeSlot) {
@@ -2879,7 +2880,10 @@ app.post('/api/bookings', async (req, res) => {
     // doesn't apply to them (external guest, or Basic/unlicensed seat).
     // null when it can't be read (missing scope, account doesn't have one
     // set, etc.) - never fabricated, so the email/screen just omits it.
-    const hostKey = zoomAccountKey ? getAccountHostKey(zoomAccountKey) : null;
+    // Only attached at all when the booker opted in via the intake form's
+    // "Send Host Key" toggle, since it grants host privileges to whoever
+    // it reaches.
+    const hostKey = zoomAccountKey && sendHostKey ? getAccountHostKey(zoomAccountKey) : null;
     if (hostKey) zoomDetails.hostKey = hostKey;
 
     const newBooking = {

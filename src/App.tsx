@@ -275,6 +275,7 @@ export default function App() {
     guestEmails: string[];
     answers: Record<string, any>;
     notes?: string;
+    sendHostKey?: boolean;
     zoomConfig?: Record<string, any>;
   }) => {
     if (!selectedMeetingType || !selectedSlot) return;

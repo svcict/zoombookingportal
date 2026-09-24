@@ -61,6 +61,7 @@ interface ZoomIntakeFormProps {
     answers: Record<string, any>;
     notes?: string;
     meetingTopic?: string;
+    sendHostKey: boolean;
     zoomConfig: IntakeZoomConfig;
   }) => Promise<void>;
   isSubmitting?: boolean;
@@ -89,6 +90,10 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   // - including the Host Key, in case they're not eligible for Alternative
   // Host (e.g. a Basic/Workplace Basic seat) and need to "Claim Host" instead.
   const [hostOnBehalfEmail, setHostOnBehalfEmail] = useState('');
+  // Off by default - the Host Key is only included on the confirmation
+  // once the booker explicitly opts in, since it grants host privileges
+  // (recording, etc.) to whoever it's shared with.
+  const [sendHostKey, setSendHostKey] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Zoom meeting settings - set here at booking time so the meeting is
@@ -158,6 +163,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
       answers,
       notes: `Registered for Zoom session via Zoom Scheduler Portal. Host: ${meetingType.hostName}`,
       meetingTopic: topic.trim() || meetingType.title,
+      sendHostKey,
       zoomConfig: {
         passcodeEnabled: true,
         passcode,
@@ -389,6 +395,36 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
             />
           </div>
           {errors.hostOnBehalfEmail && <p className="text-red-500 text-xs mt-2">{errors.hostOnBehalfEmail}</p>}
+
+          {/* Send Host Key toggle - off by default, only included on the
+              confirmation once the booker explicitly opts in */}
+          <div className="mt-4 flex items-start gap-3 p-3.5 bg-[#F7F9FA] rounded-xl">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={sendHostKey}
+              onClick={() => setSendHostKey((v) => !v)}
+              className={`relative shrink-0 w-10 h-6 rounded-full transition-colors cursor-pointer mt-0.5 ${
+                sendHostKey ? 'bg-[#0b5cff]' : 'bg-gray-300'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${
+                  sendHostKey ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
+            <div>
+              <p className="text-xs font-bold text-gray-700">Send Host Key</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Tap this button to enable sending the Host Key. The Host Key is used to claim host
+                privileges such as recording the meeting.
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                Note: The Host Key will be sent once anyone has joined the meeting.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Section: Zoom Meeting Settings (set now, applied when the meeting is created) */}
