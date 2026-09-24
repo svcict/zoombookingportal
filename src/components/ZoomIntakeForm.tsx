@@ -394,11 +394,11 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
             </button>
             <div>
               <p className="text-xs font-bold text-gray-700">Send Host Key</p>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-xs text-gray-500 mt-0.5">
                 Tap this button to enable sending the Host Key. The Host Key is used to claim host
                 privileges such as recording the meeting.
               </p>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-gray-500 mt-1">
                 Note: The Host Key will be sent once anyone has joined the meeting.
               </p>
             </div>
@@ -409,7 +409,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
               <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
                 Meeting Host <span className="text-gray-400 normal-case font-normal">(optional)</span>
               </label>
-              <p className="text-xs text-gray-400 mb-2">
+              <p className="text-xs text-gray-500 mb-2">
                 Booking on someone else&apos;s behalf? Enter their email and they&apos;ll be set as the Zoom
                 Alternative Host and included on the confirmation email with the Host Key.
               </p>
