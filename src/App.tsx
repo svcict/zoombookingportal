@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Header } from './components/Header';
 import { M365AuthGate } from './components/M365AuthGate';
-import { MeetingTypeSelector } from './components/MeetingTypeSelector';
 import { SimpleDateTimePicker } from './components/SimpleDateTimePicker';
 import { MeetingAgendaQuestions } from './components/MeetingAgendaQuestions';
 import { ZoomIntakeForm } from './components/ZoomIntakeForm';
@@ -53,6 +52,11 @@ export default function App() {
   // Core Data initialized with complete default seed dataset
   const [meetingTypes, setMeetingTypes] = useState<MeetingType[]>(INITIAL_MEETING_TYPES);
   const [selectedMeetingType, setSelectedMeetingType] = useState<MeetingType | null>(INITIAL_MEETING_TYPES[0]);
+  // No preset duration selection anymore - the user just picks a start and
+  // end time in SimpleDateTimePicker, and this is the resulting length,
+  // used everywhere a meeting's duration is needed instead of a fixed
+  // meeting-type duration.
+  const [customDurationMinutes, setCustomDurationMinutes] = useState<number>(30);
   const [meetingTopic, setMeetingTopic] = useState<string>('');
   const [topicError, setTopicError] = useState(false);
   const [meetingAnswers, setMeetingAnswers] = useState<Record<string, any>>({});
@@ -199,7 +203,7 @@ export default function App() {
 
     try {
       const accountParam = selectedAccountId && selectedAccountId !== 'all' ? `&accountId=${selectedAccountId}` : '';
-      const durationParam = selectedMeetingType.duration ? `&duration=${selectedMeetingType.duration}` : '';
+      const durationParam = customDurationMinutes ? `&duration=${customDurationMinutes}` : '';
       const res = await fetch(
         `/api/availability?meetingTypeId=${selectedMeetingType.id}&date=${selectedDate}&timezone=${encodeURIComponent(selectedTimezone)}${accountParam}${durationParam}`
       );
@@ -214,7 +218,7 @@ export default function App() {
     } catch {
       setHostAccounts(localResult.hostAccountsSummary);
     }
-  }, [selectedMeetingType, selectedDate, selectedTimezone, selectedAccountId, bookings, m365State.syncEnabled]);
+  }, [selectedMeetingType, selectedDate, selectedTimezone, selectedAccountId, bookings, m365State.syncEnabled, customDurationMinutes]);
 
   useEffect(() => {
     fetchAvailability();
@@ -285,6 +289,7 @@ export default function App() {
         topic: (meetingTopic || selectedMeetingType.title).trim(),
         date: selectedDate,
         timeSlot: selectedSlot.formattedTime,
+        duration: customDurationMinutes,
         timezone: selectedTimezone,
         hostAccountId: assignedHostId,
         ...formData,
@@ -380,6 +385,13 @@ export default function App() {
   }
 
   const formattedDateStr = formatDateInTimezone(`${selectedDate}T12:00:00`, selectedTimezone);
+
+  // The fixed meeting-type record still supplies host, Zoom style, and
+  // custom questions - only its duration is overridden with whatever
+  // length the user actually picked in SimpleDateTimePicker.
+  const effectiveMeetingType = selectedMeetingType
+    ? { ...selectedMeetingType, duration: customDurationMinutes }
+    : null;
 
   return (
     <div className="min-h-screen bg-[#F7F9FA] text-[#2D2E33] font-sans flex flex-col selection:bg-blue-100 selection:text-[#0b5cff]">
@@ -522,30 +534,17 @@ export default function App() {
 
                 {/* Meeting Agenda / custom questions for the selected meeting type -
                     answered here, right below Topic, instead of later in the intake form */}
-                {selectedMeetingType && (
+                {effectiveMeetingType && (
                   <MeetingAgendaQuestions
-                    meetingType={selectedMeetingType}
+                    meetingType={effectiveMeetingType}
                     answers={meetingAnswers}
                     errors={answerErrors}
                     onAnswerChange={handleAnswerChange}
                   />
                 )}
 
-                {/* Step 1: Meeting Type & Timezone Selector */}
-                <MeetingTypeSelector
-                  meetingTypes={meetingTypes}
-                  selectedMeetingType={selectedMeetingType || meetingTypes[0]}
-                  onSelectMeetingType={(type) => {
-                    setSelectedMeetingType(type);
-                    setSelectedSlot(null);
-                    setMeetingAnswers({});
-                    setAnswerErrors({});
-                  }}
-                  selectedTimezone={selectedTimezone}
-                  onChangeTimezone={() => setIsTimezoneModalOpen(true)}
-                />
-
-                {/* Step 2: Simple native date + time picker */}
+                {/* Simple native date + time picker - the only scheduling step,
+                    no separate preset-duration selection */}
                 <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
                   <SimpleDateTimePicker
                     selectedDate={selectedDate}
@@ -555,8 +554,9 @@ export default function App() {
                     }}
                     formattedDate={formattedDateStr}
                     selectedTimezone={selectedTimezone}
+                    onChangeTimezone={() => setIsTimezoneModalOpen(true)}
                     meetingTypeId={selectedMeetingType?.id}
-                    duration={selectedMeetingType?.duration}
+                    onDurationChange={setCustomDurationMinutes}
                     onSelectTime={handleSelectSlot}
                   />
                 </div>
@@ -565,10 +565,10 @@ export default function App() {
             )}
 
             {/* STEP 2: CUSTOM ZOOM INTAKE FORM */}
-            {bookingStep === 'intake' && selectedMeetingType && selectedSlot && (
+            {bookingStep === 'intake' && effectiveMeetingType && selectedSlot && (
               <ZoomIntakeForm
-                meetingType={selectedMeetingType}
-                meetingTopic={meetingTopic || selectedMeetingType.title}
+                meetingType={effectiveMeetingType}
+                meetingTopic={meetingTopic || effectiveMeetingType.title}
                 formattedDate={formattedDateStr}
                 selectedSlot={selectedSlot}
                 selectedTimezone={selectedTimezone}

@@ -2780,6 +2780,7 @@ app.post('/api/bookings', async (req, res) => {
       meetingTopic,
       topic,
       zoomConfig,
+      duration,
     } = req.body;
 
     if (!participantName || !participantEmail || !date || !timeSlot) {
@@ -2790,6 +2791,10 @@ app.post('/api/bookings', async (req, res) => {
     }
 
     const meetingType = meetingTypes.find((m) => m.id === meetingTypeId) || meetingTypes[0];
+    // The client now picks a free-form start/end time range instead of a
+    // fixed preset duration, so an explicit duration (in minutes) from the
+    // request takes priority over the meeting-type's own fixed duration.
+    const effectiveDuration = Number.isFinite(duration) && duration > 0 ? duration : (meetingType.duration || 30);
     const assignedHost = hostAccounts.find((a) => a.id === hostAccountId) ||
       hostAccounts.find((a) => a.id === meetingType.hostAccountId) ||
       hostAccounts[0];
@@ -2814,7 +2819,7 @@ app.post('/api/bookings', async (req, res) => {
     // was stored as 16:00 UTC - which displays as midnight the next day
     // back in Manila).
     const startDate = zonedTimeToUtc(date, hour, minute, timezone);
-    const endDate = new Date(startDate.getTime() + (meetingType.duration || 30) * 60000);
+    const endDate = new Date(startDate.getTime() + effectiveDuration * 60000);
     const startIso = startDate.toISOString();
     const endIso = endDate.toISOString();
 
@@ -2855,7 +2860,7 @@ app.post('/api/bookings', async (req, res) => {
         finalMeetingTitle,
         assignedHost.name,
         startIso,
-        meetingType.duration || 30,
+        effectiveDuration,
         timezone,
         notes,
         zoomConfig,
@@ -2881,7 +2886,7 @@ app.post('/api/bookings', async (req, res) => {
       id: `zm-${Math.floor(100000 + Math.random() * 900000)}`,
       meetingTypeId: meetingType.id,
       meetingTitle: finalMeetingTitle,
-      duration: meetingType.duration,
+      duration: effectiveDuration,
       hostName: realHostLabel,
       hostEmail: assignedHost.email,
       hostAvatar: assignedHost.avatar,
