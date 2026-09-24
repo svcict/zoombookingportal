@@ -12,7 +12,7 @@ import { Cursor } from '../components/Cursor';
 // page. The page is taller than one frame, so it scrolls into view.
 export const Scene4Intake: React.FC = () => {
   const frame = useCurrentFrame();
-  const scrollY = interpolate(frame, [65, 140], [0, -330], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const scrollY = interpolate(frame, [65, 140], [0, -430], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
 
   return (
     <AppShell activeTab="booking">
@@ -95,6 +95,31 @@ export const Scene4Intake: React.FC = () => {
                 </div>
               </Field>
 
+              {frame >= 68 && (
+                <div
+                  style={{
+                    background: '#FFFBEB',
+                    border: '1px solid #FDE68A',
+                    borderRadius: 10,
+                    padding: '12px 16px',
+                    marginBottom: 16,
+                    opacity: interpolate(frame, [68, 78], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <HostKeyToggle on={frame >= 80} />
+                    <span style={{ fontSize: 13, fontWeight: 700, color: theme.gray900 }}>Send Host Key</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#92400E', marginTop: 6, maxWidth: 700, lineHeight: 1.5 }}>
+                    Tap this button to enable sending of Host Key. The Host Key is used to claim host privileges such
+                    as recording the meeting and enabling AI functionality.
+                  </div>
+                  <div style={{ fontSize: 11, color: '#92400E', marginTop: 6, maxWidth: 700, lineHeight: 1.5 }}>
+                    <strong>Note:</strong> The Host Key will be sent once anyone has joined the meeting.
+                  </div>
+                </div>
+              )}
+
               <Divider />
               <SectionHeader icon={<Video size={13} color={theme.blue} />} text="MEETING PREPARATION QUESTIONS" />
               <Field label="MEETING AGENDA *" hint="Helps us prepare relevant technical documentation in advance.">
@@ -151,8 +176,8 @@ export const Scene4Intake: React.FC = () => {
         keyframes={[
           { frame: 20, x: 960, y: 648 },
           { frame: 60, x: 960, y: 648 },
-          { frame: 120, x: 1185, y: 920 },
-          { frame: 149, x: 1185, y: 920 },
+          { frame: 120, x: 1160, y: 930 },
+          { frame: 149, x: 1160, y: 930 },
         ]}
         clicks={[149]}
       />
@@ -255,5 +280,11 @@ const ToggleInline: React.FC<{ label: string; on: boolean }> = ({ label, on }) =
       <div style={{ position: 'absolute', top: 2, left: on ? 20 : 2, width: 16, height: 16, borderRadius: 999, background: '#fff' }} />
     </div>
     <span style={{ fontSize: 12, fontWeight: 600, color: theme.gray500 }}>{on ? 'On' : 'Off'}</span>
+  </div>
+);
+
+const HostKeyToggle: React.FC<{ on: boolean }> = ({ on }) => (
+  <div style={{ width: 34, height: 19, borderRadius: 999, background: on ? theme.blue : theme.border, position: 'relative', flexShrink: 0 }}>
+    <div style={{ position: 'absolute', top: 2, left: on ? 17 : 2, width: 15, height: 15, borderRadius: 999, background: '#fff' }} />
   </div>
 );

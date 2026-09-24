@@ -6,6 +6,8 @@ import {
   ChevronDown,
   Copy,
   Edit3,
+  Eye,
+  EyeOff,
   ExternalLink,
   Phone,
   RotateCcw,
@@ -88,26 +90,11 @@ export const Scene6ConfirmationDetails: React.FC = () => {
           <Row label="Host Key" show={frame >= 46} amber>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div
-                  style={{
-                    width: 34,
-                    height: 19,
-                    borderRadius: 999,
-                    background: hostKeyRevealed ? theme.blue : theme.border,
-                    position: 'relative',
-                    flexShrink: 0,
-                  }}
-                >
-                  <div style={{ position: 'absolute', top: 2, left: hostKeyRevealed ? 17 : 2, width: 15, height: 15, borderRadius: 999, background: '#fff' }} />
-                </div>
-                <span style={{ fontSize: 13, fontWeight: 700, color: theme.gray900 }}>Send Host Key</span>
+                <span style={{ fontFamily: theme.mono, fontSize: 14, letterSpacing: 2 }}>{hostKeyRevealed ? '481022' : '••••••'}</span>
+                <LinkBtn icon={hostKeyRevealed ? <EyeOff size={12} /> : <Eye size={12} />}>{hostKeyRevealed ? 'Hide' : 'Show'}</LinkBtn>
               </div>
-              <div style={{ fontSize: 11, color: '#92400E', marginTop: 6, maxWidth: 540, lineHeight: 1.5 }}>
-                Tap this button to enable sending of Host Key. The Host Key is used to claim host privileges such as
-                recording the meeting and enabling AI functionality.
-              </div>
-              <div style={{ fontSize: 11, color: '#92400E', marginTop: 6, maxWidth: 540, lineHeight: 1.5 }}>
-                <strong>Note:</strong> The Host Key will be sent once anyone has joined the meeting.
+              <div style={{ fontSize: 11, color: '#92400E', marginTop: 4, maxWidth: 520, lineHeight: 1.5 }}>
+                If nobody has host controls yet, use Participants {'→'} Claim Host in Zoom and enter this key. Works regardless of your Zoom license.
               </div>
             </div>
           </Row>
