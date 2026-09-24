@@ -36,13 +36,14 @@ const formatTimeLabel = (hhmm: string) =>
 const formatDateLabel = (dateStr: string) =>
   new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-// A single consolidated field (like MUI X's DateTimeRangePicker) instead of
-// three separate inputs - click it to open a popover with the date, start
-// time, and end time controls, styled here with plain native inputs rather
-// than pulling in @mui/x-date-pickers-pro (which needs a paid license for
-// its own range picker). Still backed by the same real availability check
-// (/api/availability/check) so the user still sees whether the exact
-// date/time range they picked is actually free before confirming.
+// Consolidated date + time range field, matching the "Pick Time and Date"
+// design: the trigger stays in normal document flow and expands an inline
+// panel below it (no floating/absolute popover, so nothing can clip it and
+// the live availability readout is never hidden behind an overlay), styled
+// with plain native inputs rather than @mui/x-date-pickers-pro (which needs
+// a paid license for its own range picker). Still backed by the same real
+// availability check (/api/availability/check) so the user still sees
+// whether the exact date/time range they picked is actually free.
 export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
   selectedDate,
   onSelectDate,
@@ -56,18 +57,9 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
   const [startTime, setStartTime] = useState('09:00'); // HH:MM, 24-hour
   const [endTime, setEndTime] = useState('09:30');
   const [availability, setAvailability] = useState<AvailabilityState>({ status: 'unknown' });
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
+  const [applied, setApplied] = useState(false);
   const requestIdRef = useRef(0);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setIsOpen(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
 
   const [startHour, startMinute] = startTime.split(':').map(Number);
   const isoString = selectedDate
@@ -114,8 +106,15 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
     return () => clearTimeout(timeout);
   }, [selectedDate, startTime, durationMinutes, isValidRange, selectedTimezone, meetingTypeId, isPast]);
 
-  const handleConfirm = () => {
-    if (!selectedDate || isPast || !isValidRange || availability.status === 'blocked') return;
+  // Editing the range again after applying un-does the "Applied" state.
+  useEffect(() => {
+    setApplied(false);
+  }, [selectedDate, startTime, endTime]);
+
+  const isBlocked = isPast || !isValidRange || availability.status === 'blocked';
+
+  const handleApply = () => {
+    if (isBlocked) return;
     const formattedTime = formatTimeLabel(startTime);
     onSelectTime({
       id: `custom-${selectedDate}-${startTime}-${endTime}`,
@@ -124,21 +123,37 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
       isoString,
       isAvailable: availability.status !== 'blocked',
     });
+    setApplied(true);
+    setIsOpen(false);
   };
 
-  const fieldLabel = selectedDate
+  const durationLabel = (() => {
+    if (!isValidRange) return 'Select a valid time range';
+    const h = Math.floor(durationMinutes / 60);
+    const m = durationMinutes % 60;
+    const parts: string[] = [];
+    if (h > 0) parts.push(`${h}h`);
+    if (m > 0) parts.push(`${m}m`);
+    return `${parts.join(' ')} meeting`;
+  })();
+
+  const rangeSummary = selectedDate
     ? `${formatDateLabel(selectedDate)} · ${formatTimeLabel(startTime)} – ${formatTimeLabel(endTime)}`
     : 'Select date and time';
 
-  // Shared live duration + availability readout, rendered both inside the
-  // popover (so it's visible in real time while still editing the range,
-  // instead of hidden behind the popover) and again once it's collapsed
-  // back to the single field, so it stays visible at a glance either way.
-  const availabilityReadout = isValidRange && (
+  const availabilityReadout = (
     <div className="flex flex-col items-center gap-2">
-      <span className="text-xs text-gray-500 font-medium">{durationMinutes} minute meeting</span>
-      {isPast ? (
-        <p className="text-xs text-red-500 font-medium">This time has already passed.</p>
+      <span className="text-xs text-gray-500 font-medium">{durationLabel}</span>
+      {!isValidRange ? (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full text-xs font-semibold text-center">
+          <XCircle className="w-3.5 h-3.5 shrink-0" />
+          End time must be after start time
+        </span>
+      ) : isPast ? (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full text-xs font-semibold text-center">
+          <XCircle className="w-3.5 h-3.5 shrink-0" />
+          This time has already passed
+        </span>
       ) : availability.status === 'checking' ? (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-xs font-semibold">
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -160,20 +175,22 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
 
   return (
     <div className="flex flex-col h-full p-5 sm:p-6 bg-white">
-      <div className="pb-4 border-b border-gray-100 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <CalendarIcon className="w-4 h-4 text-[#0b5cff]" />
-            <h3 className="font-bold text-gray-900 text-lg">Pick time and date</h3>
+      <div className="pb-4 border-b border-gray-100 mb-4 flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-[10px] bg-blue-100 flex items-center justify-center shrink-0">
+            <CalendarIcon className="w-4.5 h-4.5 text-[#0b5cff]" />
           </div>
-          <p className="text-xs text-gray-500 mt-0.5">{formattedDate}</p>
+          <div>
+            <div className="font-bold text-gray-900 text-lg tracking-tight">Pick time and date</div>
+            <p className="text-sm text-gray-500 mt-0.5">{formattedDate}</p>
+          </div>
         </div>
 
         {/* Timezone pill button */}
         <button
           type="button"
           onClick={onChangeTimezone}
-          className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 transition-colors cursor-pointer self-start sm:self-auto"
+          className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
         >
           <Globe className="w-3.5 h-3.5 text-[#0b5cff]" />
           <span className="font-mono text-[11px] truncate max-w-[180px]">
@@ -183,91 +200,82 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
         </button>
       </div>
 
-      {/* Consolidated single field - opens a popover with date + start/end time */}
-      <div className="relative" ref={containerRef}>
-        <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
-          Date &amp; Time Range
-        </label>
-        <button
-          type="button"
-          onClick={() => setIsOpen((v) => !v)}
-          className="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 bg-[#F7F9FA] border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] cursor-pointer hover:bg-gray-100 transition-colors"
-        >
-          <span className="flex items-center gap-2 truncate">
-            <CalendarIcon className="w-4 h-4 text-[#0b5cff] shrink-0" />
-            <span className="truncate">{fieldLabel}</span>
-          </span>
-          <ChevronDown className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-        </button>
-
-        {isOpen && (
-          <div className="absolute z-20 mt-2 w-full min-w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-4 space-y-3">
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
-                Date
-              </label>
-              <input
-                type="date"
-                value={selectedDate}
-                min={getTodayStr()}
-                onChange={(e) => onSelectDate(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#F7F9FA] border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] cursor-pointer"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
-                  Start Time
-                </label>
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-[#F7F9FA] border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] cursor-pointer"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
-                  End Time
-                </label>
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-[#F7F9FA] border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] cursor-pointer"
-                />
-              </div>
-            </div>
-
-            {!isValidRange && (
-              <p className="text-xs text-red-500 font-medium">End time must be after the start time.</p>
-            )}
-
-            {availabilityReadout}
-
-            <button
-              type="button"
-              onClick={() => setIsOpen(false)}
-              className="w-full py-2 rounded-xl bg-[#0b5cff] hover:bg-[#0049d1] text-white text-xs font-bold transition-colors cursor-pointer"
-            >
-              Apply
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Same readout, shown here too once the popover is closed so it
-          stays visible at a glance */}
-      {!isOpen && <div className="mt-4">{availabilityReadout}</div>}
+      <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">
+        Date &amp; Time Range
+      </label>
 
       <button
         type="button"
-        onClick={handleConfirm}
-        disabled={!selectedDate || isPast || !isValidRange || availability.status === 'blocked'}
-        className="mt-4 w-full py-3 rounded-xl bg-[#0b5cff] hover:bg-[#0049d1] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold transition-colors cursor-pointer"
+        onClick={() => setIsOpen((v) => !v)}
+        className={`w-full flex items-center gap-2.5 px-4 py-3.5 rounded-xl text-left transition-colors cursor-pointer border ${
+          isOpen ? 'bg-blue-50 border-[#0b5cff]/50' : 'bg-white border-gray-200 hover:border-gray-300'
+        }`}
       >
-        Confirm This Date & Time
+        <CalendarIcon className="w-4 h-4 text-[#0b5cff] shrink-0" />
+        <span className="text-[15px] font-semibold text-gray-900 flex-1 truncate">{rangeSummary}</span>
+        <ChevronDown className={`w-4 h-4 text-gray-500 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
+
+      {isOpen && (
+        <div className="mt-3.5 bg-[#FAFAFA] border border-gray-200 rounded-xl p-5">
+          <div className="mb-4">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">
+              Date
+            </label>
+            <input
+              type="date"
+              value={selectedDate}
+              min={getTodayStr()}
+              onChange={(e) => onSelectDate(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-lg text-[15px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] focus:border-transparent cursor-pointer"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">
+                Start Time
+              </label>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-lg text-[15px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] focus:border-transparent cursor-pointer"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">
+                End Time
+              </label>
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-lg text-[15px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] focus:border-transparent cursor-pointer"
+              />
+            </div>
+          </div>
+
+          <div className="mb-4">{availabilityReadout}</div>
+
+          <button
+            type="button"
+            onClick={handleApply}
+            disabled={isBlocked}
+            className={`w-full py-3.5 rounded-xl text-[15px] font-bold text-white transition-colors ${
+              isBlocked
+                ? 'bg-gray-300 cursor-not-allowed'
+                : applied
+                  ? 'bg-green-600 cursor-pointer'
+                  : 'bg-[#0b5cff] hover:bg-[#0049d1] cursor-pointer'
+            }`}
+          >
+            {applied ? 'Applied ✓' : 'Apply'}
+          </button>
+        </div>
+      )}
+
+      {!isOpen && <div className="mt-4">{availabilityReadout}</div>}
     </div>
   );
 };
