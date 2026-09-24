@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Calendar as CalendarIcon, Globe, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Globe, CheckCircle2, XCircle, Loader2, ChevronDown } from 'lucide-react';
 import { zonedTimeToUtc } from '../utils/timezone';
 import { TimeSlot } from '../types';
 
@@ -30,11 +30,19 @@ const toMinutes = (hhmm: string) => {
   return h * 60 + m;
 };
 
-// A plain native date input plus start/end time inputs - no preset duration
-// options at all, duration is just (end - start). Still backed by the same
-// real availability check (/api/availability/check) so the user still sees
-// whether the exact date/time range they picked is actually free before
-// confirming.
+const formatTimeLabel = (hhmm: string) =>
+  new Date(`2000-01-01T${hhmm}:00`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+const formatDateLabel = (dateStr: string) =>
+  new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+// A single consolidated field (like MUI X's DateTimeRangePicker) instead of
+// three separate inputs - click it to open a popover with the date, start
+// time, and end time controls, styled here with plain native inputs rather
+// than pulling in @mui/x-date-pickers-pro (which needs a paid license for
+// its own range picker). Still backed by the same real availability check
+// (/api/availability/check) so the user still sees whether the exact
+// date/time range they picked is actually free before confirming.
 export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
   selectedDate,
   onSelectDate,
@@ -48,7 +56,18 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
   const [startTime, setStartTime] = useState('09:00'); // HH:MM, 24-hour
   const [endTime, setEndTime] = useState('09:30');
   const [availability, setAvailability] = useState<AvailabilityState>({ status: 'unknown' });
+  const [isOpen, setIsOpen] = useState(false);
   const requestIdRef = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setIsOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
 
   const [startHour, startMinute] = startTime.split(':').map(Number);
   const isoString = selectedDate
@@ -97,11 +116,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
 
   const handleConfirm = () => {
     if (!selectedDate || isPast || !isValidRange || availability.status === 'blocked') return;
-    const formattedTime = new Date(`2000-01-01T${startTime}:00`).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
+    const formattedTime = formatTimeLabel(startTime);
     onSelectTime({
       id: `custom-${selectedDate}-${startTime}-${endTime}`,
       time: startTime,
@@ -110,6 +125,10 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
       isAvailable: availability.status !== 'blocked',
     });
   };
+
+  const fieldLabel = selectedDate
+    ? `${formatDateLabel(selectedDate)} · ${formatTimeLabel(startTime)} – ${formatTimeLabel(endTime)}`
+    : 'Select date and time';
 
   return (
     <div className="flex flex-col h-full p-5 sm:p-6 bg-white">
@@ -136,48 +155,80 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
-            Date
-          </label>
-          <input
-            type="date"
-            value={selectedDate}
-            min={getTodayStr()}
-            onChange={(e) => onSelectDate(e.target.value)}
-            className="w-full px-3.5 py-2.5 bg-[#F7F9FA] border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] cursor-pointer"
-          />
-        </div>
-        <div>
-          <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
-            Start Time
-          </label>
-          <input
-            type="time"
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            className="w-full px-3.5 py-2.5 bg-[#F7F9FA] border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] cursor-pointer"
-          />
-        </div>
-        <div>
-          <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
-            End Time
-          </label>
-          <input
-            type="time"
-            value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
-            className="w-full px-3.5 py-2.5 bg-[#F7F9FA] border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] cursor-pointer"
-          />
-        </div>
+      {/* Consolidated single field - opens a popover with date + start/end time */}
+      <div className="relative" ref={containerRef}>
+        <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+          Date &amp; Time Range
+        </label>
+        <button
+          type="button"
+          onClick={() => setIsOpen((v) => !v)}
+          className="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 bg-[#F7F9FA] border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] cursor-pointer hover:bg-gray-100 transition-colors"
+        >
+          <span className="flex items-center gap-2 truncate">
+            <CalendarIcon className="w-4 h-4 text-[#0b5cff] shrink-0" />
+            <span className="truncate">{fieldLabel}</span>
+          </span>
+          <ChevronDown className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        {isOpen && (
+          <div className="absolute z-20 mt-2 w-full min-w-[320px] bg-white border border-gray-200 rounded-xl shadow-lg p-4 space-y-3">
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                Date
+              </label>
+              <input
+                type="date"
+                value={selectedDate}
+                min={getTodayStr()}
+                onChange={(e) => onSelectDate(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-[#F7F9FA] border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] cursor-pointer"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                  Start Time
+                </label>
+                <input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-[#F7F9FA] border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] cursor-pointer"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                  End Time
+                </label>
+                <input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-[#F7F9FA] border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {!isValidRange && (
+              <p className="text-xs text-red-500 font-medium">End time must be after the start time.</p>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="w-full py-2 rounded-xl bg-[#0b5cff] hover:bg-[#0049d1] text-white text-xs font-bold transition-colors cursor-pointer"
+            >
+              Apply
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Live duration + availability readout for the exact date/time range currently entered */}
       <div className="mt-4 flex flex-col items-center gap-2">
-        {!isValidRange ? (
-          <p className="text-xs text-red-500 font-medium">End time must be after the start time.</p>
-        ) : (
+        {isValidRange && (
           <span className="text-xs text-gray-500 font-medium">{durationMinutes} minute meeting</span>
         )}
 
