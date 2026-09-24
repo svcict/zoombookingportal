@@ -2951,11 +2951,20 @@ app.post('/api/bookings', async (req, res) => {
     // Real confirmation email, sent AS the rotating Zoom account that
     // hosts this specific meeting (its real M365 mailbox), not a fixed
     // sender. Split into two variants for the Host Key's sake: only the
-    // booker and an explicitly nominated meeting host (see the "Meeting
+    // booker and whoever was nominated as meeting host (see the "Meeting
     // Host" intake field) should be able to start the meeting directly, so
     // only their copy includes the Host Key - every other invitee gets an
     // otherwise-identical email without that section.
-    const nominatedHost = newBooking.zoomConfig?.alternativeHosts;
+    //
+    // Deliberately uses the REQUESTED nominee, not
+    // newBooking.zoomConfig.alternativeHosts (the post-Zoom-API value,
+    // which providerZoomMeeting resets to '' whenever Zoom rejects that
+    // person as Alternative Host - e.g. they're not a Licensed user on
+    // this Zoom account). The Host Key works regardless of Zoom license,
+    // so it's exactly the fallback that nominee needs when Alternative
+    // Host doesn't apply to them - reusing the post-fallback value here
+    // would silently withhold it in precisely the case it matters most.
+    const nominatedHost = zoomConfig?.alternativeHosts || participantEmail;
     const isNominatedHost =
       nominatedHost && nominatedHost.toLowerCase() !== newBooking.participantEmail.toLowerCase();
     const sensitiveRecipients = [newBooking.participantEmail, ...(isNominatedHost ? [nominatedHost] : [])];
