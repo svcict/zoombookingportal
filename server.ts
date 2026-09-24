@@ -576,12 +576,13 @@ function generateZoomDetails(meetingTitle: string, hostName: string = 'Sarah Jen
 // Rotation state: which account was assigned last when both were free
 let lastAssignedZoomAccount: ZoomAccountKey | null = null;
 
-// Picks a Zoom account for a new meeting, favoring whichever configured
-// account (A or B) has no overlapping booking at the requested time.
-// Falls back to round-robin between the two when both are free.
-async function pickZoomAccount(startIso: string, endIso: string): Promise<ZoomAccountKey | null> {
+// Which configured Zoom accounts (A/B) are free for this exact interval,
+// checking both this app's own booking log and each account's real M365
+// calendar. Pure/non-mutating (unlike pickZoomAccount) so it's safe to call
+// just to preview availability without affecting the real round-robin.
+async function checkZoomAccountsFreeAt(startIso: string, endIso: string): Promise<ZoomAccountKey[]> {
   const configured = getConfiguredAccountKeys();
-  if (configured.length === 0) return null;
+  if (configured.length === 0) return [];
 
   const overlapsExistingBooking = (key: ZoomAccountKey) =>
     bookings.some((b) => {
@@ -608,6 +609,14 @@ async function pickZoomAccount(startIso: string, endIso: string): Promise<ZoomAc
     if (await overlapsRealM365(key)) continue;
     free.push(key);
   }
+  return free;
+}
+
+// Picks a Zoom account for a new meeting, favoring whichever configured
+// account (A or B) has no overlapping booking at the requested time.
+// Falls back to round-robin between the two when both are free.
+async function pickZoomAccount(startIso: string, endIso: string): Promise<ZoomAccountKey | null> {
+  const free = await checkZoomAccountsFreeAt(startIso, endIso);
 
   if (free.length === 0) return null;
   if (free.length === 1) return free[0];
@@ -2594,6 +2603,79 @@ app.get('/api/availability', async (req, res) => {
   } catch (err: any) {
     console.error('Error in /api/availability:', err);
     res.status(500).json({ success: false, error: err.message || 'Failed to calculate availability' });
+  }
+});
+
+// Checks a single, arbitrary date/time (not limited to the fixed-interval
+// grid above) for the free-entry TimePicker - same real conflict checks
+// (weekend, past, lunch buffer, both rotating Zoom accounts' bookings + M365
+// calendars) as /api/availability, just for one exact instant instead of a
+// whole day's worth of preset slots.
+app.get('/api/availability/check', async (req, res) => {
+  try {
+    const {
+      date,
+      time,
+      timezone = 'America/New_York',
+      meetingTypeId,
+      duration: queryDuration
+    } = req.query as {
+      date?: string;
+      time?: string; // "HH:MM", 24-hour
+      timezone?: string;
+      meetingTypeId?: string;
+      duration?: string;
+    };
+
+    if (!date || !time) {
+      return res.status(400).json({ success: false, error: 'date and time (HH:MM) are required' });
+    }
+    const [hStr, mStr] = time.split(':');
+    const h = parseInt(hStr, 10);
+    const m = parseInt(mStr, 10);
+    if (Number.isNaN(h) || Number.isNaN(m)) {
+      return res.status(400).json({ success: false, error: 'time must be in HH:MM (24-hour) format' });
+    }
+
+    const meetingType = meetingTypes.find((mt) => mt.id === meetingTypeId) || meetingTypes[0];
+    const duration = queryDuration ? parseInt(queryDuration, 10) : (meetingType ? meetingType.duration : 30);
+
+    const dayOfWeek = new Date(`${date}T12:00:00`).getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+    const startIso = zonedTimeToUtc(date, h, m, timezone).toISOString();
+    const startMs = new Date(startIso).getTime();
+    const endIso = new Date(startMs + duration * 60000).toISOString();
+
+    if (isWeekend) {
+      return res.json({ success: true, isAvailable: false, reason: 'Weekend (Unavailable)', isoString: startIso });
+    }
+    if (startMs <= Date.now()) {
+      return res.json({ success: true, isAvailable: false, reason: 'This time has already passed', isoString: startIso });
+    }
+    if (h < 8 || h >= 20) {
+      return res.json({ success: true, isAvailable: false, reason: 'Outside booking hours (8:00 AM - 8:00 PM)', isoString: startIso });
+    }
+    if (h === 12 && m === 0) {
+      return res.json({ success: true, isAvailable: false, reason: 'Lunch / Administrative Buffer', isoString: startIso });
+    }
+
+    // Matches /api/availability's fail-open behavior: with no Zoom accounts
+    // configured yet, there's nothing to be "busy" against, so this only
+    // ever blocks once real accounts are actually connected.
+    const configuredZoomAccounts = getConfiguredAccountKeys();
+    const freeAccounts = configuredZoomAccounts.length > 0 ? await checkZoomAccountsFreeAt(startIso, endIso) : [];
+    const bothAccountsBusy = configuredZoomAccounts.length > 0 && freeAccounts.length === 0;
+
+    res.json({
+      success: true,
+      isAvailable: !bothAccountsBusy,
+      reason: bothAccountsBusy ? 'Both rotating Zoom accounts busy (Zoom + M365 calendar)' : undefined,
+      isoString: startIso
+    });
+  } catch (err: any) {
+    console.error('Error in /api/availability/check:', err);
+    res.status(500).json({ success: false, error: err.message || 'Failed to check availability' });
   }
 });
 

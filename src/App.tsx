@@ -566,6 +566,8 @@ export default function App() {
                       selectedDate={selectedDate}
                       formattedDate={formattedDateStr}
                       selectedTimezone={selectedTimezone}
+                      meetingTypeId={selectedMeetingType?.id}
+                      duration={selectedMeetingType?.duration}
                       onSelectTime={handleSelectSlot}
                     />
                   </div>
