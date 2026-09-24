@@ -52,6 +52,7 @@ interface ZoomIntakeFormProps {
   selectedSlot: TimeSlot;
   selectedTimezone: string;
   authUser?: M365User | null;
+  answers: Record<string, any>;
   onBack: () => void;
   onSubmit: (formData: {
     participantName: string;
@@ -72,6 +73,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   selectedSlot,
   selectedTimezone,
   authUser,
+  answers,
   onBack,
   onSubmit,
   isSubmitting = false,
@@ -87,7 +89,6 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   // - including the Host Key, in case they're not eligible for Alternative
   // Host (e.g. a Basic/Workplace Basic seat) and need to "Claim Host" instead.
   const [hostOnBehalfEmail, setHostOnBehalfEmail] = useState('');
-  const [answers, setAnswers] = useState<Record<string, any>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Zoom meeting settings - set here at booking time so the meeting is
@@ -125,17 +126,6 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
     setGuestEmails(guestEmails.filter((e) => e !== emailToRemove));
   };
 
-  const handleAnswerChange = (questionId: string, val: any) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: val }));
-    if (errors[questionId]) {
-      setErrors((prev) => {
-        const next = { ...prev };
-        delete next[questionId];
-        return next;
-      });
-    }
-  };
-
   const validate = () => {
     const newErrors: Record<string, string> = {};
     if (!fullName.trim()) newErrors.fullName = 'Full name is required';
@@ -144,13 +134,8 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
     if (hostOnBehalfEmail.trim() && !hostOnBehalfEmail.includes('@')) {
       newErrors.hostOnBehalfEmail = 'Enter a valid email address';
     }
-
-    // Validate required custom questions
-    meetingType.customQuestions.forEach((q) => {
-      if (q.required && (!answers[q.id] || String(answers[q.id]).trim() === '')) {
-        newErrors[q.id] = `${q.label} is required`;
-      }
-    });
+    // Custom questions (e.g. Meeting Agenda) are answered - and validated -
+    // on the scheduling step now, before the user ever reaches this form.
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -405,98 +390,6 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
           </div>
           {errors.hostOnBehalfEmail && <p className="text-red-500 text-xs mt-2">{errors.hostOnBehalfEmail}</p>}
         </div>
-
-        {/* Section: Custom Host Intake Questions */}
-        {meetingType.customQuestions.length > 0 && (
-          <div className="pt-4 border-t border-gray-100 space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
-              <Video className="w-4 h-4 text-[#0b5cff]" />
-              Meeting Preparation Questions
-            </h3>
-
-            {meetingType.customQuestions.map((q) => {
-              const val = answers[q.id] || '';
-              const hasError = errors[q.id];
-
-              return (
-                <div key={q.id} className="space-y-1.5">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
-                    {q.label} {q.required && <span className="text-red-500">*</span>}
-                  </label>
-                  {q.helpText && <p className="text-[11px] text-gray-400 mb-1">{q.helpText}</p>}
-
-                  {/* Textarea */}
-                  {q.type === 'textarea' && (
-                    <textarea
-                      rows={3}
-                      value={val}
-                      onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                      placeholder={q.placeholder || 'Your response...'}
-                      className={`w-full px-4 py-3 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] transition-all ${
-                        hasError ? 'ring-2 ring-red-400 bg-red-50/50' : ''
-                      }`}
-                    />
-                  )}
-
-                  {/* Text or Phone */}
-                  {(q.type === 'text' || q.type === 'phone') && (
-                    <input
-                      type={q.type}
-                      value={val}
-                      onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                      placeholder={q.placeholder || ''}
-                      className={`w-full px-4 py-3 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] transition-all ${
-                        hasError ? 'ring-2 ring-red-400 bg-red-50/50' : ''
-                      }`}
-                    />
-                  )}
-
-                  {/* Select */}
-                  {q.type === 'select' && (
-                    <select
-                      value={val}
-                      onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                      className={`w-full px-4 py-3 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] ${
-                        hasError ? 'ring-2 ring-red-400 bg-red-50/50' : ''
-                      }`}
-                    >
-                      <option value="">-- Please select an option --</option>
-                      {q.options?.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-
-                  {/* Radio */}
-                  {q.type === 'radio' && (
-                    <div className="space-y-2 mt-1">
-                      {q.options?.map((opt) => (
-                        <label
-                          key={opt}
-                          className="flex items-center gap-2.5 p-3 rounded-xl bg-[#F0F2F4] hover:bg-gray-200/70 cursor-pointer text-xs text-gray-700 font-medium transition-colors"
-                        >
-                          <input
-                            type="radio"
-                            name={q.id}
-                            value={opt}
-                            checked={val === opt}
-                            onChange={() => handleAnswerChange(q.id, opt)}
-                            className="w-4 h-4 text-[#0b5cff] focus:ring-[#0b5cff]"
-                          />
-                          <span>{opt}</span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-
-                  {hasError && <p className="text-red-500 text-xs mt-1">{hasError}</p>}
-                </div>
-              );
-            })}
-          </div>
-        )}
 
         {/* Section: Zoom Meeting Settings (set now, applied when the meeting is created) */}
         <div className="pt-4 border-t border-gray-100 space-y-5">

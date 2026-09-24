@@ -3,7 +3,8 @@ import { Header } from './components/Header';
 import { M365AuthGate } from './components/M365AuthGate';
 import { MeetingTypeSelector } from './components/MeetingTypeSelector';
 import { CalendarPicker } from './components/CalendarPicker';
-import { TimeSlotGrid } from './components/TimeSlotGrid';
+import { TimePicker } from './components/TimePicker';
+import { MeetingAgendaQuestions } from './components/MeetingAgendaQuestions';
 import { ZoomIntakeForm } from './components/ZoomIntakeForm';
 import { BookingConfirmation } from './components/BookingConfirmation';
 import { HostBookingsView } from './components/HostBookingsView';
@@ -55,6 +56,8 @@ export default function App() {
   const [selectedMeetingType, setSelectedMeetingType] = useState<MeetingType | null>(INITIAL_MEETING_TYPES[0]);
   const [meetingTopic, setMeetingTopic] = useState<string>('');
   const [topicError, setTopicError] = useState(false);
+  const [meetingAnswers, setMeetingAnswers] = useState<Record<string, any>>({});
+  const [answerErrors, setAnswerErrors] = useState<Record<string, string>>({});
   const [hostAccounts, setHostAccounts] = useState<HostAccount[]>(INITIAL_HOST_ACCOUNTS);
   const [selectedAccountId, setSelectedAccountId] = useState<string>('all');
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -70,24 +73,10 @@ export default function App() {
   const initialDateStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
   
   const [selectedDate, setSelectedDate] = useState<string>(initialDateStr);
-  
-  // Initial local slots calculated instantly
-  const [slots, setSlots] = useState<TimeSlot[]>(() => {
-    const initial = generateLocalAvailabilitySlots({
-      meetingType: INITIAL_MEETING_TYPES[0],
-      date: initialDateStr,
-      selectedAccountId: 'all',
-      bookings: [],
-      timezone: selectedTimezone
-    });
-    return initial.slots;
-  });
 
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [bookingStep, setBookingStep] = useState<'slots' | 'intake' | 'confirmed'>('slots');
   const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
-
-  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
   const [isSlotUnavailableModalOpen, setIsSlotUnavailableModalOpen] = useState(false);
   const [bannerNotice, setBannerNotice] = useState<string | null>(null);
@@ -194,11 +183,13 @@ export default function App() {
     });
   }, [bookings, isAdmin, authUser]);
 
-  // Fetch Availability Slots with instant local fallback
+  // Refresh the rotating host-account summary for the selected meeting type/date.
+  // The fixed-slot availability grid this used to also populate is gone now
+  // that time entry is free-form (see TimePicker) - real conflicts are still
+  // caught server-side at submit (the existing 409 "both accounts booked" path).
   const fetchAvailability = useCallback(async () => {
     if (!selectedMeetingType || !selectedDate) return;
-    
-    // Ensure we have local slots immediately available
+
     const localResult = generateLocalAvailabilitySlots({
       meetingType: selectedMeetingType,
       date: selectedDate,
@@ -215,23 +206,14 @@ export default function App() {
       );
       if (res.ok) {
         const data = await res.json();
-        if (data.success && Array.isArray(data.slots) && data.slots.length > 0) {
-          setSlots(data.slots);
-          if (data.hostAccountsSummary) {
-            setHostAccounts(data.hostAccountsSummary);
-          }
+        if (data.success && data.hostAccountsSummary) {
+          setHostAccounts(data.hostAccountsSummary);
           return;
         }
       }
-      // If server returned unsuccessful response, apply local slots
-      setSlots(localResult.slots);
       setHostAccounts(localResult.hostAccountsSummary);
     } catch {
-      // Seamlessly apply local slots on any network error
-      setSlots(localResult.slots);
       setHostAccounts(localResult.hostAccountsSummary);
-    } finally {
-      setIsLoadingSlots(false);
     }
   }, [selectedMeetingType, selectedDate, selectedTimezone, selectedAccountId, bookings, m365State.syncEnabled]);
 
@@ -254,8 +236,33 @@ export default function App() {
       return;
     }
     setTopicError(false);
+
+    const newAnswerErrors: Record<string, string> = {};
+    (selectedMeetingType?.customQuestions || []).forEach((q) => {
+      if (q.required && (!meetingAnswers[q.id] || String(meetingAnswers[q.id]).trim() === '')) {
+        newAnswerErrors[q.id] = `${q.label} is required`;
+      }
+    });
+    if (Object.keys(newAnswerErrors).length > 0) {
+      setAnswerErrors(newAnswerErrors);
+      document.getElementById('meeting-agenda-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    setAnswerErrors({});
+
     setSelectedSlot(slot);
     setBookingStep('intake');
+  };
+
+  const handleAnswerChange = (questionId: string, val: any) => {
+    setMeetingAnswers((prev) => ({ ...prev, [questionId]: val }));
+    if (answerErrors[questionId]) {
+      setAnswerErrors((prev) => {
+        const next = { ...prev };
+        delete next[questionId];
+        return next;
+      });
+    }
   };
 
   // Submit Zoom Intake Form -> One-Click Schedule
@@ -514,6 +521,17 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Meeting Agenda / custom questions for the selected meeting type -
+                    answered here, right below Topic, instead of later in the intake form */}
+                {selectedMeetingType && (
+                  <MeetingAgendaQuestions
+                    meetingType={selectedMeetingType}
+                    answers={meetingAnswers}
+                    errors={answerErrors}
+                    onAnswerChange={handleAnswerChange}
+                  />
+                )}
+
                 {/* Step 1: Meeting Type & Timezone Selector */}
                 <MeetingTypeSelector
                   meetingTypes={meetingTypes}
@@ -521,14 +539,16 @@ export default function App() {
                   onSelectMeetingType={(type) => {
                     setSelectedMeetingType(type);
                     setSelectedSlot(null);
+                    setMeetingAnswers({});
+                    setAnswerErrors({});
                   }}
                   selectedTimezone={selectedTimezone}
                   onChangeTimezone={() => setIsTimezoneModalOpen(true)}
                 />
 
-                {/* Step 2: Side-by-Side Calendar & Available Time Slots */}
+                {/* Step 2: Calendar + free-form Time Picker */}
                 <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-200 items-stretch">
-                  
+
                   {/* Left Column: Interactive Monthly Calendar */}
                   <div className="flex flex-col h-full">
                     <CalendarPicker
@@ -540,15 +560,13 @@ export default function App() {
                     />
                   </div>
 
-                  {/* Right Column: Available Time Slots Grid */}
+                  {/* Right Column: Flexible Time Picker (not locked to preset intervals) */}
                   <div className="flex flex-col h-full bg-[#FAFAFA]/50">
-                    <TimeSlotGrid
-                      slots={slots}
-                      selectedSlot={selectedSlot}
-                      onSelectSlot={handleSelectSlot}
+                    <TimePicker
+                      selectedDate={selectedDate}
                       formattedDate={formattedDateStr}
                       selectedTimezone={selectedTimezone}
-                      isLoading={isLoadingSlots}
+                      onSelectTime={handleSelectSlot}
                     />
                   </div>
 
@@ -566,6 +584,7 @@ export default function App() {
                 selectedSlot={selectedSlot}
                 selectedTimezone={selectedTimezone}
                 authUser={authUser}
+                answers={meetingAnswers}
                 onBack={() => setBookingStep('slots')}
                 onSubmit={handleSubmitBooking}
                 isSubmitting={isSubmittingBooking}
