@@ -181,7 +181,7 @@ let meetingTypes: SeedMeetingType[] = [
         type: 'textarea',
         placeholder: 'Please describe what you would like to achieve or specific questions you have...',
         required: true,
-        helpText: 'Helps us prepare relevant technical documentation in advance.'
+        helpText: 'Shown to participants as the meeting agenda only.'
       }
     ]
   },

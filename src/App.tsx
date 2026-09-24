@@ -481,70 +481,74 @@ export default function App() {
         {currentView === 'booking' && (
           <div>
             {bookingStep === 'slots' && (
-              <div className="space-y-6">
-                
-                {/* Meeting Topic / Name Input Card */}
-                <div
-                  id="meeting-topic-card"
-                  className="bg-white rounded-2xl p-6 sm:p-7 border border-gray-200 shadow-xs"
-                >
-                  <div className="w-full space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label htmlFor="meeting-topic-input" className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-2">
-                        <Video className="w-4 h-4 text-[#0b5cff]" />
-                        <span>Topic <span className="text-red-500">*</span></span>
-                      </label>
-                      <span className="text-[11px] text-gray-400 font-mono hidden sm:inline">
-                        Auto-generates Zoom &amp; Outlook title
-                      </span>
-                    </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
 
-                    <div className="relative">
-                      <input
-                        id="meeting-topic-input"
-                        type="text"
-                        value={meetingTopic}
-                        onChange={(e) => {
-                          setMeetingTopic(e.target.value);
-                          if (e.target.value.trim()) setTopicError(false);
-                        }}
-                        placeholder="e.g. Ayala Foundation Operations Strategy & Partner Sync"
-                        className={`w-full px-4 py-3.5 bg-[#F7F9FA] hover:bg-gray-100/70 focus:bg-white border rounded-xl text-base font-semibold text-gray-900 placeholder:text-gray-400 placeholder:font-normal focus:outline-none focus:ring-4 transition-all shadow-2xs ${
-                          topicError
-                            ? 'border-red-400 focus:border-red-400 focus:ring-red-400/10'
-                            : 'border-gray-200 focus:border-[#0b5cff] focus:ring-[#0b5cff]/10'
-                        }`}
-                      />
-                      {meetingTopic && (
-                        <button
-                          type="button"
-                          onClick={() => setMeetingTopic('')}
-                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 px-1.5 py-0.5 text-xs font-bold bg-gray-200 hover:bg-gray-300 rounded-md transition-colors"
-                          title="Clear topic"
-                        >
-                          ✕
-                        </button>
+                {/* Left column: Topic + Meeting Agenda */}
+                <div className="space-y-6">
+
+                  {/* Meeting Topic / Name Input Card */}
+                  <div
+                    id="meeting-topic-card"
+                    className="bg-white rounded-2xl p-6 sm:p-7 border border-gray-200 shadow-xs"
+                  >
+                    <div className="w-full space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label htmlFor="meeting-topic-input" className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-2">
+                          <Video className="w-4 h-4 text-[#0b5cff]" />
+                          <span>Topic <span className="text-red-500">*</span></span>
+                        </label>
+                        <span className="text-[11px] text-gray-400 font-mono hidden sm:inline">
+                          Auto-generates Zoom &amp; Outlook title
+                        </span>
+                      </div>
+
+                      <div className="relative">
+                        <input
+                          id="meeting-topic-input"
+                          type="text"
+                          value={meetingTopic}
+                          onChange={(e) => {
+                            setMeetingTopic(e.target.value);
+                            if (e.target.value.trim()) setTopicError(false);
+                          }}
+                          placeholder="e.g. Ayala Foundation Operations Strategy & Partner Sync"
+                          className={`w-full px-4 py-3.5 bg-[#F7F9FA] hover:bg-gray-100/70 focus:bg-white border rounded-xl text-base font-semibold text-gray-900 placeholder:text-gray-400 placeholder:font-normal focus:outline-none focus:ring-4 transition-all shadow-2xs ${
+                            topicError
+                              ? 'border-red-400 focus:border-red-400 focus:ring-red-400/10'
+                              : 'border-gray-200 focus:border-[#0b5cff] focus:ring-[#0b5cff]/10'
+                          }`}
+                        />
+                        {meetingTopic && (
+                          <button
+                            type="button"
+                            onClick={() => setMeetingTopic('')}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 px-1.5 py-0.5 text-xs font-bold bg-gray-200 hover:bg-gray-300 rounded-md transition-colors"
+                            title="Clear topic"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      {topicError && (
+                        <p className="text-xs text-red-500 font-medium">Topic is required.</p>
                       )}
                     </div>
-                    {topicError && (
-                      <p className="text-xs text-red-500 font-medium">Topic is required.</p>
-                    )}
                   </div>
+
+                  {/* Meeting Agenda / custom questions for the selected meeting type -
+                      answered here, right below Topic, instead of later in the intake form */}
+                  {effectiveMeetingType && (
+                    <MeetingAgendaQuestions
+                      meetingType={effectiveMeetingType}
+                      answers={meetingAnswers}
+                      errors={answerErrors}
+                      onAnswerChange={handleAnswerChange}
+                    />
+                  )}
                 </div>
 
-                {/* Meeting Agenda / custom questions for the selected meeting type -
-                    answered here, right below Topic, instead of later in the intake form */}
-                {effectiveMeetingType && (
-                  <MeetingAgendaQuestions
-                    meetingType={effectiveMeetingType}
-                    answers={meetingAnswers}
-                    errors={answerErrors}
-                    onAnswerChange={handleAnswerChange}
-                  />
-                )}
-
-                {/* Simple native date + time picker - the only scheduling step,
-                    no separate preset-duration selection */}
+                {/* Right column: Simple native date + time picker - the only
+                    scheduling step, no separate preset-duration selection */}
                 <div className="bg-white rounded-2xl border border-gray-200 shadow-xs">
                   <SimpleDateTimePicker
                     selectedDate={selectedDate}
