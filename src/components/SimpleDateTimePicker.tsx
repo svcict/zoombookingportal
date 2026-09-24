@@ -386,7 +386,23 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
         )}
       </div>
 
-      {!isOpen && <div className="mt-4">{availabilityReadout}</div>}
+      {/* Once collapsed, still need a way forward - reopening the popover
+          again shouldn't be the only path to continue past this step */}
+      {!isOpen && (
+        <div className="mt-4 w-full max-w-[480px] space-y-3">
+          {availabilityReadout}
+          <button
+            type="button"
+            onClick={handleApply}
+            disabled={isBlocked}
+            className={`w-full py-3.5 rounded-xl text-[15px] font-bold text-white transition-colors ${
+              isBlocked ? 'bg-gray-300 cursor-not-allowed' : 'bg-[#0b5cff] hover:bg-[#0049d1] cursor-pointer'
+            }`}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 };
