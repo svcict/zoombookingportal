@@ -87,7 +87,7 @@ export const Scene4Intake: React.FC = () => {
               <Divider />
               <Field
                 label="MEETING HOST (optional)"
-                hint="Booking on someone else's behalf? Enter their email and they'll be set as the Zoom Alternative Host and included on the confirmation email — with the Host Key, in case Zoom doesn't let them start as host directly."
+                hint="Booking on someone else's behalf? Enter their email and they'll be set as the Zoom Alternative Host and included on the confirmation email with the Host Key."
               >
                 <div style={{ background: theme.white, border: `1.5px solid ${theme.blue}`, borderRadius: 8, padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
                   <User size={13} color={theme.gray400} />
