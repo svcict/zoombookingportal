@@ -400,7 +400,8 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                 privileges such as recording the meeting.
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                Note: The Host Key will be sent once anyone has joined the meeting.
+                Note: The Host Key will be included in your confirmation email and shown here
+                immediately once the meeting is booked.
               </p>
             </div>
           </div>
