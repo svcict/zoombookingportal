@@ -30,9 +30,14 @@ interface HostBookingsViewProps {
   onNavigateToSchedule?: () => void;
 }
 
+// A meeting counts as past once its real end time has elapsed, regardless
+// of whether anyone ever cancelled it.
+const isMeetingPast = (b: Booking) => new Date(b.endTimeIso).getTime() <= Date.now();
+
 interface BookingCardProps {
   booking: Booking;
   isExpanded: boolean;
+  isPast?: boolean;
   onToggleExpand: () => void;
   copiedId: string | null;
   onCopy: (text: string, id: string) => void;
@@ -40,12 +45,14 @@ interface BookingCardProps {
   getQuestionLabel: (booking: Booking, questionId: string) => string;
 }
 
-// One meeting's card, shared by both the active list and the collapsible
-// "Canceled Meetings" section below it, so the two stay visually
-// identical instead of drifting apart as separate copies.
+// One meeting's card, shared by the active list, the collapsible "Past
+// Meetings" section, and the collapsible "Canceled Meetings" section below
+// it, so all three stay visually identical instead of drifting apart as
+// separate copies.
 const BookingCard: React.FC<BookingCardProps> = ({
   booking,
   isExpanded,
+  isPast = false,
   onToggleExpand,
   copiedId,
   onCopy,
@@ -54,7 +61,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
 }) => (
   <div
     className={`bg-white rounded-2xl border transition-all overflow-hidden ${
-      booking.status === 'cancelled'
+      booking.status === 'cancelled' || isPast
         ? 'border-gray-200 opacity-70 bg-[#F7F9FA]'
         : 'border-gray-200 shadow-xs hover:border-[#0b5cff]/40'
     }`}
@@ -76,13 +83,17 @@ const BookingCard: React.FC<BookingCardProps> = ({
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-bold text-gray-900 text-base">{booking.meetingTitle}</h3>
-            {booking.status === 'confirmed' ? (
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-green-50 text-green-700 border border-green-200 flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" /> Confirmed
-              </span>
-            ) : (
+            {booking.status !== 'confirmed' ? (
               <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 flex items-center gap-1">
                 <XCircle className="w-3 h-3" /> Cancelled
+              </span>
+            ) : isPast ? (
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-600 border border-gray-200 flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" /> Completed
+              </span>
+            ) : (
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-green-50 text-green-700 border border-green-200 flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" /> Confirmed
               </span>
             )}
             {booking.liveStatus === 'started' && (
@@ -213,8 +224,8 @@ const BookingCard: React.FC<BookingCardProps> = ({
           </div>
         )}
 
-        {/* Cancel Action */}
-        {booking.status === 'confirmed' && (
+        {/* Cancel Action - not offered once the meeting has already happened */}
+        {booking.status === 'confirmed' && !isPast && (
           <div className="pt-2 flex justify-end">
             <button
               onClick={() => {
@@ -250,6 +261,7 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
   const [isCancellingAll, setIsCancellingAll] = useState(false);
   const [confirmCancelAll, setConfirmCancelAll] = useState(false);
   const [showCancelledSection, setShowCancelledSection] = useState(false);
+  const [showPastSection, setShowPastSection] = useState(false);
 
   // "Cancel All My Bookings" only ever cancels the caller's own bookings
   // server-side (matched by participantEmail), regardless of admin status -
@@ -258,7 +270,10 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
   // are actually about to be cancelled.
   const normalizedCurrentUserEmail = (currentUserEmail || '').toLowerCase().trim();
   const myActiveCount = bookings.filter(
-    (b) => b.status !== 'cancelled' && (b.participantEmail || '').toLowerCase().trim() === normalizedCurrentUserEmail
+    (b) =>
+      b.status !== 'cancelled' &&
+      !isMeetingPast(b) &&
+      (b.participantEmail || '').toLowerCase().trim() === normalizedCurrentUserEmail
   ).length;
 
   const handleCancelAllMine = async () => {
@@ -287,10 +302,13 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
     b.meetingTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
     b.zoomDetails.meetingId.includes(searchTerm);
 
-  // Cancelled meetings are archived out of the main list into their own
-  // collapsible section below, instead of cluttering the active schedule -
-  // both lists still honor the search box.
-  const activeBookings = bookings.filter((b) => b.status !== 'cancelled' && matchesSearch(b));
+  // Cancelled meetings are archived into their own collapsible section, and
+  // meetings that ran their course without ever being cancelled move into a
+  // separate "Past Meetings" section - both archived out of the main list,
+  // which is left holding only genuinely upcoming meetings. All three lists
+  // still honor the search box.
+  const activeBookings = bookings.filter((b) => b.status !== 'cancelled' && !isMeetingPast(b) && matchesSearch(b));
+  const pastBookings = bookings.filter((b) => b.status !== 'cancelled' && isMeetingPast(b) && matchesSearch(b));
   const cancelledBookings = bookings.filter((b) => b.status === 'cancelled' && matchesSearch(b));
 
   const handleCopy = (text: string, id: string) => {
@@ -398,6 +416,49 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
               getQuestionLabel={getQuestionLabel}
             />
           ))}
+        </div>
+      )}
+
+      {/* Past Meetings - meetings that already happened without being canceled,
+          archived above the Canceled Meetings section, collapsed by default */}
+      {pastBookings.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowPastSection((v) => !v)}
+            className="w-full flex items-center justify-between gap-3 p-5 hover:bg-gray-50 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-gray-100 text-gray-500 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+              <div className="text-left">
+                <span className="font-bold text-gray-900 text-sm">Past Meetings</span>
+                <span className="ml-2 px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-600 border border-gray-200">
+                  {pastBookings.length}
+                </span>
+              </div>
+            </div>
+            {showPastSection ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+          </button>
+
+          {showPastSection && (
+            <div className="px-5 pb-5 space-y-4 border-t border-gray-100 pt-4">
+              {pastBookings.map((booking) => (
+                <BookingCard
+                  key={booking.id}
+                  booking={booking}
+                  isExpanded={expandedBookingId === booking.id}
+                  isPast
+                  onToggleExpand={() => setExpandedBookingId(expandedBookingId === booking.id ? null : booking.id)}
+                  copiedId={copiedId}
+                  onCopy={handleCopy}
+                  onCancelBooking={onCancelBooking}
+                  getQuestionLabel={getQuestionLabel}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
