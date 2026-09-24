@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Calendar as CalendarIcon, Globe, CheckCircle2, XCircle, Loader2, ChevronDown } from 'lucide-react';
+import { Calendar as CalendarIcon, Globe, CheckCircle2, XCircle, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { zonedTimeToUtc } from '../utils/timezone';
 import { TimeSlot } from '../types';
 
@@ -20,30 +20,34 @@ type AvailabilityState =
   | { status: 'blocked'; reason?: string }
   | { status: 'unknown' };
 
-const getTodayStr = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
+type Ampm = 'AM' | 'PM';
+type Step = 'start' | 'end';
 
-const toMinutes = (hhmm: string) => {
-  const [h, m] = hhmm.split(':').map(Number);
-  return h * 60 + m;
-};
+const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+const HOURS = Array.from({ length: 12 }, (_, i) => 12 - i); // 12, 11, ... 1
+const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5); // 0, 5, ... 55
+const AMPMS: Ampm[] = ['AM', 'PM'];
 
-const formatTimeLabel = (hhmm: string) =>
-  new Date(`2000-01-01T${hhmm}:00`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const toDateStr = (y: number, m: number, d: number) => `${y}-${pad2(m + 1)}-${pad2(d)}`;
+const to24Hour = (hour12: number, ampm: Ampm) => (ampm === 'AM' ? hour12 % 12 : (hour12 % 12) + 12);
+
+const formatTimeLabel = (hour12: number, minute: number, ampm: Ampm) =>
+  `${hour12}:${pad2(minute)} ${ampm}`;
 
 const formatDateLabel = (dateStr: string) =>
   new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-// Consolidated date + time range field, matching the "Pick Time and Date"
-// design: the trigger stays in normal document flow and expands an inline
-// panel below it (no floating/absolute popover, so nothing can clip it and
-// the live availability readout is never hidden behind an overlay), styled
-// with plain native inputs rather than @mui/x-date-pickers-pro (which needs
-// a paid license for its own range picker). Still backed by the same real
-// availability check (/api/availability/check) so the user still sees
-// whether the exact date/time range they picked is actually free.
+// Date-range picker matching the "Date Range Picker" design: a floating
+// calendar + hour/minute/AM-PM scroll-column popover, driven through two
+// steps (Start, then Next -> End) instead of the design's own click-twice-
+// on-one-calendar range select, per instruction. Still backed by the same
+// real availability check (/api/availability/check) so the user still sees
+// whether the exact range they picked is actually free before applying.
 export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
   selectedDate,
   onSelectDate,
@@ -54,27 +58,51 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
   onDurationChange,
   onSelectTime,
 }) => {
-  const [startTime, setStartTime] = useState('09:00'); // HH:MM, 24-hour
-  const [endTime, setEndTime] = useState('09:30');
-  const [availability, setAvailability] = useState<AvailabilityState>({ status: 'unknown' });
+  const initial = selectedDate ? new Date(`${selectedDate}T12:00:00`) : new Date(Date.now() + 86400000);
+
   const [isOpen, setIsOpen] = useState(true);
+  const [step, setStep] = useState<Step>('start');
   const [applied, setApplied] = useState(false);
+
+  const [startDate, setStartDate] = useState(selectedDate || toDateStr(initial.getFullYear(), initial.getMonth(), initial.getDate()));
+  const [startHour, setStartHour] = useState(9);
+  const [startMinute, setStartMinute] = useState(0);
+  const [startAmpm, setStartAmpm] = useState<Ampm>('AM');
+
+  const [endDate, setEndDate] = useState(startDate);
+  const [endHour, setEndHour] = useState(9);
+  const [endMinute, setEndMinute] = useState(30);
+  const [endAmpm, setEndAmpm] = useState<Ampm>('AM');
+
+  const [viewYear, setViewYear] = useState(initial.getFullYear());
+  const [viewMonth, setViewMonth] = useState(initial.getMonth());
+
+  const [availability, setAvailability] = useState<AvailabilityState>({ status: 'unknown' });
   const requestIdRef = useRef(0);
 
-  const [startHour, startMinute] = startTime.split(':').map(Number);
-  const isoString = selectedDate
-    ? zonedTimeToUtc(selectedDate, startHour, startMinute, selectedTimezone).toISOString()
-    : '';
-  const isPast = Boolean(isoString) && new Date(isoString).getTime() <= Date.now();
-  const durationMinutes = toMinutes(endTime) - toMinutes(startTime);
+  // Jump the calendar to whichever end's month is being edited.
+  useEffect(() => {
+    const d = new Date(`${step === 'start' ? startDate : endDate}T12:00:00`);
+    setViewYear(d.getFullYear());
+    setViewMonth(d.getMonth());
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startIso = zonedTimeToUtc(startDate, to24Hour(startHour, startAmpm), startMinute, selectedTimezone).toISOString();
+  const endIso = zonedTimeToUtc(endDate, to24Hour(endHour, endAmpm), endMinute, selectedTimezone).toISOString();
+  const isPast = new Date(startIso).getTime() <= Date.now();
+  const durationMinutes = Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000);
   const isValidRange = durationMinutes > 0;
+
+  useEffect(() => {
+    onSelectDate(startDate);
+  }, [startDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (isValidRange) onDurationChange(durationMinutes);
   }, [durationMinutes, isValidRange, onDurationChange]);
 
   useEffect(() => {
-    if (!selectedDate || isPast || !isValidRange) {
+    if (isPast || !isValidRange) {
       setAvailability({ status: 'unknown' });
       return;
     }
@@ -82,7 +110,8 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
     const thisRequestId = ++requestIdRef.current;
     setAvailability({ status: 'checking' });
 
-    const params = new URLSearchParams({ date: selectedDate, time: startTime, timezone: selectedTimezone });
+    const time = `${pad2(to24Hour(startHour, startAmpm))}:${pad2(startMinute)}`;
+    const params = new URLSearchParams({ date: startDate, time, timezone: selectedTimezone });
     if (meetingTypeId) params.set('meetingTypeId', meetingTypeId);
     params.set('duration', String(durationMinutes));
 
@@ -101,26 +130,33 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
       } catch {
         if (thisRequestId === requestIdRef.current) setAvailability({ status: 'unknown' });
       }
-    }, 300); // debounce rapid input changes
+    }, 300); // debounce rapid picks
 
     return () => clearTimeout(timeout);
-  }, [selectedDate, startTime, durationMinutes, isValidRange, selectedTimezone, meetingTypeId, isPast]);
+  }, [startDate, startHour, startMinute, startAmpm, durationMinutes, isValidRange, isPast, selectedTimezone, meetingTypeId]);
 
-  // Editing the range again after applying un-does the "Applied" state.
   useEffect(() => {
     setApplied(false);
-  }, [selectedDate, startTime, endTime]);
+  }, [startDate, startHour, startMinute, startAmpm, endDate, endHour, endMinute, endAmpm]);
 
   const isBlocked = isPast || !isValidRange || availability.status === 'blocked';
 
+  const pickStartDay = (d: string) => {
+    setStartDate(d);
+    if (endDate < d) setEndDate(d); // keep the range sane when start moves past the old end
+  };
+
+  const handleNext = () => setStep('end');
+  const handleBack = () => setStep('start');
+  const handleCancel = () => setIsOpen(false);
+
   const handleApply = () => {
     if (isBlocked) return;
-    const formattedTime = formatTimeLabel(startTime);
     onSelectTime({
-      id: `custom-${selectedDate}-${startTime}-${endTime}`,
-      time: startTime,
-      formattedTime,
-      isoString,
+      id: `custom-${startDate}-${startHour}${startAmpm}${startMinute}-${endDate}-${endHour}${endAmpm}${endMinute}`,
+      time: `${pad2(to24Hour(startHour, startAmpm))}:${pad2(startMinute)}`,
+      formattedTime: formatTimeLabel(startHour, startMinute, startAmpm),
+      isoString: startIso,
       isAvailable: availability.status !== 'blocked',
     });
     setApplied(true);
@@ -137,9 +173,12 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
     return `${parts.join(' ')} meeting`;
   })();
 
-  const rangeSummary = selectedDate
-    ? `${formatDateLabel(selectedDate)} · ${formatTimeLabel(startTime)} – ${formatTimeLabel(endTime)}`
-    : 'Select date and time';
+  const summary = `${formatDateLabel(startDate)} ${formatTimeLabel(startHour, startMinute, startAmpm)} – ${formatDateLabel(endDate)} ${formatTimeLabel(endHour, endMinute, endAmpm)}`;
+
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const firstDow = new Date(viewYear, viewMonth, 1).getDay();
+  const activeDateStr = step === 'start' ? startDate : endDate;
+  const onPickDay = step === 'start' ? pickStartDay : setEndDate;
 
   const availabilityReadout = (
     <div className="flex flex-col items-center gap-2">
@@ -147,7 +186,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
       {!isValidRange ? (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full text-xs font-semibold text-center">
           <XCircle className="w-3.5 h-3.5 shrink-0" />
-          End time must be after start time
+          End must be after start
         </span>
       ) : isPast ? (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full text-xs font-semibold text-center">
@@ -204,78 +243,181 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
         Date &amp; Time Range
       </label>
 
-      <button
-        type="button"
-        onClick={() => setIsOpen((v) => !v)}
-        className={`w-full flex items-center gap-2.5 px-4 py-3.5 rounded-xl text-left transition-colors cursor-pointer border ${
-          isOpen ? 'bg-blue-50 border-[#0b5cff]/50' : 'bg-white border-gray-200 hover:border-gray-300'
-        }`}
-      >
-        <CalendarIcon className="w-4 h-4 text-[#0b5cff] shrink-0" />
-        <span className="text-[15px] font-semibold text-gray-900 flex-1 truncate">{rangeSummary}</span>
-        <ChevronDown className={`w-4 h-4 text-gray-500 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
+      <div className="relative w-full max-w-[480px]">
+        <button
+          type="button"
+          onClick={() => setIsOpen((v) => !v)}
+          className="w-full flex items-center justify-between gap-3 px-4 py-3.5 bg-white border-2 border-[#0b5cff] rounded-lg text-left cursor-pointer"
+        >
+          <span className="text-[15px] text-gray-900 truncate">{summary}</span>
+          <CalendarIcon className="w-[18px] h-[18px] text-gray-500 shrink-0" />
+        </button>
 
-      {isOpen && (
-        <div className="mt-3.5 bg-[#FAFAFA] border border-gray-200 rounded-xl p-5">
-          <div className="mb-4">
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">
-              Date
-            </label>
-            <input
-              type="date"
-              value={selectedDate}
-              min={getTodayStr()}
-              onChange={(e) => onSelectDate(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-lg text-[15px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] focus:border-transparent cursor-pointer"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">
-                Start Time
-              </label>
-              <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-lg text-[15px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] focus:border-transparent cursor-pointer"
-              />
+        {isOpen && (
+          <div className="absolute z-10 mt-1 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+            {/* Step indicator */}
+            <div className="flex items-center gap-2 px-5 pt-4">
+              <span className={`text-[11px] font-bold uppercase tracking-wider ${step === 'start' ? 'text-[#0b5cff]' : 'text-gray-400'}`}>
+                1. Start
+              </span>
+              <span className="text-gray-300">→</span>
+              <span className={`text-[11px] font-bold uppercase tracking-wider ${step === 'end' ? 'text-[#0b5cff]' : 'text-gray-400'}`}>
+                2. End
+              </span>
             </div>
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">
-                End Time
-              </label>
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-lg text-[15px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] focus:border-transparent cursor-pointer"
-              />
+
+            <div className="flex flex-col sm:flex-row">
+              {/* Calendar */}
+              <div className="w-[260px] shrink-0 p-4 pt-3">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-base font-bold text-gray-900">{MONTH_NAMES[viewMonth]} {viewYear}</div>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setViewMonth((m) => { if (m === 0) { setViewYear((y) => y - 1); return 11; } return m - 1; })}
+                      className="p-1 text-gray-500 hover:text-gray-900 cursor-pointer"
+                      aria-label="Previous month"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMonth((m) => { if (m === 11) { setViewYear((y) => y + 1); return 0; } return m + 1; })}
+                      className="p-1 text-gray-500 hover:text-gray-900 cursor-pointer"
+                      aria-label="Next month"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-7 mb-1">
+                  {WEEKDAYS.map((wd, i) => (
+                    <div key={i} className="text-center text-xs text-gray-400 py-1.5">{wd}</div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-7 gap-0.5">
+                  {Array.from({ length: firstDow }).map((_, i) => (
+                    <div key={`e-${i}`} />
+                  ))}
+                  {Array.from({ length: daysInMonth }).map((_, i) => {
+                    const day = i + 1;
+                    const dateStr = toDateStr(viewYear, viewMonth, day);
+                    const isStart = dateStr === startDate;
+                    const isEnd = dateStr === endDate;
+                    const isEdge = isStart || isEnd;
+                    const isInRange = startDate < dateStr && dateStr < endDate;
+                    const isActive = dateStr === activeDateStr;
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => onPickDay(dateStr)}
+                        className={`aspect-square text-sm cursor-pointer rounded ${
+                          isEdge
+                            ? `rounded-full font-bold text-white ${isActive ? 'bg-[#0b5cff]' : 'bg-[#0b5cff]/60'}`
+                            : isInRange
+                              ? 'bg-blue-100 text-gray-800'
+                              : 'text-gray-800 hover:bg-gray-100'
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Hour / Minute / AM-PM columns for whichever end is active */}
+              <div className="flex border-t sm:border-t-0 sm:border-l border-gray-100">
+                <ScrollColumn
+                  values={HOURS}
+                  active={step === 'start' ? startHour : endHour}
+                  format={(v) => pad2(v)}
+                  onSelect={step === 'start' ? setStartHour : setEndHour}
+                />
+                <ScrollColumn
+                  values={MINUTES}
+                  active={step === 'start' ? startMinute : endMinute}
+                  format={(v) => pad2(v)}
+                  onSelect={step === 'start' ? setStartMinute : setEndMinute}
+                  bordered
+                />
+                <ScrollColumn
+                  values={AMPMS}
+                  active={step === 'start' ? startAmpm : endAmpm}
+                  format={(v) => v}
+                  onSelect={(step === 'start' ? setStartAmpm : setEndAmpm) as (v: Ampm) => void}
+                  bordered
+                />
+              </div>
+            </div>
+
+            {step === 'end' && <div className="px-5 pb-1">{availabilityReadout}</div>}
+
+            <div className="flex items-center justify-end gap-5 px-5 py-3.5 border-t border-gray-100">
+              {step === 'start' ? (
+                <>
+                  <button type="button" onClick={handleCancel} className="text-[13px] font-bold tracking-wide text-[#0b5cff] cursor-pointer">
+                    CANCEL
+                  </button>
+                  <button type="button" onClick={handleNext} className="text-[13px] font-bold tracking-wide text-[#0b5cff] cursor-pointer">
+                    NEXT
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button type="button" onClick={handleBack} className="text-[13px] font-bold tracking-wide text-[#0b5cff] cursor-pointer">
+                    BACK
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleApply}
+                    disabled={isBlocked}
+                    className={`text-[13px] font-bold tracking-wide cursor-pointer ${isBlocked ? 'text-gray-300 cursor-not-allowed' : 'text-[#0b5cff]'}`}
+                  >
+                    {applied ? 'APPLIED ✓' : 'APPLY'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
-
-          <div className="mb-4">{availabilityReadout}</div>
-
-          <button
-            type="button"
-            onClick={handleApply}
-            disabled={isBlocked}
-            className={`w-full py-3.5 rounded-xl text-[15px] font-bold text-white transition-colors ${
-              isBlocked
-                ? 'bg-gray-300 cursor-not-allowed'
-                : applied
-                  ? 'bg-green-600 cursor-pointer'
-                  : 'bg-[#0b5cff] hover:bg-[#0049d1] cursor-pointer'
-            }`}
-          >
-            {applied ? 'Applied ✓' : 'Apply'}
-          </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {!isOpen && <div className="mt-4">{availabilityReadout}</div>}
     </div>
   );
 };
+
+function ScrollColumn<T extends string | number>({
+  values,
+  active,
+  format,
+  onSelect,
+  bordered,
+}: {
+  values: T[];
+  active: T;
+  format: (v: T) => string;
+  onSelect: (v: T) => void;
+  bordered?: boolean;
+}) {
+  return (
+    <div className={`w-16 max-h-[280px] overflow-y-auto py-2 ${bordered ? 'border-l border-gray-100' : ''}`}>
+      {values.map((v) => (
+        <button
+          key={String(v)}
+          type="button"
+          onClick={() => onSelect(v)}
+          className={`w-full text-center py-2 text-sm cursor-pointer rounded-md mx-auto ${
+            v === active ? 'bg-[#0b5cff] text-white font-bold' : 'text-gray-800 hover:bg-gray-100 font-normal'
+          }`}
+        >
+          {format(v)}
+        </button>
+      ))}
+    </div>
+  );
+}
