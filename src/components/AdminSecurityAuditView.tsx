@@ -11,7 +11,11 @@ import {
   Lock,
   Unlock,
   ShieldCheck,
-  UserX
+  UserX,
+  LogIn,
+  FileText,
+  XCircle,
+  CalendarPlus
 } from 'lucide-react';
 import { LoginSecurityAudit } from '../types';
 
@@ -26,7 +30,11 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
     activeLockoutsCount: 0,
     permanentlyBlockedIpsCount: 0,
     failedLogs: [],
-    rateLimits: []
+    rateLimits: [],
+    successfulLoginsCount: 0,
+    systemLogsCount: 0,
+    createdMeetingsCount: 0,
+    cancelledMeetingsCount: 0
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -222,6 +230,57 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
           <div>
             <div className="text-2xl font-black text-red-900">{auditData.permanentlyBlockedIpsCount}</div>
             <div className="text-xs font-semibold text-gray-500">Permanently Blocked IPs</div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Audit Summary Cards: Logins, System Logs, Canceled, Created Meetings */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+        {/* # of Logins - only counts successful sign-ins recorded since this
+            metric shipped; there's no retroactive history before it. */}
+        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <LogIn className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-2xl font-black text-gray-900">{auditData.successfulLoginsCount}</div>
+            <div className="text-xs font-semibold text-gray-500"># of Logins</div>
+          </div>
+        </div>
+
+        {/* System Logs - the Zoom API call ledger (account pings, meeting
+            create/cancel calls, webhook events). */}
+        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+            <FileText className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-2xl font-black text-gray-900">{auditData.systemLogsCount}</div>
+            <div className="text-xs font-semibold text-gray-500">System Logs</div>
+          </div>
+        </div>
+
+        {/* Canceled meetings */}
+        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+            <XCircle className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-2xl font-black text-gray-900">{auditData.cancelledMeetingsCount}</div>
+            <div className="text-xs font-semibold text-gray-500">Canceled Meetings</div>
+          </div>
+        </div>
+
+        {/* # of created meetings */}
+        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#0b5cff] flex items-center justify-center shrink-0">
+            <CalendarPlus className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-2xl font-black text-gray-900">{auditData.createdMeetingsCount}</div>
+            <div className="text-xs font-semibold text-gray-500"># of Created Meetings</div>
           </div>
         </div>
 

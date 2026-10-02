@@ -851,7 +851,17 @@ interface RateLimitEntry {
   lastAttemptAt: string;
 }
 
+interface SuccessfulLoginRecord {
+  id: string;
+  email: string;
+  provider: 'm365' | 'local';
+  ip: string;
+  timestamp: string;
+  userAgent?: string;
+}
+
 const failedLoginLogs: FailedAttemptRecord[] = [];
+const successfulLogins: SuccessfulLoginRecord[] = [];
 const rateLimitStore = new Map<string, RateLimitEntry>();
 let pushSubscriptions: PushSubscriptionRecord[] = [];
 
@@ -886,6 +896,20 @@ function persistZoomLog(log: ZoomApiLog): void {
 
 function persistFailedLogin(record: FailedAttemptRecord): void {
   upsertRow('failed_login_logs', record.id, record).catch(() => {});
+}
+
+function logSuccessfulLogin(email: string, provider: 'm365' | 'local', ip: string, userAgent?: string): void {
+  const record: SuccessfulLoginRecord = {
+    id: `login-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+    email: email.toLowerCase().trim(),
+    provider,
+    ip,
+    timestamp: new Date().toISOString(),
+    userAgent
+  };
+  successfulLogins.unshift(record);
+  if (successfulLogins.length > 500) successfulLogins.length = 500;
+  upsertRow('successful_logins', record.id, record).catch(() => {});
 }
 
 // One-time self-healing cleanup: a Supabase project seeded before the
@@ -956,8 +980,11 @@ async function initPersistence(): Promise<void> {
   const loadedPushSubscriptions = await loadTable<PushSubscriptionRecord>('push_subscriptions');
   if (loadedPushSubscriptions) pushSubscriptions = loadedPushSubscriptions;
 
+  const loadedSuccessfulLogins = await loadTable<SuccessfulLoginRecord>('successful_logins');
+  if (loadedSuccessfulLogins) successfulLogins.push(...loadedSuccessfulLogins);
+
   console.log(
-    `[persistence] Loaded from Supabase: ${hostAccounts.length} host accounts, ${meetingTypes.length} meeting types, ${bookings.length} bookings, ${zoomApiLogs.length} Zoom API logs, ${failedLoginLogs.length} failed login logs, ${pushSubscriptions.length} push subscriptions.`
+    `[persistence] Loaded from Supabase: ${hostAccounts.length} host accounts, ${meetingTypes.length} meeting types, ${bookings.length} bookings, ${zoomApiLogs.length} Zoom API logs, ${failedLoginLogs.length} failed login logs, ${successfulLogins.length} successful logins, ${pushSubscriptions.length} push subscriptions.`
   );
 }
 
@@ -1981,6 +2008,8 @@ app.get('/auth/callback', async (req, res) => {
       signedInAt: new Date().toISOString()
     };
 
+    logSuccessfulLogin(userEmail, 'm365', getClientIp(req), req.headers['user-agent'] as string | undefined);
+
     const encodedUser = Buffer.from(JSON.stringify(user), 'utf8').toString('base64url');
     res.redirect(`${returnPath}#m365_sso=${encodedUser}`);
   } catch (err: any) {
@@ -2152,6 +2181,7 @@ app.post('/api/auth/m365/login', async (req, res) => {
       entry.consecutiveFails = 0;
       entry.lockoutUntil = null;
       entry.lastAttemptAt = new Date().toISOString();
+      logSuccessfulLogin(rawInput, 'local', clientIp, userAgent as string | undefined);
 
       return res.json({
         success: true,
@@ -2289,6 +2319,7 @@ app.get('/api/admin/failed-logins', async (req, res) => {
 
   const activeLockoutsCount = rateLimits.filter((r) => r.remainingSeconds > 0).length;
   const permanentlyBlockedIpsCount = rateLimits.filter((r) => r.isPermanentlyBlocked).length;
+  const cancelledMeetingsCount = bookings.filter((b) => b.status === 'cancelled').length;
 
   res.json({
     success: true,
@@ -2297,7 +2328,15 @@ app.get('/api/admin/failed-logins', async (req, res) => {
       activeLockoutsCount,
       permanentlyBlockedIpsCount,
       failedLogs: failedLoginLogs,
-      rateLimits
+      rateLimits,
+      // Audit summary metrics - successfulLoginsCount tracks only logins
+      // recorded since this feature shipped (see logSuccessfulLogin), not
+      // retroactive history. systemLogsCount is the Zoom API call ledger
+      // (account pings, meeting create/cancel calls, webhook events).
+      successfulLoginsCount: successfulLogins.length,
+      systemLogsCount: zoomApiLogs.length,
+      createdMeetingsCount: bookings.length,
+      cancelledMeetingsCount
     }
   });
 });

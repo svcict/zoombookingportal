@@ -268,6 +268,10 @@ export interface LoginSecurityAudit {
   permanentlyBlockedIpsCount: number;
   failedLogs: FailedLoginRecord[];
   rateLimits: SecurityRateLimitInfo[];
+  successfulLoginsCount: number;
+  systemLogsCount: number;
+  createdMeetingsCount: number;
+  cancelledMeetingsCount: number;
 }
 
 export interface M365SettingsConfig {
