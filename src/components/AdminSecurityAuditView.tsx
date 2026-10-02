@@ -15,9 +15,13 @@ import {
   LogIn,
   FileText,
   XCircle,
-  CalendarPlus
+  CalendarPlus,
+  Download
 } from 'lucide-react';
 import { LoginSecurityAudit } from '../types';
+import { exportToCsv } from '../utils/csvExport';
+
+type AuditDetailCard = 'logins' | 'systemLogs' | 'canceled' | 'created' | null;
 
 interface AdminSecurityAuditViewProps {
   adminEmail?: string;
@@ -41,6 +45,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
   const [searchQuery, setSearchQuery] = useState('');
   const [actionNotice, setActionNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [unblockingIp, setUnblockingIp] = useState<string | null>(null);
+  const [expandedAuditCard, setExpandedAuditCard] = useState<AuditDetailCard>(null);
 
   const fetchAuditData = async () => {
     if (!adminEmail) return;
@@ -235,12 +240,19 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
 
       </div>
 
-      {/* Audit Summary Cards: Logins, System Logs, Canceled, Created Meetings */}
+      {/* Audit Summary Cards: Logins, System Logs, Canceled, Created Meetings -
+          each is clickable, toggling a detail table + CSV export below. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
         {/* # of Logins - only counts successful sign-ins recorded since this
             metric shipped; there's no retroactive history before it. */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-4">
+        <button
+          type="button"
+          onClick={() => setExpandedAuditCard((v) => (v === 'logins' ? null : 'logins'))}
+          className={`bg-white p-5 rounded-2xl border shadow-xs flex items-center gap-4 text-left transition-colors cursor-pointer ${
+            expandedAuditCard === 'logins' ? 'border-emerald-300 ring-2 ring-emerald-100' : 'border-gray-200 hover:border-emerald-200'
+          }`}
+        >
           <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
             <LogIn className="w-6 h-6" />
           </div>
@@ -248,11 +260,17 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
             <div className="text-2xl font-black text-gray-900">{auditData.successfulLoginsCount}</div>
             <div className="text-xs font-semibold text-gray-500"># of Logins</div>
           </div>
-        </div>
+        </button>
 
         {/* System Logs - the Zoom API call ledger (account pings, meeting
             create/cancel calls, webhook events). */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-4">
+        <button
+          type="button"
+          onClick={() => setExpandedAuditCard((v) => (v === 'systemLogs' ? null : 'systemLogs'))}
+          className={`bg-white p-5 rounded-2xl border shadow-xs flex items-center gap-4 text-left transition-colors cursor-pointer ${
+            expandedAuditCard === 'systemLogs' ? 'border-indigo-300 ring-2 ring-indigo-100' : 'border-gray-200 hover:border-indigo-200'
+          }`}
+        >
           <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
             <FileText className="w-6 h-6" />
           </div>
@@ -260,10 +278,16 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
             <div className="text-2xl font-black text-gray-900">{auditData.systemLogsCount}</div>
             <div className="text-xs font-semibold text-gray-500">System Logs</div>
           </div>
-        </div>
+        </button>
 
         {/* Canceled meetings */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-4">
+        <button
+          type="button"
+          onClick={() => setExpandedAuditCard((v) => (v === 'canceled' ? null : 'canceled'))}
+          className={`bg-white p-5 rounded-2xl border shadow-xs flex items-center gap-4 text-left transition-colors cursor-pointer ${
+            expandedAuditCard === 'canceled' ? 'border-orange-300 ring-2 ring-orange-100' : 'border-gray-200 hover:border-orange-200'
+          }`}
+        >
           <div className="w-12 h-12 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
             <XCircle className="w-6 h-6" />
           </div>
@@ -271,10 +295,16 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
             <div className="text-2xl font-black text-gray-900">{auditData.cancelledMeetingsCount}</div>
             <div className="text-xs font-semibold text-gray-500">Canceled Meetings</div>
           </div>
-        </div>
+        </button>
 
         {/* # of created meetings */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-4">
+        <button
+          type="button"
+          onClick={() => setExpandedAuditCard((v) => (v === 'created' ? null : 'created'))}
+          className={`bg-white p-5 rounded-2xl border shadow-xs flex items-center gap-4 text-left transition-colors cursor-pointer ${
+            expandedAuditCard === 'created' ? 'border-blue-300 ring-2 ring-blue-100' : 'border-gray-200 hover:border-blue-200'
+          }`}
+        >
           <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#0b5cff] flex items-center justify-center shrink-0">
             <CalendarPlus className="w-6 h-6" />
           </div>
@@ -282,9 +312,222 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
             <div className="text-2xl font-black text-gray-900">{auditData.createdMeetingsCount}</div>
             <div className="text-xs font-semibold text-gray-500"># of Created Meetings</div>
           </div>
-        </div>
+        </button>
 
       </div>
+
+      {/* Detail table + CSV export for whichever audit summary card is expanded */}
+      {expandedAuditCard === 'logins' && (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
+          <div className="p-5 sm:p-6 border-b border-gray-100 flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-bold text-gray-900">Successful Login History</h2>
+              <p className="text-xs text-gray-500">Every successful sign-in recorded since this tracking shipped</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => exportToCsv('logins.csv', auditData.successfulLogins)}
+              disabled={auditData.successfulLogins.length === 0}
+              className="px-3.5 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold text-gray-700 flex items-center gap-2 shrink-0 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export CSV
+            </button>
+          </div>
+          {auditData.successfulLogins.length === 0 ? (
+            <div className="p-10 text-center text-gray-500 text-xs">No successful logins recorded yet.</div>
+          ) : (
+            <div className="overflow-x-auto max-h-96 overflow-y-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#FAFAFA] text-gray-600 font-semibold border-b border-gray-100 sticky top-0">
+                  <tr>
+                    <th className="py-3 px-4">Timestamp</th>
+                    <th className="py-3 px-4">Email</th>
+                    <th className="py-3 px-4">Provider</th>
+                    <th className="py-3 px-4">Client IP</th>
+                    <th className="py-3 px-4">User Agent / Client</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {auditData.successfulLogins.map((log) => (
+                    <tr key={log.id} className="hover:bg-gray-50/70 transition-colors">
+                      <td className="py-3.5 px-4 font-mono text-gray-500 whitespace-nowrap">{new Date(log.timestamp).toLocaleString()}</td>
+                      <td className="py-3.5 px-4 font-bold text-gray-900">{log.email}</td>
+                      <td className="py-3.5 px-4 text-gray-600">{log.provider === 'm365' ? 'Microsoft 365 SSO' : 'Local / Demo'}</td>
+                      <td className="py-3.5 px-4 font-mono text-gray-600">{log.ip}</td>
+                      <td className="py-3.5 px-4 text-gray-500 text-[11px] truncate max-w-[220px]" title={log.userAgent}>{log.userAgent || 'Unknown'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {expandedAuditCard === 'systemLogs' && (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
+          <div className="p-5 sm:p-6 border-b border-gray-100 flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-bold text-gray-900">System (Zoom API) Logs</h2>
+              <p className="text-xs text-gray-500">Account pings, meeting create/cancel calls, and webhook events</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => exportToCsv('system-logs.csv', auditData.systemLogs)}
+              disabled={auditData.systemLogs.length === 0}
+              className="px-3.5 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold text-gray-700 flex items-center gap-2 shrink-0 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export CSV
+            </button>
+          </div>
+          {auditData.systemLogs.length === 0 ? (
+            <div className="p-10 text-center text-gray-500 text-xs">No system logs recorded yet.</div>
+          ) : (
+            <div className="overflow-x-auto max-h-96 overflow-y-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#FAFAFA] text-gray-600 font-semibold border-b border-gray-100 sticky top-0">
+                  <tr>
+                    <th className="py-3 px-4">Timestamp</th>
+                    <th className="py-3 px-4">Method</th>
+                    <th className="py-3 px-4">Endpoint</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4">Response Time</th>
+                    <th className="py-3 px-4">Summary</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {auditData.systemLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-gray-50/70 transition-colors">
+                      <td className="py-3.5 px-4 font-mono text-gray-500 whitespace-nowrap">{new Date(log.timestamp).toLocaleString()}</td>
+                      <td className="py-3.5 px-4 font-bold text-gray-900">{log.method}</td>
+                      <td className="py-3.5 px-4 font-mono text-gray-600 truncate max-w-[220px]" title={log.endpoint}>{log.endpoint}</td>
+                      <td className="py-3.5 px-4">
+                        <span className={`px-2 py-0.5 rounded-full font-bold text-[11px] ${log.statusCode >= 400 ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                          {log.statusCode}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-gray-600">{log.responseTimeMs}ms</td>
+                      <td className="py-3.5 px-4 text-gray-500 text-[11px] truncate max-w-[260px]" title={log.payloadSummary}>{log.payloadSummary}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {expandedAuditCard === 'canceled' && (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
+          <div className="p-5 sm:p-6 border-b border-gray-100 flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-bold text-gray-900">Canceled Meetings</h2>
+              <p className="text-xs text-gray-500">All bookings currently marked as canceled</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => exportToCsv('canceled-meetings.csv', auditData.cancelledMeetings)}
+              disabled={auditData.cancelledMeetings.length === 0}
+              className="px-3.5 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold text-gray-700 flex items-center gap-2 shrink-0 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export CSV
+            </button>
+          </div>
+          {auditData.cancelledMeetings.length === 0 ? (
+            <div className="p-10 text-center text-gray-500 text-xs">No canceled meetings.</div>
+          ) : (
+            <div className="overflow-x-auto max-h-96 overflow-y-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#FAFAFA] text-gray-600 font-semibold border-b border-gray-100 sticky top-0">
+                  <tr>
+                    <th className="py-3 px-4">Meeting</th>
+                    <th className="py-3 px-4">Participant</th>
+                    <th className="py-3 px-4">Host</th>
+                    <th className="py-3 px-4">Date / Time</th>
+                    <th className="py-3 px-4">Created</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {auditData.cancelledMeetings.map((m) => (
+                    <tr key={m.id} className="hover:bg-gray-50/70 transition-colors">
+                      <td className="py-3.5 px-4 font-bold text-gray-900">{m.meetingTitle}</td>
+                      <td className="py-3.5 px-4 text-gray-600">
+                        <div>{m.participantName}</div>
+                        <div className="text-[11px] text-gray-500">{m.participantEmail}</div>
+                      </td>
+                      <td className="py-3.5 px-4 text-gray-600">{m.hostName}</td>
+                      <td className="py-3.5 px-4 text-gray-500 whitespace-nowrap">{m.date} &middot; {m.timeSlot}</td>
+                      <td className="py-3.5 px-4 font-mono text-gray-500 whitespace-nowrap">{new Date(m.createdAt).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {expandedAuditCard === 'created' && (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
+          <div className="p-5 sm:p-6 border-b border-gray-100 flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-bold text-gray-900">All Created Meetings</h2>
+              <p className="text-xs text-gray-500">Every booking ever created, regardless of current status</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => exportToCsv('created-meetings.csv', auditData.createdMeetings)}
+              disabled={auditData.createdMeetings.length === 0}
+              className="px-3.5 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold text-gray-700 flex items-center gap-2 shrink-0 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export CSV
+            </button>
+          </div>
+          {auditData.createdMeetings.length === 0 ? (
+            <div className="p-10 text-center text-gray-500 text-xs">No meetings created yet.</div>
+          ) : (
+            <div className="overflow-x-auto max-h-96 overflow-y-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#FAFAFA] text-gray-600 font-semibold border-b border-gray-100 sticky top-0">
+                  <tr>
+                    <th className="py-3 px-4">Meeting</th>
+                    <th className="py-3 px-4">Participant</th>
+                    <th className="py-3 px-4">Host</th>
+                    <th className="py-3 px-4">Date / Time</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4">Created</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {auditData.createdMeetings.map((m) => (
+                    <tr key={m.id} className="hover:bg-gray-50/70 transition-colors">
+                      <td className="py-3.5 px-4 font-bold text-gray-900">{m.meetingTitle}</td>
+                      <td className="py-3.5 px-4 text-gray-600">
+                        <div>{m.participantName}</div>
+                        <div className="text-[11px] text-gray-500">{m.participantEmail}</div>
+                      </td>
+                      <td className="py-3.5 px-4 text-gray-600">{m.hostName}</td>
+                      <td className="py-3.5 px-4 text-gray-500 whitespace-nowrap">{m.date} &middot; {m.timeSlot}</td>
+                      <td className="py-3.5 px-4">
+                        <span className={`px-2 py-0.5 rounded-full font-bold text-[11px] ${
+                          m.status === 'cancelled' ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'
+                        }`}>
+                          {m.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-gray-500 whitespace-nowrap">{new Date(m.createdAt).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* SECTION 1: Active IP Restrictions & Lockout Status */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">

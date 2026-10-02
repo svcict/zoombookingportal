@@ -262,6 +262,27 @@ export interface SecurityRateLimitInfo {
   lastAttemptAt: string;
 }
 
+export interface SuccessfulLoginRecord {
+  id: string;
+  email: string;
+  provider: 'm365' | 'local';
+  ip: string;
+  timestamp: string;
+  userAgent?: string;
+}
+
+export interface AuditMeetingRow {
+  id: string;
+  meetingTitle: string;
+  participantName: string;
+  participantEmail: string;
+  hostName: string;
+  date: string;
+  timeSlot: string;
+  status: string;
+  createdAt: string;
+}
+
 export interface LoginSecurityAudit {
   totalFailedAttempts: number;
   activeLockoutsCount: number;
@@ -272,6 +293,10 @@ export interface LoginSecurityAudit {
   systemLogsCount: number;
   createdMeetingsCount: number;
   cancelledMeetingsCount: number;
+  successfulLogins: SuccessfulLoginRecord[];
+  systemLogs: ZoomApiLog[];
+  createdMeetings: AuditMeetingRow[];
+  cancelledMeetings: AuditMeetingRow[];
 }
 
 export interface M365SettingsConfig {

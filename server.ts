@@ -2319,7 +2319,23 @@ app.get('/api/admin/failed-logins', async (req, res) => {
 
   const activeLockoutsCount = rateLimits.filter((r) => r.remainingSeconds > 0).length;
   const permanentlyBlockedIpsCount = rateLimits.filter((r) => r.isPermanentlyBlocked).length;
-  const cancelledMeetingsCount = bookings.filter((b) => b.status === 'cancelled').length;
+  const cancelledMeetings = bookings.filter((b) => b.status === 'cancelled');
+
+  // Lightweight projections for the admin detail tables/CSV export - avoid
+  // shipping the full booking objects (zoomDetails/zoomConfig carry
+  // passcodes, host keys, join URLs) to the browser for a table that only
+  // needs to show who/what/when.
+  const toMeetingRow = (b: any) => ({
+    id: b.id,
+    meetingTitle: b.meetingTitle,
+    participantName: b.participantName,
+    participantEmail: b.participantEmail,
+    hostName: b.hostName,
+    date: b.date,
+    timeSlot: b.timeSlot,
+    status: b.status,
+    createdAt: b.createdAt
+  });
 
   res.json({
     success: true,
@@ -2336,7 +2352,11 @@ app.get('/api/admin/failed-logins', async (req, res) => {
       successfulLoginsCount: successfulLogins.length,
       systemLogsCount: zoomApiLogs.length,
       createdMeetingsCount: bookings.length,
-      cancelledMeetingsCount
+      cancelledMeetingsCount: cancelledMeetings.length,
+      successfulLogins,
+      systemLogs: zoomApiLogs,
+      createdMeetings: bookings.map(toMeetingRow),
+      cancelledMeetings: cancelledMeetings.map(toMeetingRow)
     }
   });
 });
