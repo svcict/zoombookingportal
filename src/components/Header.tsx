@@ -13,7 +13,8 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { M365User } from '../types';
-import { requestPushPermission, playZoomNotificationSound } from '../utils/notifications';
+import { playZoomNotificationSound } from '../utils/notifications';
+import { enablePushNotifications } from '../utils/pushSubscription';
 import { AyalaFoundationLogo } from './AyalaFoundationLogo';
 
 interface HeaderProps {
@@ -76,9 +77,26 @@ export const Header: React.FC<HeaderProps> = ({
   const isAdmin = Boolean(authUser?.isAdmin);
 
   useEffect(() => {
-    if ('Notification' in window) {
-      setPushStatus(Notification.permission);
-    }
+    // Permission alone doesn't mean a push subscription was ever actually
+    // registered with the server (e.g. before this was wired up correctly,
+    // or if the service worker subscription was lost) - confirm one is
+    // still active before showing the "subscribed" state.
+    (async () => {
+      if (!('Notification' in window)) return;
+      if (Notification.permission !== 'granted') {
+        setPushStatus(Notification.permission);
+        return;
+      }
+      try {
+        const registration = 'serviceWorker' in navigator
+          ? await navigator.serviceWorker.getRegistration('/sw.js')
+          : undefined;
+        const subscription = await registration?.pushManager.getSubscription();
+        setPushStatus(subscription ? 'granted' : 'default');
+      } catch {
+        setPushStatus('default');
+      }
+    })();
 
     const updateTime = () => {
       try {
@@ -101,10 +119,19 @@ export const Header: React.FC<HeaderProps> = ({
   }, [selectedTimezone]);
 
   const handleEnablePush = async () => {
-    const res = await requestPushPermission();
-    setPushStatus(res);
-    if (res === 'granted') {
+    if (!authUser?.email) return;
+    const result = await enablePushNotifications(authUser.email);
+    if (result.status === 'subscribed') {
+      setPushStatus('granted');
       playZoomNotificationSound('join');
+    } else if (result.status === 'permission_denied') {
+      setPushStatus('denied');
+    } else if (result.status === 'not_configured') {
+      console.warn('Push notifications are not configured on the server (missing VAPID keys).');
+    } else if (result.status === 'unsupported') {
+      console.warn('Push notifications are not supported in this browser.');
+    } else {
+      console.error('Failed to enable push notifications:', result.message);
     }
   };
 
