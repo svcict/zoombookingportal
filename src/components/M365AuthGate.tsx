@@ -327,7 +327,7 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
               <button
                 type="button"
                 onClick={() => setShowM365ConfigModal(false)}
-                className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-600 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>

@@ -27,7 +27,7 @@ export const SlotUnavailableModal: React.FC<SlotUnavailableModalProps> = ({ onCh
         <button
           type="button"
           onClick={onClose}
-          className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+          className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-600 transition-colors cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>

@@ -340,7 +340,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                 Work Email Address <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Mail className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="email"
                   value={email}
@@ -349,7 +349,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                   className="w-full pl-10 pr-4 py-3 bg-gray-100 border-none rounded-xl text-sm text-gray-600 cursor-not-allowed"
                 />
               </div>
-              <p className="text-[11px] text-gray-400 mt-1 font-medium">Matches your signed-in account. Your Zoom join link, meeting ID, and passcode will be emailed here.</p>
+              <p className="text-[11px] text-gray-500 mt-1 font-medium">Matches your signed-in account. Your Zoom join link, meeting ID, and passcode will be emailed here.</p>
               {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
             </div>
           </div>
@@ -360,13 +360,13 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
           <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
             Invitees <span className="text-red-500">*</span>
           </label>
-          <p className="text-xs text-gray-400 mb-2">
+          <p className="text-xs text-gray-500 mb-2">
             At least one invitee is required. They&apos;ll receive an email with the Zoom join link, meeting ID, and passcode.
           </p>
 
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Users className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Users className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="email"
                 value={guestEmailInput}
@@ -486,14 +486,14 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
           {sendHostKey && (
             <div className="mt-4">
               <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
-                Meeting Host <span className="text-gray-400 normal-case font-normal">(optional)</span>
+                Meeting Host <span className="text-gray-500 normal-case font-normal">(optional)</span>
               </label>
               <p className="text-xs text-gray-500 mb-2">
                 Booking on someone else&apos;s behalf? Enter their email and they&apos;ll be set as the
                 designated host and included on the confirmation email with the Host Key.
               </p>
               <div className="relative">
-                <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <User className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="email"
                   value={hostOnBehalfEmail}

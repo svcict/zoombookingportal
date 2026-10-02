@@ -182,7 +182,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
           <button 
             type="button"
             onClick={() => setActionNotice(null)}
-            className="text-gray-400 hover:text-gray-600 cursor-pointer"
+            className="text-gray-500 hover:text-gray-600 cursor-pointer"
           >
             &times;
           </button>
@@ -339,7 +339,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
           </div>
 
           <div className="relative w-full sm:w-64">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
             <input
               type="text"
               value={searchQuery}

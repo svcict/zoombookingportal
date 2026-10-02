@@ -111,7 +111,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
               {booking.timeSlot} ({booking.timezone.split('/')[1]?.replace('_', ' ') || booking.timezone})
             </span>
             <span className="flex items-center gap-1 shrink-0">
-              <Video className="w-3.5 h-3.5 text-gray-400" />
+              <Video className="w-3.5 h-3.5 text-gray-500" />
               <span className="text-gray-500">Hosted by</span>
               <span className="font-medium text-gray-900">{booking.hostName}</span>
             </span>
@@ -169,14 +169,14 @@ const BookingCard: React.FC<BookingCardProps> = ({
           <span className="text-gray-500 font-bold uppercase tracking-wider text-[10px]">Booked By</span>
           <div className="flex items-start flex-wrap gap-x-1.5 gap-y-1 text-gray-900">
             <span className="flex items-center gap-1 shrink-0 font-medium">
-              <User className="w-3.5 h-3.5 text-gray-400" />
+              <User className="w-3.5 h-3.5 text-gray-500" />
               {booking.participantName}
             </span>
             <span className="text-gray-500 break-all">({booking.participantEmail})</span>
           </div>
           {booking.participantCompany && (
             <div className="flex items-center gap-1 text-gray-500">
-              <Building className="w-3.5 h-3.5 text-gray-400" />
+              <Building className="w-3.5 h-3.5 text-gray-500" />
               {booking.participantCompany}
             </div>
           )}
@@ -365,7 +365,7 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
 
         {/* Search */}
         <div className="relative w-full">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder={isAdmin ? "Search attendee, host, ID..." : "Search title or meeting ID..."}
@@ -379,7 +379,7 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
       {/* Active Bookings List */}
       {activeBookings.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center text-gray-500 space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-gray-100 text-gray-400 flex items-center justify-center mx-auto">
+          <div className="w-12 h-12 rounded-2xl bg-gray-100 text-gray-500 flex items-center justify-center mx-auto">
             <Layers className="w-6 h-6" />
           </div>
           <h3 className="text-base font-bold text-gray-800">

@@ -220,7 +220,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
           <div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-[#0b5cff]">Zoom Meeting Settings</span>
-              <span className="text-gray-300">•</span>
+              <span className="text-gray-500">•</span>
               <span className="text-xs text-gray-500 font-mono">
                 {booking?.zoomDetails?.formattedMeetingId || 'ID: 869-563-2911'}
               </span>
@@ -234,7 +234,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
               title="Close"
             >
               <X className="w-5 h-5" />
@@ -374,7 +374,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                       setAgenda('');
                       setShowAgendaInput(false);
                     }}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-gray-500 hover:text-gray-600"
                   >
                     Cancel
                   </button>
@@ -389,7 +389,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
           <div className="flex items-center gap-1.5 font-semibold text-gray-900">
             <span>Attachments</span>
             <div className="group relative">
-              <Info className="w-3.5 h-3.5 text-gray-400 cursor-pointer" />
+              <Info className="w-3.5 h-3.5 text-gray-500 cursor-pointer" />
               <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-gray-900 text-white text-[11px] rounded shadow-lg z-30">
                 Attach slides, agendas, or documents visible to participants
               </div>
@@ -422,13 +422,13 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                   <div className="flex items-center gap-2">
                     <Paperclip className="w-3.5 h-3.5 text-gray-500" />
                     <span className="font-medium text-gray-800">{file.name}</span>
-                    <span className="text-gray-400">({file.size})</span>
+                    <span className="text-gray-500">({file.size})</span>
                   </div>
                   {!readOnly && (
                     <button
                       type="button"
                       onClick={() => handleRemoveAttachment(file.id)}
-                      className="text-gray-400 hover:text-red-600 p-1"
+                      className="text-gray-500 hover:text-red-600 p-1"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -469,7 +469,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
               />
 
               <div className="group relative">
-                <Info className="w-3.5 h-3.5 text-gray-400 cursor-pointer" />
+                <Info className="w-3.5 h-3.5 text-gray-500 cursor-pointer" />
                 <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-gray-900 text-white text-[11px] rounded shadow-lg z-30">
                   Up to 10 characters. Some Zoom accounts enforce a minimum length (up to 10) - if Zoom rejects a save, try a longer passcode.
                 </div>
@@ -553,7 +553,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
               </span>
             </label>
             <div className="group relative">
-              <Info className="w-3.5 h-3.5 text-gray-400 cursor-pointer" />
+              <Info className="w-3.5 h-3.5 text-gray-500 cursor-pointer" />
               <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:block w-56 p-2 bg-gray-900 text-white text-[11px] rounded shadow-lg z-30">
                 Chat persists before, during, and after the meeting in Zoom Team Chat
               </div>
@@ -786,7 +786,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 <div className="flex items-center gap-1.5 text-xs text-gray-600">
                   <span>Defaults to the booker&apos;s email. Only takes effect if that person is a Licensed user on this Zoom account - otherwise Zoom silently ignores it.</span>
                   <div className="group relative">
-                    <Info className="w-3 h-3 text-gray-400 cursor-pointer" />
+                    <Info className="w-3 h-3 text-gray-500 cursor-pointer" />
                     <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-gray-900 text-white text-[11px] rounded shadow-lg z-30">
                       Alternative hosts have full permissions to host, record, and moderate
                     </div>
@@ -838,7 +838,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
               <button
                 type="button"
                 onClick={() => setShowMoreOptionsModal(false)}
-                className="p-1 rounded-md text-gray-400 hover:text-gray-600"
+                className="p-1 rounded-md text-gray-500 hover:text-gray-600"
               >
                 <X className="w-4 h-4" />
               </button>

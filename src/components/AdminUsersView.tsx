@@ -142,7 +142,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({ adminEmail, auth
             )}
             <span>{notice.message}</span>
           </div>
-          <button type="button" onClick={() => setNotice(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+          <button type="button" onClick={() => setNotice(null)} className="text-gray-500 hover:text-gray-600 cursor-pointer">
             &times;
           </button>
         </div>

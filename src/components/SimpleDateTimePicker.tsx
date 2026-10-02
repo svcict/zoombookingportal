@@ -239,7 +239,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
         </button>
       </div>
 
-      <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">
+      <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">
         Date &amp; Time Range
       </label>
 
@@ -257,11 +257,11 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
           <div className="mt-2 bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
             {/* Step indicator */}
             <div className="flex items-center gap-2 px-5 pt-4">
-              <span className={`text-[11px] font-bold uppercase tracking-wider ${step === 'start' ? 'text-[#0b5cff]' : 'text-gray-400'}`}>
+              <span className={`text-[11px] font-bold uppercase tracking-wider ${step === 'start' ? 'text-[#0b5cff]' : 'text-gray-500'}`}>
                 1. Start
               </span>
-              <span className="text-gray-300">→</span>
-              <span className={`text-[11px] font-bold uppercase tracking-wider ${step === 'end' ? 'text-[#0b5cff]' : 'text-gray-400'}`}>
+              <span className="text-gray-500">→</span>
+              <span className={`text-[11px] font-bold uppercase tracking-wider ${step === 'end' ? 'text-[#0b5cff]' : 'text-gray-500'}`}>
                 2. End
               </span>
             </div>
@@ -293,7 +293,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
 
                 <div className="grid grid-cols-7 mb-1">
                   {WEEKDAYS.map((wd, i) => (
-                    <div key={i} className="text-center text-xs text-gray-400 py-1.5">{wd}</div>
+                    <div key={i} className="text-center text-xs text-gray-500 py-1.5">{wd}</div>
                   ))}
                 </div>
 

@@ -77,7 +77,7 @@ export const DashboardWelcomeCard: React.FC<DashboardWelcomeCardProps> = ({
             <span className="hidden sm:inline">•</span>
             <span>Timezone: {selectedTimezone}</span>
             <span className="hidden sm:inline">•</span>
-            <span className="text-gray-400">Hours: 8:00 AM – 5:00 PM</span>
+            <span className="text-gray-500">Hours: 8:00 AM – 5:00 PM</span>
           </p>
         </div>
       </div>
@@ -467,7 +467,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
               
               {/* Day Header Row */}
               <div className="grid grid-cols-8 border-b border-gray-200 bg-gray-50 text-xs font-semibold text-gray-600 sticky top-0 z-10">
-                <div className="p-3 text-center border-r border-gray-200 text-gray-400 font-mono text-[11px]">
+                <div className="p-3 text-center border-r border-gray-200 text-gray-500 font-mono text-[11px]">
                   TIME
                 </div>
                 {weekDays.map((day) => (
@@ -684,7 +684,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
                           })}
                         </div>
                       ) : (
-                        <div className="text-xs text-gray-400 italic">
+                        <div className="text-xs text-gray-500 italic">
                           No scheduled appointments. Slot open for booking.
                         </div>
                       )}
@@ -731,7 +731,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
                   <div
                     key={idx}
                     className={`min-h-[90px] p-2 transition-colors ${
-                      d.isCurrentMonth ? 'bg-white' : 'bg-gray-50/50 text-gray-400'
+                      d.isCurrentMonth ? 'bg-white' : 'bg-gray-50/50 text-gray-500'
                     } ${d.isToday ? 'bg-blue-50/30' : ''}`}
                   >
                     <div className="flex items-center justify-between">
@@ -741,7 +741,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
                             ? 'bg-[#0b5cff] text-white shadow-xs'
                             : d.isCurrentMonth
                             ? 'text-gray-800'
-                            : 'text-gray-400'
+                            : 'text-gray-500'
                         }`}
                       >
                         {d.dayNum}

@@ -313,7 +313,7 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
                   : 'bg-red-50 text-red-800 border border-red-200'
               }`}>
                 <span>{accountNotice.message}</span>
-                <button type="button" onClick={() => setAccountNotice(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer">&times;</button>
+                <button type="button" onClick={() => setAccountNotice(null)} className="text-gray-500 hover:text-gray-600 cursor-pointer">&times;</button>
               </div>
             )}
 
@@ -390,7 +390,7 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
                           onChange={(e) => setAccountForm((f) => ({ ...f, hostKey: e.target.value }))}
                           className="w-full px-2.5 py-1.5 bg-white rounded-lg border border-gray-300 text-[11px] font-mono focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
                         />
-                        <p className="text-[10px] text-gray-400 mt-1">
+                        <p className="text-[10px] text-gray-500 mt-1">
                           Zoom's API doesn't expose this field, so it's entered here manually - copy it from this
                           account's Zoom Profile page. Included on bookings so anyone who can't use Alternative Host
                           can Claim Host instead.

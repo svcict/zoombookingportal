@@ -422,7 +422,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
             <span className="text-gray-500 font-medium">Invitees</span>
             <span className="text-gray-900">
-              {currentBooking.guestEmails.length > 0 ? currentBooking.guestEmails.join(', ') : <span className="text-gray-400">None</span>}
+              {currentBooking.guestEmails.length > 0 ? currentBooking.guestEmails.join(', ') : <span className="text-gray-500">None</span>}
             </span>
           </div>
 
@@ -439,7 +439,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               </a>
               <button
                 onClick={() => copyToClipboard(currentBooking.zoomDetails.joinUrl, 'joinUrl')}
-                className="text-gray-400 hover:text-gray-700 shrink-0 cursor-pointer"
+                className="text-gray-500 hover:text-gray-700 shrink-0 cursor-pointer"
                 title="Copy invite link"
               >
                 {copiedField === 'joinUrl' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}

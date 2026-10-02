@@ -49,7 +49,7 @@ export const TimezoneSelector: React.FC<TimezoneSelectorProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100 transition-colors"
+            className="text-gray-500 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -58,7 +58,7 @@ export const TimezoneSelector: React.FC<TimezoneSelectorProps> = ({
         {/* Search Box */}
         <div className="p-4 border-b border-gray-100">
           <div className="relative">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search city, country, or time zone (e.g. London, Tokyo, EST)..."
@@ -94,7 +94,7 @@ export const TimezoneSelector: React.FC<TimezoneSelectorProps> = ({
                 >
                   <div className="min-w-0 pr-4">
                     <div className="text-xs font-bold truncate">{tz.label}</div>
-                    <div className="text-[11px] text-gray-400 flex items-center gap-2 mt-0.5">
+                    <div className="text-[11px] text-gray-500 flex items-center gap-2 mt-0.5">
                       <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-[10px] text-gray-600 font-semibold">
                         {tz.offset}
                       </span>
@@ -105,7 +105,7 @@ export const TimezoneSelector: React.FC<TimezoneSelectorProps> = ({
                   <div className="flex items-center gap-3 shrink-0">
                     <div className="text-right">
                       <div className="text-xs font-mono font-bold text-gray-800">{tz.sampleTime}</div>
-                      <div className="text-[10px] text-gray-400">Current time</div>
+                      <div className="text-[10px] text-gray-500">Current time</div>
                     </div>
                     {isSelected ? (
                       <div className="w-6 h-6 rounded-full bg-[#0b5cff] text-white flex items-center justify-center">
@@ -124,7 +124,7 @@ export const TimezoneSelector: React.FC<TimezoneSelectorProps> = ({
         {/* Footer */}
         <div className="px-6 py-3 bg-[#F7F9FA] border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
           <div className="flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-gray-400" />
+            <Clock className="w-3.5 h-3.5 text-gray-500" />
             <span>Timezone conversion handled automatically by backend engine</span>
           </div>
           <button

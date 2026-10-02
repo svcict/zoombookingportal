@@ -498,7 +498,7 @@ export default function App() {
                           <Video className="w-4 h-4 text-[#0b5cff]" />
                           <span>Topic <span className="text-red-500">*</span></span>
                         </label>
-                        <span className="text-[11px] text-gray-400 font-mono hidden sm:inline">
+                        <span className="text-[11px] text-gray-500 font-mono hidden sm:inline">
                           Auto-generates Zoom &amp; Outlook title
                         </span>
                       </div>
@@ -523,7 +523,7 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => setMeetingTopic('')}
-                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 px-1.5 py-0.5 text-xs font-bold bg-gray-200 hover:bg-gray-300 rounded-md transition-colors"
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-600 px-1.5 py-0.5 text-xs font-bold bg-gray-200 hover:bg-gray-300 rounded-md transition-colors"
                             title="Clear topic"
                           >
                             ✕

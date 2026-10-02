@@ -168,8 +168,8 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden sm:inline font-medium truncate max-w-[130px]">
                 {selectedTimezone.split('/')[1]?.replace('_', ' ') || selectedTimezone}
               </span>
-              <span className="text-gray-400 font-mono text-[11px]">({currentTimeStr || '--:--'})</span>
-              <ChevronDown className="w-3 h-3 text-gray-400" />
+              <span className="text-gray-500 font-mono text-[11px]">({currentTimeStr || '--:--'})</span>
+              <ChevronDown className="w-3 h-3 text-gray-500" />
             </button>
 
 

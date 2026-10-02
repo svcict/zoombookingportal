@@ -40,7 +40,7 @@ export const MeetingAgendaQuestions: React.FC<MeetingAgendaQuestionsProps> = ({
             <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
               {q.label} {q.required && <span className="text-red-500">*</span>}
             </label>
-            {q.helpText && <p className="text-[11px] text-gray-400 mb-1">{q.helpText}</p>}
+            {q.helpText && <p className="text-[11px] text-gray-500 mb-1">{q.helpText}</p>}
 
             {q.type === 'textarea' && (
               <textarea
