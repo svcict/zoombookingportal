@@ -128,28 +128,29 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
     fetchConfig();
   }, [adminEmail]);
 
-  // Save to server & write directly to .env
-  const saveKeyToEnv = async (keyName: string, value: string) => {
+  // Writes several keys in a single request. updateEnvFile() on the server
+  // does a read-modify-write of the whole .env file, so firing one request
+  // per key (as "Force Sync All" used to) let concurrent requests race:
+  // a later request could read the file before an earlier one's write
+  // landed and overwrite it with a stale copy, silently dropping keys.
+  // Batching into one request makes the file update atomic across all keys.
+  const saveKeysToEnv = async (keys: Record<string, string>, toastMessage: string) => {
     if (!adminEmail) return;
     setIsSaving(true);
     try {
       const res = await fetch('/api/admin/m365/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({
-          keys: {
-            [keyName]: value
-          }
-        })
+        body: JSON.stringify({ keys })
       });
       const data = await res.json();
       if (data.success && data.data) {
         setConfig(data.data);
-        setLastSavedToast(`✓ ${keyName} written directly to .env`);
+        setLastSavedToast(toastMessage);
         setTimeout(() => setLastSavedToast(null), 3000);
       }
     } catch (err) {
-      console.error('Failed to save key to .env', err);
+      console.error('Failed to save keys to .env', err);
     } finally {
       setIsSaving(false);
     }
@@ -765,12 +766,17 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
               <button
                 type="button"
                 onClick={() => {
-                  saveKeyToEnv('MICROSOFT_TENANT_ID', config.tenantId);
-                  saveKeyToEnv('MICROSOFT_CLIENT_ID', config.clientId);
-                  saveKeyToEnv('MICROSOFT_CLIENT_SECRET', config.clientSecret);
-                  saveKeyToEnv('MICROSOFT_REDIRECT_URI', config.redirectUri);
-                  saveKeyToEnv('MICROSOFT_GRAPH_SCOPES', config.scopes);
-                  saveKeyToEnv('MICROSOFT_ORGANIZATION_DOMAIN', config.orgDomain);
+                  saveKeysToEnv(
+                    {
+                      MICROSOFT_TENANT_ID: config.tenantId,
+                      MICROSOFT_CLIENT_ID: config.clientId,
+                      MICROSOFT_CLIENT_SECRET: config.clientSecret,
+                      MICROSOFT_REDIRECT_URI: config.redirectUri,
+                      MICROSOFT_GRAPH_SCOPES: config.scopes,
+                      MICROSOFT_ORGANIZATION_DOMAIN: config.orgDomain
+                    },
+                    '✓ All Microsoft 365 settings written directly to .env'
+                  );
                 }}
                 disabled={isSaving}
                 className="px-3.5 py-1.5 rounded-xl bg-gray-900 hover:bg-black text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
