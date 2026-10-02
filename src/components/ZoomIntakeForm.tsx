@@ -124,6 +124,49 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   // field, instead of defaulting to the booker) and is added to the
   // invitee list so they also receive the confirmation email.
   const [hostOnBehalfEmail, setHostOnBehalfEmail] = useState('');
+  // Same Azure AD / Entra ID directory typeahead as Invitees, kept as its
+  // own state since this field holds a single value rather than a list -
+  // an external guest with no directory match can still just type their
+  // email directly, same fallback as Invitees.
+  const [hostDirectoryResults, setHostDirectoryResults] = useState<
+    { id: string; name: string; email: string; jobTitle?: string }[]
+  >([]);
+  const [showHostDirectoryResults, setShowHostDirectoryResults] = useState(false);
+  const hostDirectoryRequestId = useRef(0);
+
+  useEffect(() => {
+    const query = hostOnBehalfEmail.trim();
+    if (query.length < 2) {
+      setHostDirectoryResults([]);
+      return;
+    }
+    const thisRequestId = ++hostDirectoryRequestId.current;
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/directory/users?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        if (thisRequestId !== hostDirectoryRequestId.current) return; // a newer search superseded this one
+        setHostDirectoryResults(data.success ? data.data : []);
+      } catch {
+        if (thisRequestId === hostDirectoryRequestId.current) setHostDirectoryResults([]);
+      }
+    }, 250); // debounce as-you-type
+    return () => clearTimeout(timeout);
+  }, [hostOnBehalfEmail]);
+
+  const handleSelectHostFromDirectory = (selectedEmail: string) => {
+    setHostOnBehalfEmail(selectedEmail);
+    setHostDirectoryResults([]);
+    setShowHostDirectoryResults(false);
+    if (errors.hostOnBehalfEmail) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.hostOnBehalfEmail;
+        return next;
+      });
+    }
+  };
+
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Zoom meeting settings - set here at booking time so the meeting is
@@ -507,10 +550,44 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                       });
                     }
                   }}
-                  placeholder="boss@company.com"
+                  onFocus={() => setShowHostDirectoryResults(true)}
+                  onBlur={() => setTimeout(() => setShowHostDirectoryResults(false), 150)}
+                  placeholder="boss@company.com or search by name"
                   className="w-full pl-10 pr-4 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
                 />
+
+                {/* Azure AD / Entra ID directory matches - click to select directly */}
+                {showHostDirectoryResults && hostDirectoryResults.length > 0 && (
+                  <div className="absolute z-10 mt-1 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-h-64 overflow-y-auto">
+                    {hostDirectoryResults.map((person) => (
+                      <button
+                        key={person.id}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault(); // keep focus so onBlur doesn't close this before the click registers
+                          handleSelectHostFromDirectory(person.email);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left hover:bg-blue-50 transition-colors cursor-pointer"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-blue-100 text-[#0b5cff] flex items-center justify-center text-xs font-bold shrink-0">
+                          {person.name ? person.name.charAt(0).toUpperCase() : person.email.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-gray-900 truncate">{person.name || person.email}</div>
+                          <div className="text-xs text-gray-500 truncate">
+                            {person.email}{person.jobTitle ? ` · ${person.jobTitle}` : ''}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+              <p className="text-[11px] text-gray-500 mt-1.5 italic">
+                Guide: start typing a name to search your organization&apos;s directory, then select a
+                match. Booking for an external guest with no directory account? Just type their full
+                email address instead - it&apos;ll be used as-is.
+              </p>
               {errors.hostOnBehalfEmail && <p className="text-red-500 text-xs mt-2">{errors.hostOnBehalfEmail}</p>}
             </div>
           )}
