@@ -60,7 +60,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
 }) => {
   const initial = selectedDate ? new Date(`${selectedDate}T12:00:00`) : new Date(Date.now() + 86400000);
 
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<Step>('start');
   const [applied, setApplied] = useState(false);
 
@@ -354,7 +354,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
               </div>
             </div>
 
-            {step === 'end' && <div className="px-5 pb-1">{availabilityReadout}</div>}
+            <div className="px-5 pb-1">{availabilityReadout}</div>
 
             <div className="flex items-center justify-end gap-5 px-5 py-3.5 border-t border-gray-100">
               {step === 'start' ? (
