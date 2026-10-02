@@ -93,6 +93,11 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   >([]);
   const [showDirectoryResults, setShowDirectoryResults] = useState(false);
   const directoryRequestId = useRef(0);
+  // Cancels a pending "hide on blur" timeout if focus comes back before it
+  // fires (e.g. clicking Add then immediately clicking back into the input
+  // to add another invitee) - otherwise that stale timeout closes the
+  // freshly-reopened dropdown a moment later, with nothing left to reopen it.
+  const guestBlurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const query = guestEmailInput.trim();
@@ -133,6 +138,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   >([]);
   const [showHostDirectoryResults, setShowHostDirectoryResults] = useState(false);
   const hostDirectoryRequestId = useRef(0);
+  const hostBlurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const query = hostOnBehalfEmail.trim();
@@ -414,8 +420,16 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                 type="email"
                 value={guestEmailInput}
                 onChange={(e) => setGuestEmailInput(e.target.value)}
-                onFocus={() => setShowDirectoryResults(true)}
-                onBlur={() => setTimeout(() => setShowDirectoryResults(false), 150)}
+                onFocus={() => {
+                  if (guestBlurTimeoutRef.current) {
+                    clearTimeout(guestBlurTimeoutRef.current);
+                    guestBlurTimeoutRef.current = null;
+                  }
+                  setShowDirectoryResults(true);
+                }}
+                onBlur={() => {
+                  guestBlurTimeoutRef.current = setTimeout(() => setShowDirectoryResults(false), 150);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
@@ -550,8 +564,16 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                       });
                     }
                   }}
-                  onFocus={() => setShowHostDirectoryResults(true)}
-                  onBlur={() => setTimeout(() => setShowHostDirectoryResults(false), 150)}
+                  onFocus={() => {
+                    if (hostBlurTimeoutRef.current) {
+                      clearTimeout(hostBlurTimeoutRef.current);
+                      hostBlurTimeoutRef.current = null;
+                    }
+                    setShowHostDirectoryResults(true);
+                  }}
+                  onBlur={() => {
+                    hostBlurTimeoutRef.current = setTimeout(() => setShowHostDirectoryResults(false), 150);
+                  }}
                   placeholder="boss@company.com or search by name"
                   className="w-full pl-10 pr-4 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
                 />
