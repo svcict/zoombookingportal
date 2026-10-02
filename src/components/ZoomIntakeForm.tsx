@@ -137,7 +137,10 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   const [requireAuth, setRequireAuth] = useState(false);
   const [hostVideo, setHostVideo] = useState(true);
   const [participantVideo, setParticipantVideo] = useState(true);
-  const [audioOption, setAudioOption] = useState<'telephone' | 'computer' | 'both' | 'third_party'>('both');
+  // Defaults to Computer Audio only - most participants just join via the
+  // Zoom app's own internet audio, and phone dial-in/3rd-party audio are
+  // edge cases the booker can still opt into below when actually needed.
+  const [audioOption, setAudioOption] = useState<'telephone' | 'computer' | 'both' | 'third_party'>('computer');
   const [joinAnytime, setJoinAnytime] = useState(false);
   const [muteOnEntry, setMuteOnEntry] = useState(true);
   const [autoRecord, setAutoRecord] = useState(true);
