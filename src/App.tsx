@@ -498,9 +498,6 @@ export default function App() {
                           <Video className="w-4 h-4 text-[#0b5cff]" />
                           <span>Topic <span className="text-red-500">*</span></span>
                         </label>
-                        <span className="text-[11px] text-gray-500 font-mono hidden sm:inline">
-                          Auto-generates Zoom &amp; Outlook title
-                        </span>
                       </div>
 
                       <div className="relative">
