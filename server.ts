@@ -2012,6 +2012,60 @@ app.get('/api/auth/m365/accounts', (req, res) => {
   });
 });
 
+// Real Azure AD / Entra ID directory search for the Invitees typeahead -
+// backed by the same app-only Graph token already used for mailbox/calendar
+// access elsewhere (getGraphAppToken), not a per-user delegated token (none
+// is retained after login - see the SSO callback above). Requires the
+// MICROSOFT_CLIENT_ID app registration to have the User.Read.All
+// APPLICATION permission admin-consented; without it this just returns an
+// empty list so the UI falls back to plain free-text email entry.
+app.get('/api/directory/users', async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  if (q.length < 2) {
+    return res.json({ success: true, data: [] });
+  }
+
+  const token = await getGraphAppToken();
+  if (!token) {
+    return res.json({ success: true, data: [], message: 'Directory search is not configured.' });
+  }
+
+  // Graph's $search over /users needs the ConsistencyLevel header, and the
+  // search term can't itself contain a double quote (it's quoted in the
+  // $search expression below).
+  const safeQuery = q.replace(/"/g, '');
+  const search = `"displayName:${safeQuery}" OR "mail:${safeQuery}" OR "userPrincipalName:${safeQuery}"`;
+  const url = `https://graph.microsoft.com/v1.0/users?$search=${encodeURIComponent(search)}&$select=id,displayName,mail,userPrincipalName,jobTitle&$top=10`;
+
+  try {
+    const graphRes = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ConsistencyLevel: 'eventual'
+      }
+    });
+    const data = (await graphRes.json()) as any;
+    if (!graphRes.ok) {
+      console.error('Graph directory search failed:', data?.error?.message || data);
+      return res.json({ success: true, data: [] });
+    }
+
+    const users = (data.value || [])
+      .map((u: any) => ({
+        id: u.id,
+        name: u.displayName || '',
+        email: (u.mail || u.userPrincipalName || '').toLowerCase(),
+        jobTitle: u.jobTitle || undefined
+      }))
+      .filter((u: any) => u.email);
+
+    res.json({ success: true, data: users });
+  } catch (err: any) {
+    console.error('Error searching Microsoft 365 directory:', err);
+    res.json({ success: true, data: [] });
+  }
+});
+
 app.post('/api/auth/signup', async (req, res) => {
   const { email, password, name, department } = req.body;
   if (!email || !password) {

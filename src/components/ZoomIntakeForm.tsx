@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Video,
   Clock,
@@ -84,6 +84,35 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   const email = authUser?.email || '';
   const [guestEmailInput, setGuestEmailInput] = useState('');
   const [guestEmails, setGuestEmails] = useState<string[]>([]);
+  // Azure AD / Entra ID directory typeahead for Invitees - real org users
+  // matched via GET /api/directory/users, backed by Microsoft Graph. Falls
+  // back silently to plain free-text email entry if directory search isn't
+  // configured (empty results, no error shown).
+  const [directoryResults, setDirectoryResults] = useState<
+    { id: string; name: string; email: string; jobTitle?: string }[]
+  >([]);
+  const [showDirectoryResults, setShowDirectoryResults] = useState(false);
+  const directoryRequestId = useRef(0);
+
+  useEffect(() => {
+    const query = guestEmailInput.trim();
+    if (query.length < 2) {
+      setDirectoryResults([]);
+      return;
+    }
+    const thisRequestId = ++directoryRequestId.current;
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/directory/users?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        if (thisRequestId !== directoryRequestId.current) return; // a newer search superseded this one
+        setDirectoryResults(data.success ? data.data : []);
+      } catch {
+        if (thisRequestId === directoryRequestId.current) setDirectoryResults([]);
+      }
+    }, 250); // debounce as-you-type
+    return () => clearTimeout(timeout);
+  }, [guestEmailInput]);
   // Off by default. Sending the Host Key is this app's chosen way to hand
   // real host privileges to whoever needs them, not a fallback only needed
   // when someone happens to lack a Zoom license - so it's the entry point
@@ -130,6 +159,22 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
 
   const handleRemoveGuest = (emailToRemove: string) => {
     setGuestEmails(guestEmails.filter((e) => e !== emailToRemove));
+  };
+
+  const handleAddGuestFromDirectory = (selectedEmail: string) => {
+    if (!guestEmails.includes(selectedEmail)) {
+      setGuestEmails([...guestEmails, selectedEmail]);
+    }
+    setGuestEmailInput('');
+    setDirectoryResults([]);
+    setShowDirectoryResults(false);
+    if (errors.guestEmails) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.guestEmails;
+        return next;
+      });
+    }
   };
 
   const validate = () => {
@@ -323,15 +368,44 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                 type="email"
                 value={guestEmailInput}
                 onChange={(e) => setGuestEmailInput(e.target.value)}
+                onFocus={() => setShowDirectoryResults(true)}
+                onBlur={() => setTimeout(() => setShowDirectoryResults(false), 150)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
                     handleAddGuest();
                   }
                 }}
-                placeholder="colleague@company.com"
+                placeholder="colleague@company.com or search by name"
                 className="w-full pl-10 pr-4 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
               />
+
+              {/* Azure AD / Entra ID directory matches - click to add directly */}
+              {showDirectoryResults && directoryResults.length > 0 && (
+                <div className="absolute z-10 mt-1 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-h-64 overflow-y-auto">
+                  {directoryResults.map((person) => (
+                    <button
+                      key={person.id}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault(); // keep focus so onBlur doesn't close this before the click registers
+                        handleAddGuestFromDirectory(person.email);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left hover:bg-blue-50 transition-colors cursor-pointer"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-blue-100 text-[#0b5cff] flex items-center justify-center text-xs font-bold shrink-0">
+                        {person.name ? person.name.charAt(0).toUpperCase() : person.email.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-gray-900 truncate">{person.name || person.email}</div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {person.email}{person.jobTitle ? ` · ${person.jobTitle}` : ''}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <button
               type="button"
