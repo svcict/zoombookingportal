@@ -369,8 +369,8 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
         <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
           <div className="p-5 sm:p-6 border-b border-gray-100 flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-sm font-bold text-gray-900">System (Zoom API) Logs</h2>
-              <p className="text-xs text-gray-500">Account pings, meeting create/cancel calls, and webhook events</p>
+              <h2 className="text-sm font-bold text-gray-900">System Logs</h2>
+              <p className="text-xs text-gray-500">Every tracked system action: Zoom API calls, admin config changes, booking lifecycle, meeting type edits, M365 sync, push subscriptions</p>
             </div>
             <button
               type="button"
@@ -390,26 +390,24 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
                 <thead className="bg-[#FAFAFA] text-gray-600 font-semibold border-b border-gray-100 sticky top-0">
                   <tr>
                     <th className="py-3 px-4">Timestamp</th>
-                    <th className="py-3 px-4">Method</th>
-                    <th className="py-3 px-4">Endpoint</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4">Response Time</th>
-                    <th className="py-3 px-4">Summary</th>
+                    <th className="py-3 px-4">Category</th>
+                    <th className="py-3 px-4">Action</th>
+                    <th className="py-3 px-4">Actor</th>
+                    <th className="py-3 px-4">Details</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {auditData.systemLogs.map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50/70 transition-colors">
                       <td className="py-3.5 px-4 font-mono text-gray-500 whitespace-nowrap">{new Date(log.timestamp).toLocaleString()}</td>
-                      <td className="py-3.5 px-4 font-bold text-gray-900">{log.method}</td>
-                      <td className="py-3.5 px-4 font-mono text-gray-600 truncate max-w-[220px]" title={log.endpoint}>{log.endpoint}</td>
                       <td className="py-3.5 px-4">
-                        <span className={`px-2 py-0.5 rounded-full font-bold text-[11px] ${log.statusCode >= 400 ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>
-                          {log.statusCode}
+                        <span className="px-2 py-0.5 rounded-full font-bold text-[11px] bg-gray-100 text-gray-700 capitalize">
+                          {log.category}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-gray-600">{log.responseTimeMs}ms</td>
-                      <td className="py-3.5 px-4 text-gray-500 text-[11px] truncate max-w-[260px]" title={log.payloadSummary}>{log.payloadSummary}</td>
+                      <td className="py-3.5 px-4 font-bold text-gray-900">{log.action}</td>
+                      <td className="py-3.5 px-4 text-gray-600">{log.actor || '—'}</td>
+                      <td className="py-3.5 px-4 text-gray-500 text-[11px] truncate max-w-[320px]" title={log.details}>{log.details}</td>
                     </tr>
                   ))}
                 </tbody>

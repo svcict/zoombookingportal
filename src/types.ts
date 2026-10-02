@@ -283,6 +283,19 @@ export interface AuditMeetingRow {
   createdAt: string;
 }
 
+// Unified system activity row - merges the real Zoom API call ledger with
+// every other tracked action (admin config changes, booking lifecycle,
+// meeting type edits, M365 sync toggles, push subscription changes) into
+// one shape for the "System Logs" audit table/CSV export.
+export interface SystemLogRow {
+  id: string;
+  timestamp: string;
+  category: 'zoom' | 'admin' | 'booking' | 'meeting-type' | 'm365' | 'push';
+  action: string;
+  actor: string;
+  details: string;
+}
+
 export interface LoginSecurityAudit {
   totalFailedAttempts: number;
   activeLockoutsCount: number;
@@ -294,7 +307,7 @@ export interface LoginSecurityAudit {
   createdMeetingsCount: number;
   cancelledMeetingsCount: number;
   successfulLogins: SuccessfulLoginRecord[];
-  systemLogs: ZoomApiLog[];
+  systemLogs: SystemLogRow[];
   createdMeetings: AuditMeetingRow[];
   cancelledMeetings: AuditMeetingRow[];
 }

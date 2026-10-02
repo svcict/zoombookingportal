@@ -860,8 +860,23 @@ interface SuccessfulLoginRecord {
   userAgent?: string;
 }
 
+// Covers everything NOT already captured by zoom_api_logs (real Zoom REST
+// calls) or the login tables above - admin config changes, booking
+// lifecycle, meeting type edits, push subscription changes, M365 sync
+// toggles. The "System Logs" audit card merges this with zoom_api_logs so
+// admins see one combined activity trail.
+interface SystemActivityLog {
+  id: string;
+  timestamp: string;
+  category: 'admin' | 'booking' | 'meeting-type' | 'm365' | 'push';
+  action: string;
+  actor: string;
+  details: string;
+}
+
 const failedLoginLogs: FailedAttemptRecord[] = [];
 const successfulLogins: SuccessfulLoginRecord[] = [];
+let systemActivityLogs: SystemActivityLog[] = [];
 const rateLimitStore = new Map<string, RateLimitEntry>();
 let pushSubscriptions: PushSubscriptionRecord[] = [];
 
@@ -896,6 +911,25 @@ function persistZoomLog(log: ZoomApiLog): void {
 
 function persistFailedLogin(record: FailedAttemptRecord): void {
   upsertRow('failed_login_logs', record.id, record).catch(() => {});
+}
+
+function logSystemActivity(
+  category: SystemActivityLog['category'],
+  action: string,
+  actor: string,
+  details: string
+): void {
+  const record: SystemActivityLog = {
+    id: `sys-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+    timestamp: new Date().toISOString(),
+    category,
+    action,
+    actor: actor || 'unknown',
+    details
+  };
+  systemActivityLogs.unshift(record);
+  if (systemActivityLogs.length > 500) systemActivityLogs.length = 500;
+  upsertRow('system_activity_logs', record.id, record).catch(() => {});
 }
 
 function logSuccessfulLogin(email: string, provider: 'm365' | 'local', ip: string, userAgent?: string): void {
@@ -983,8 +1017,11 @@ async function initPersistence(): Promise<void> {
   const loadedSuccessfulLogins = await loadTable<SuccessfulLoginRecord>('successful_logins');
   if (loadedSuccessfulLogins) successfulLogins.push(...loadedSuccessfulLogins);
 
+  const loadedSystemActivityLogs = await loadTable<SystemActivityLog>('system_activity_logs');
+  if (loadedSystemActivityLogs) systemActivityLogs = loadedSystemActivityLogs;
+
   console.log(
-    `[persistence] Loaded from Supabase: ${hostAccounts.length} host accounts, ${meetingTypes.length} meeting types, ${bookings.length} bookings, ${zoomApiLogs.length} Zoom API logs, ${failedLoginLogs.length} failed login logs, ${successfulLogins.length} successful logins, ${pushSubscriptions.length} push subscriptions.`
+    `[persistence] Loaded from Supabase: ${hostAccounts.length} host accounts, ${meetingTypes.length} meeting types, ${bookings.length} bookings, ${zoomApiLogs.length} Zoom API logs, ${failedLoginLogs.length} failed login logs, ${successfulLogins.length} successful logins, ${systemActivityLogs.length} system activity logs, ${pushSubscriptions.length} push subscriptions.`
   );
 }
 
@@ -1348,7 +1385,8 @@ const M365_CONFIG_KEYS = new Set([
 ]);
 
 app.post('/api/admin/m365/config', async (req, res) => {
-  if (!(await requireAdmin(req, res))) return;
+  const adminEmail = await requireAdmin(req, res);
+  if (!adminEmail) return;
 
   const { keys } = req.body;
   if (!keys || typeof keys !== 'object') {
@@ -1365,6 +1403,12 @@ app.post('/api/admin/m365/config', async (req, res) => {
   }
 
   const success = updateEnvFile(filteredKeys);
+  logSystemActivity(
+    'admin',
+    'M365 config saved',
+    adminEmail,
+    `Synced ${Object.keys(filteredKeys).join(', ') || 'no'} key(s) to .env (file write ${success ? 'succeeded' : 'failed'}).`
+  );
 
   const tenantId = process.env.MICROSOFT_TENANT_ID || '';
   const clientId = process.env.MICROSOFT_CLIENT_ID || '';
@@ -2337,6 +2381,31 @@ app.get('/api/admin/failed-logins', async (req, res) => {
     createdAt: b.createdAt
   });
 
+  // Unified "System Logs" trail: the real Zoom API call ledger (zoomApiLogs)
+  // merged with every other tracked system action (admin config changes,
+  // booking lifecycle, meeting type edits, M365 sync toggles, push
+  // subscription changes - see logSystemActivity), normalized to one shape
+  // so the admin table/CSV export covers everything in one place, not just
+  // Zoom calls.
+  const unifiedSystemLogs = [
+    ...zoomApiLogs.map((log) => ({
+      id: log.id,
+      timestamp: log.timestamp,
+      category: 'zoom' as const,
+      action: log.method,
+      actor: '',
+      details: log.payloadSummary
+    })),
+    ...systemActivityLogs.map((log) => ({
+      id: log.id,
+      timestamp: log.timestamp,
+      category: log.category,
+      action: log.action,
+      actor: log.actor,
+      details: log.details
+    }))
+  ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
   res.json({
     success: true,
     data: {
@@ -2347,14 +2416,14 @@ app.get('/api/admin/failed-logins', async (req, res) => {
       rateLimits,
       // Audit summary metrics - successfulLoginsCount tracks only logins
       // recorded since this feature shipped (see logSuccessfulLogin), not
-      // retroactive history. systemLogsCount is the Zoom API call ledger
-      // (account pings, meeting create/cancel calls, webhook events).
+      // retroactive history. systemLogsCount/systemLogs now cover ALL
+      // tracked system activity, not just Zoom API calls.
       successfulLoginsCount: successfulLogins.length,
-      systemLogsCount: zoomApiLogs.length,
+      systemLogsCount: unifiedSystemLogs.length,
       createdMeetingsCount: bookings.length,
       cancelledMeetingsCount: cancelledMeetings.length,
       successfulLogins,
-      systemLogs: zoomApiLogs,
+      systemLogs: unifiedSystemLogs,
       createdMeetings: bookings.map(toMeetingRow),
       cancelledMeetings: cancelledMeetings.map(toMeetingRow)
     }
@@ -2362,7 +2431,8 @@ app.get('/api/admin/failed-logins', async (req, res) => {
 });
 
 app.post('/api/admin/unblock-ip', async (req, res) => {
-  if (!(await requireAdmin(req, res))) return;
+  const adminEmail = await requireAdmin(req, res);
+  if (!adminEmail) return;
 
   const { ip } = req.body;
   if (!ip) {
@@ -2377,6 +2447,7 @@ app.post('/api/admin/unblock-ip', async (req, res) => {
     entry.lockoutCycle = 0;
     rateLimitStore.set(ip, entry);
   }
+  logSystemActivity('admin', 'IP unblocked', adminEmail, `Unblocked and reset login limits for IP ${ip}.`);
 
   res.json({
     success: true,
@@ -2385,10 +2456,12 @@ app.post('/api/admin/unblock-ip', async (req, res) => {
 });
 
 app.post('/api/admin/clear-failed-logs', async (req, res) => {
-  if (!(await requireAdmin(req, res))) return;
+  const adminEmail = await requireAdmin(req, res);
+  if (!adminEmail) return;
 
   failedLoginLogs.length = 0;
   await clearTable('failed_login_logs');
+  logSystemActivity('admin', 'Failed login logs cleared', adminEmail, 'Cleared all historical failed login security logs.');
   res.json({
     success: true,
     message: 'Failed login security logs have been cleared.'
@@ -2422,6 +2495,7 @@ app.post('/api/admin/users/grant', async (req, res) => {
   if (!result.success) {
     return res.status(400).json({ success: false, message: result.error });
   }
+  logSystemActivity('admin', 'Admin access granted', adminEmail, `Granted admin access to ${email.trim().toLowerCase()}.`);
   res.json({ success: true, message: `${email.trim().toLowerCase()} can now sign in as an administrator.` });
 });
 
@@ -2449,6 +2523,7 @@ app.post('/api/admin/users/revoke', async (req, res) => {
   if (!result.success) {
     return res.status(400).json({ success: false, message: result.error });
   }
+  logSystemActivity('admin', 'Admin access revoked', adminEmail, `Revoked admin access from ${normalized}.`);
   res.json({ success: true, message: `${normalized} is no longer an administrator.` });
 });
 
@@ -2493,6 +2568,12 @@ app.post('/api/meeting-types', (req, res) => {
   };
   meetingTypes.push(newType);
   upsertRow('meeting_types', newType.id, newType).catch(() => {});
+  logSystemActivity(
+    'meeting-type',
+    'Meeting type created',
+    String(req.headers['x-user-email'] || 'unknown'),
+    `Created meeting type "${newType.title}" (${newType.duration} min).`
+  );
   res.status(201).json({ success: true, data: newType });
 });
 
@@ -3060,6 +3141,12 @@ app.post('/api/bookings', async (req, res) => {
 
     bookings.unshift(newBooking);
     await upsertRow('bookings', newBooking.id, newBooking);
+    logSystemActivity(
+      'booking',
+      'Meeting created',
+      newBooking.participantEmail,
+      `Created "${newBooking.meetingTitle}" on ${newBooking.date} (${newBooking.timeSlot}).`
+    );
 
     // Real confirmation email, sent AS the rotating Zoom account that
     // hosts this specific meeting (its real M365 mailbox), not a fixed
@@ -3237,6 +3324,7 @@ app.patch('/api/bookings/:id', async (req, res) => {
   }
 
   await upsertRow('bookings', booking.id, booking);
+  logSystemActivity('booking', 'Meeting updated', identity.email, `Updated "${booking.meetingTitle}" (${booking.id}).`);
 
   const altHostMessage = zoomConfig?.alternativeHosts && !appliedAlternativeHosts
     ? ' Alternative host could not be applied: that person is not eligible on this Zoom account.'
@@ -3341,6 +3429,7 @@ app.post('/api/bookings/:id/cancel', async (req, res) => {
   if (!result.success) {
     return res.status(502).json({ success: false, error: result.message });
   }
+  logSystemActivity('booking', 'Meeting canceled', identity.email, `Canceled "${booking.meetingTitle}" (${booking.id}).`);
 
   res.json({ success: true, message: result.message, data: booking });
 });
@@ -3367,6 +3456,9 @@ app.post('/api/bookings/cancel-mine', async (req, res) => {
   }
 
   const cancelledCount = results.filter((r) => r.success).length;
+  if (cancelledCount > 0) {
+    logSystemActivity('booking', 'Bulk meetings canceled', identity.email, `Canceled ${cancelledCount} of ${targets.length} booking(s).`);
+  }
   res.json({
     success: true,
     message: targets.length === 0
@@ -3408,7 +3500,8 @@ app.get('/api/admin/zoom/config', async (req, res) => {
 });
 
 app.post('/api/admin/zoom/config', async (req, res) => {
-  if (!(await requireAdmin(req, res))) return;
+  const adminEmail = await requireAdmin(req, res);
+  if (!adminEmail) return;
 
   const { accountKey, label, accountId, clientId, clientSecret, userId, hostKey } = req.body as {
     accountKey?: string;
@@ -3441,6 +3534,12 @@ app.post('/api/admin/zoom/config', async (req, res) => {
   if (clientSecret) keys[`${prefix}_CLIENT_SECRET`] = clientSecret;
 
   const saved = updateEnvFile(keys);
+  logSystemActivity(
+    'admin',
+    'Zoom account config saved',
+    adminEmail,
+    `Saved ${getAccountLabel(accountKey)} credentials (file write ${saved ? 'succeeded' : 'failed'}).`
+  );
 
   res.json({
     success: saved,
@@ -3639,6 +3738,12 @@ app.get('/api/m365/status', (req, res) => {
 
 app.post('/api/m365/sync-toggle', (req, res) => {
   m365CalendarState.syncEnabled = !m365CalendarState.syncEnabled;
+  logSystemActivity(
+    'm365',
+    'M365 sync toggled',
+    String(req.headers['x-user-email'] || 'unknown'),
+    `Microsoft 365 Calendar Sync ${m365CalendarState.syncEnabled ? 'enabled' : 'paused'}.`
+  );
   res.json({
     success: true,
     data: m365CalendarState,
@@ -3741,6 +3846,7 @@ app.post('/api/push/subscribe', async (req, res) => {
   };
   pushSubscriptions.push(record);
   await upsertRow('push_subscriptions', record.id, record);
+  logSystemActivity('push', 'Push subscription enabled', normalizedEmail, 'Registered a new browser push subscription.');
 
   res.json({ success: true, message: 'Push notifications enabled.' });
 });
@@ -3754,6 +3860,7 @@ app.post('/api/push/unsubscribe', async (req, res) => {
   pushSubscriptions = pushSubscriptions.filter((s) => s.endpoint !== endpoint);
   for (const sub of toRemove) {
     await deleteRow('push_subscriptions', sub.id).catch(() => {});
+    logSystemActivity('push', 'Push subscription disabled', sub.email, 'Removed a browser push subscription.');
   }
   res.json({ success: true, message: 'Push notifications disabled.' });
 });
