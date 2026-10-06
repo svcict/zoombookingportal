@@ -33,6 +33,23 @@ export default function AdminPortal() {
 
   const isAdmin = Boolean(authUser?.isAdmin);
   const authHeaders = buildAuthHeaders(authUser);
+  // A session token is signed with a per-process secret (DEMO_TOKEN_SECRET,
+  // see src/lib/supabase.ts) that defaults to a random value regenerated on
+  // every server restart unless that env var is set. A cached authUser in
+  // localStorage from before a restart still LOOKS signed in client-side,
+  // but every admin-gated request with its stale token now fails
+  // server-side - without this check, that silently renders every admin
+  // panel empty (it looks broken) instead of prompting a fresh sign-in.
+  const [sessionInvalid, setSessionInvalid] = useState(false);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetch('/api/admin/users', { headers: authHeaders })
+      .then((r) => {
+        if (r.status === 401) setSessionInvalid(true);
+      })
+      .catch(() => {});
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -65,6 +82,36 @@ export default function AdminPortal() {
   // No session at all yet - show the login form.
   if (!authUser) {
     return <M365AuthGate variant="admin" onAuthenticated={(user) => setAuthUser(user)} />;
+  }
+
+  // The cached session token no longer verifies server-side (most likely
+  // the server restarted since this person last signed in - see the
+  // sessionInvalid effect above). Showing the admin shell with every panel
+  // silently empty looks like data loss; prompt a fresh sign-in instead.
+  if (isAdmin && sessionInvalid) {
+    return (
+      <div className="min-h-screen bg-[#F0F2F5] flex flex-col justify-center items-center p-6 font-sans">
+        <div className="w-full max-w-sm bg-white rounded-2xl border border-gray-200 shadow-xl p-7 text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
+            <ShieldAlert className="w-7 h-7" />
+          </div>
+          <div>
+            <h1 className="text-lg font-extrabold text-gray-900">Session Expired</h1>
+            <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
+              Your sign-in is no longer valid, most likely because the server restarted since you last
+              logged in here. Sign in again to continue.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="w-full py-2.5 px-4 rounded-xl bg-[#0b5cff] hover:bg-[#0049d1] text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+          >
+            Sign In Again
+          </button>
+        </div>
+      </div>
+    );
   }
 
   // Signed in, but not an admin - never render admin content for them. Their
