@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   ShieldAlert,
   RefreshCw,
-  Ban,
-  Clock,
+  ShieldBan,
+  Timer,
   Trash2,
   CheckCircle2,
   Search,
@@ -11,11 +11,11 @@ import {
   Lock,
   Unlock,
   ShieldCheck,
-  UserX,
-  LogIn,
-  FileText,
-  XCircle,
-  CalendarPlus,
+  UserRoundX,
+  UserRoundCheck,
+  Activity,
+  CalendarX,
+  CalendarCheck2,
   Download
 } from 'lucide-react';
 import { LoginSecurityAudit } from '../types';
@@ -263,8 +263,8 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
         
         {/* Total Failed Attempts */}
         <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0 font-extrabold text-lg">
-            <UserX className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-50 to-red-100 text-red-600 ring-1 ring-red-100 flex items-center justify-center shrink-0">
+            <UserRoundX className="w-6 h-6" />
           </div>
           <div>
             <div className="text-2xl font-black text-gray-900">{auditData.totalFailedAttempts}</div>
@@ -274,8 +274,8 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
 
         {/* Active Lockouts */}
         <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-            <Clock className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100 text-amber-600 ring-1 ring-amber-100 flex items-center justify-center shrink-0">
+            <Timer className="w-6 h-6" />
           </div>
           <div>
             <div className="text-2xl font-black text-amber-900">{auditData.activeLockoutsCount}</div>
@@ -285,8 +285,8 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
 
         {/* Permanently Blocked IPs */}
         <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0">
-            <Ban className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-50 to-red-100 text-red-600 ring-1 ring-red-100 flex items-center justify-center shrink-0">
+            <ShieldBan className="w-6 h-6" />
           </div>
           <div>
             <div className="text-2xl font-black text-red-900">{auditData.permanentlyBlockedIpsCount}</div>
@@ -309,8 +309,8 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
             expandedAuditCard === 'logins' ? 'border-emerald-300 ring-2 ring-emerald-100' : 'border-gray-200 hover:border-emerald-200'
           }`}
         >
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-            <LogIn className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600 ring-1 ring-emerald-100 flex items-center justify-center shrink-0">
+            <UserRoundCheck className="w-6 h-6" />
           </div>
           <div>
             <div className="text-2xl font-black text-gray-900">{auditData.successfulLoginsCount}</div>
@@ -327,8 +327,8 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
             expandedAuditCard === 'systemLogs' ? 'border-indigo-300 ring-2 ring-indigo-100' : 'border-gray-200 hover:border-indigo-200'
           }`}
         >
-          <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-            <FileText className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100 text-indigo-600 ring-1 ring-indigo-100 flex items-center justify-center shrink-0">
+            <Activity className="w-6 h-6" />
           </div>
           <div>
             <div className="text-2xl font-black text-gray-900">{auditData.systemLogsCount}</div>
@@ -344,8 +344,8 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
             expandedAuditCard === 'canceled' ? 'border-orange-300 ring-2 ring-orange-100' : 'border-gray-200 hover:border-orange-200'
           }`}
         >
-          <div className="w-12 h-12 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
-            <XCircle className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 text-orange-600 ring-1 ring-orange-100 flex items-center justify-center shrink-0">
+            <CalendarX className="w-6 h-6" />
           </div>
           <div>
             <div className="text-2xl font-black text-gray-900">{auditData.cancelledMeetingsCount}</div>
@@ -361,8 +361,8 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
             expandedAuditCard === 'created' ? 'border-blue-300 ring-2 ring-blue-100' : 'border-gray-200 hover:border-blue-200'
           }`}
         >
-          <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#0b5cff] flex items-center justify-center shrink-0">
-            <CalendarPlus className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 text-[#0b5cff] ring-1 ring-blue-100 flex items-center justify-center shrink-0">
+            <CalendarCheck2 className="w-6 h-6" />
           </div>
           <div>
             <div className="text-2xl font-black text-gray-900">{auditData.createdMeetingsCount}</div>
@@ -787,12 +787,12 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
                     <td className="py-3.5 px-4">
                       {limit.isPermanentlyBlocked ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-100 text-red-800 border border-red-200">
-                          <Ban className="w-3 h-3 text-red-600" />
+                          <ShieldBan className="w-3 h-3 text-red-600" />
                           Permanently Blocked
                         </span>
                       ) : limit.remainingSeconds > 0 ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                          <Clock className="w-3 h-3 text-amber-600 animate-spin" />
+                          <Timer className="w-3 h-3 text-amber-600 animate-spin" />
                           Locked ({limit.remainingSeconds}s remaining)
                         </span>
                       ) : (
