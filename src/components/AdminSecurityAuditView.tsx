@@ -46,6 +46,8 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
   const [actionNotice, setActionNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [unblockingIp, setUnblockingIp] = useState<string | null>(null);
   const [expandedAuditCard, setExpandedAuditCard] = useState<AuditDetailCard>(null);
+  const [createdMeetingsSearch, setCreatedMeetingsSearch] = useState('');
+  const [createdMeetingsStatusFilter, setCreatedMeetingsStatusFilter] = useState<'all' | 'confirmed' | 'cancelled'>('all');
 
   const fetchAuditData = async () => {
     if (!adminEmail) return;
@@ -127,6 +129,18 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
   const activeRateLimits = auditData.rateLimits.filter(
     (r) => r.isPermanentlyBlocked || r.remainingSeconds > 0 || r.consecutiveFails > 0
   );
+
+  const filteredCreatedMeetings = auditData.createdMeetings.filter((m) => {
+    if (createdMeetingsStatusFilter !== 'all' && m.status !== createdMeetingsStatusFilter) return false;
+    if (!createdMeetingsSearch.trim()) return true;
+    const q = createdMeetingsSearch.toLowerCase();
+    return (
+      m.meetingTitle?.toLowerCase().includes(q) ||
+      m.participantName?.toLowerCase().includes(q) ||
+      m.participantEmail?.toLowerCase().includes(q) ||
+      m.hostName?.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="space-y-6">
@@ -470,30 +484,71 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
 
       {expandedAuditCard === 'created' && (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
-          <div className="p-5 sm:p-6 border-b border-gray-100 flex items-center justify-between gap-4">
+          <div className="p-5 sm:p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-sm font-bold text-gray-900">All Created Meetings</h2>
               <p className="text-xs text-gray-500">Every booking ever created, regardless of current status</p>
             </div>
             <button
               type="button"
-              onClick={() => exportToCsv('created-meetings.csv', auditData.createdMeetings)}
-              disabled={auditData.createdMeetings.length === 0}
+              onClick={() => exportToCsv('created-meetings.csv', filteredCreatedMeetings)}
+              disabled={filteredCreatedMeetings.length === 0}
               className="px-3.5 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold text-gray-700 flex items-center gap-2 shrink-0 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
               Export CSV
             </button>
           </div>
-          {auditData.createdMeetings.length === 0 ? (
-            <div className="p-10 text-center text-gray-500 text-xs">No meetings created yet.</div>
+
+          <div className="p-4 sm:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="relative flex-1 sm:max-w-xs">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                type="text"
+                value={createdMeetingsSearch}
+                onChange={(e) => setCreatedMeetingsSearch(e.target.value)}
+                placeholder="Search meeting, creator, host..."
+                className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+              />
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {([
+                ['all', 'All'],
+                ['confirmed', 'Confirmed'],
+                ['cancelled', 'Canceled'],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setCreatedMeetingsStatusFilter(value)}
+                  className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+                    createdMeetingsStatusFilter === value
+                      ? 'bg-[#0b5cff] text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span className="text-[11px] text-gray-500 font-medium sm:ml-auto">
+              {filteredCreatedMeetings.length} of {auditData.createdMeetings.length}
+            </span>
+          </div>
+
+          {filteredCreatedMeetings.length === 0 ? (
+            <div className="p-10 text-center text-gray-500 text-xs">
+              {auditData.createdMeetings.length === 0
+                ? 'No meetings created yet.'
+                : 'No meetings match your search or filter.'}
+            </div>
           ) : (
             <div className="overflow-x-auto max-h-96 overflow-y-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-[#FAFAFA] text-gray-600 font-semibold border-b border-gray-100 sticky top-0">
                   <tr>
                     <th className="py-3 px-4">Meeting</th>
-                    <th className="py-3 px-4">Participant</th>
+                    <th className="py-3 px-4">Created By</th>
                     <th className="py-3 px-4">Host</th>
                     <th className="py-3 px-4">Date / Time</th>
                     <th className="py-3 px-4">Status</th>
@@ -501,7 +556,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {auditData.createdMeetings.map((m) => (
+                  {filteredCreatedMeetings.map((m) => (
                     <tr key={m.id} className="hover:bg-gray-50/70 transition-colors">
                       <td className="py-3.5 px-4 font-bold text-gray-900">{m.meetingTitle}</td>
                       <td className="py-3.5 px-4 text-gray-600">
