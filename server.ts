@@ -964,21 +964,37 @@ const RENAMED_CUSTOM_QUESTION_LABELS = new Map([
   ['What is the primary topic or goal for this Zoom meeting?', 'Meeting Agenda']
 ]);
 
+// Same self-healing idea again, for the agenda/objectives questions that
+// used to be required: true in the code defaults and were persisted that
+// way - editing the in-code seed array alone doesn't touch rows already
+// saved in Supabase, since loading from the database takes priority (see
+// the comment above). Forces these specific labels back to optional on
+// whatever was just loaded.
+const AGENDA_QUESTION_LABELS_TO_MAKE_OPTIONAL = new Set([
+  'Meeting Agenda',
+  'Primary meeting objectives and agenda items',
+  'Extended Meeting Agenda & Objectives'
+]);
+
 async function removeDeprecatedCustomQuestions(): Promise<void> {
   for (const meetingType of meetingTypes) {
     const before = meetingType.customQuestions.length;
     meetingType.customQuestions = meetingType.customQuestions.filter(
       (q) => !DEPRECATED_CUSTOM_QUESTION_LABELS.has(q.label)
     );
-    let renamed = false;
+    let changed = false;
     for (const q of meetingType.customQuestions) {
       const newLabel = RENAMED_CUSTOM_QUESTION_LABELS.get(q.label);
       if (newLabel) {
         q.label = newLabel;
-        renamed = true;
+        changed = true;
+      }
+      if (AGENDA_QUESTION_LABELS_TO_MAKE_OPTIONAL.has(q.label) && q.required) {
+        q.required = false;
+        changed = true;
       }
     }
-    if (meetingType.customQuestions.length !== before || renamed) {
+    if (meetingType.customQuestions.length !== before || changed) {
       await upsertRow('meeting_types', meetingType.id, meetingType);
     }
   }
