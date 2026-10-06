@@ -180,7 +180,7 @@ let meetingTypes: SeedMeetingType[] = [
         label: 'Meeting Agenda',
         type: 'textarea',
         placeholder: 'Please describe what you would like to achieve or specific questions you have...',
-        required: true,
+        required: false,
         helpText: 'Shown to participants as the meeting agenda only.'
       }
     ]
@@ -240,7 +240,7 @@ let meetingTypes: SeedMeetingType[] = [
         label: 'Primary meeting objectives and agenda items',
         type: 'textarea',
         placeholder: 'Outline the main topics to cover during this 1-hour workshop...',
-        required: true,
+        required: false,
       },
       {
         id: 'q2',
@@ -273,7 +273,7 @@ let meetingTypes: SeedMeetingType[] = [
         label: 'Extended Meeting Agenda & Objectives',
         type: 'textarea',
         placeholder: 'Describe the key goals and discussion topics for this extended session...',
-        required: true,
+        required: false,
       },
       {
         id: 'q2',

@@ -15,7 +15,6 @@ import {
   ChevronDown,
   ChevronUp,
   CalendarPlus,
-  Calendar,
   Eye,
   EyeOff,
   Pencil,
@@ -28,6 +27,7 @@ import { Booking, ZoomMeetingConfig } from '../types';
 import { downloadIcsFile, getOutlookWebCalendarUrl, getM365EnterpriseCalendarUrl, getGoogleCalendarUrl } from '../utils/calendar';
 import { enablePushNotifications, disablePushNotifications } from '../utils/pushSubscription';
 import { ZoomMeetingDetailsModal } from './ZoomMeetingDetailsModal';
+import { AppleIcon, GoogleCalendarIcon, MicrosoftOutlookIcon } from './CalendarProviderIcons';
 
 interface BookingConfirmationProps {
   booking: Booking;
@@ -470,8 +470,8 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
                     }}
                     className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-gray-50 text-left cursor-pointer"
                   >
-                    <div className="w-5 h-5 rounded bg-gray-800 text-white flex items-center justify-center shrink-0">
-                      <Calendar className="w-3 h-3" />
+                    <div className="w-5 h-5 text-gray-900 flex items-center justify-center shrink-0">
+                      <AppleIcon className="w-4 h-4" />
                     </div>
                     <span className="text-xs font-medium text-gray-800">Apple Calendar</span>
                   </button>
@@ -482,7 +482,9 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
                     onClick={() => setShowAddToCalendarMenu(false)}
                     className="flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-gray-50 text-left cursor-pointer border-t border-gray-100"
                   >
-                    <div className="w-5 h-5 rounded bg-white border border-gray-200 text-[#4285F4] flex items-center justify-center text-[10px] font-bold shrink-0">G</div>
+                    <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                      <GoogleCalendarIcon className="w-5 h-5" />
+                    </div>
                     <span className="text-xs font-medium text-gray-800">Google Calendar</span>
                   </a>
                   <a
@@ -492,7 +494,9 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
                     onClick={() => setShowAddToCalendarMenu(false)}
                     className="flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-gray-50 text-left cursor-pointer border-t border-gray-100"
                   >
-                    <div className="w-5 h-5 rounded bg-[#0078D4] text-white flex items-center justify-center text-[10px] font-bold shrink-0">O</div>
+                    <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                      <MicrosoftOutlookIcon className="w-5 h-5" />
+                    </div>
                     <span className="text-xs font-medium text-gray-800">
                       Microsoft 365 {isOrgMember && <span className="text-[#0b5cff]">(Organization)</span>}
                     </span>
