@@ -38,7 +38,11 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
     successfulLoginsCount: 0,
     systemLogsCount: 0,
     createdMeetingsCount: 0,
-    cancelledMeetingsCount: 0
+    cancelledMeetingsCount: 0,
+    successfulLogins: [],
+    systemLogs: [],
+    createdMeetings: [],
+    cancelledMeetings: []
   });
 
   const [isLoading, setIsLoading] = useState(false);
