@@ -52,6 +52,11 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
   const [expandedAuditCard, setExpandedAuditCard] = useState<AuditDetailCard>(null);
   const [createdMeetingsSearch, setCreatedMeetingsSearch] = useState('');
   const [createdMeetingsStatusFilter, setCreatedMeetingsStatusFilter] = useState<'all' | 'confirmed' | 'cancelled'>('all');
+  const [loginsSearch, setLoginsSearch] = useState('');
+  const [loginsProviderFilter, setLoginsProviderFilter] = useState<'all' | 'm365' | 'local'>('all');
+  const [systemLogsSearch, setSystemLogsSearch] = useState('');
+  const [systemLogsCategoryFilter, setSystemLogsCategoryFilter] = useState<'all' | 'zoom' | 'admin' | 'booking' | 'meeting-type' | 'm365' | 'push'>('all');
+  const [canceledMeetingsSearch, setCanceledMeetingsSearch] = useState('');
 
   const fetchAuditData = async () => {
     if (!adminEmail) return;
@@ -138,6 +143,39 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
     if (createdMeetingsStatusFilter !== 'all' && m.status !== createdMeetingsStatusFilter) return false;
     if (!createdMeetingsSearch.trim()) return true;
     const q = createdMeetingsSearch.toLowerCase();
+    return (
+      m.meetingTitle?.toLowerCase().includes(q) ||
+      m.participantName?.toLowerCase().includes(q) ||
+      m.participantEmail?.toLowerCase().includes(q) ||
+      m.hostName?.toLowerCase().includes(q)
+    );
+  });
+
+  const filteredLogins = auditData.successfulLogins.filter((log) => {
+    if (loginsProviderFilter !== 'all' && log.provider !== loginsProviderFilter) return false;
+    if (!loginsSearch.trim()) return true;
+    const q = loginsSearch.toLowerCase();
+    return (
+      log.email?.toLowerCase().includes(q) ||
+      log.ip?.toLowerCase().includes(q) ||
+      log.userAgent?.toLowerCase().includes(q)
+    );
+  });
+
+  const filteredSystemLogs = auditData.systemLogs.filter((log) => {
+    if (systemLogsCategoryFilter !== 'all' && log.category !== systemLogsCategoryFilter) return false;
+    if (!systemLogsSearch.trim()) return true;
+    const q = systemLogsSearch.toLowerCase();
+    return (
+      log.action?.toLowerCase().includes(q) ||
+      log.actor?.toLowerCase().includes(q) ||
+      log.details?.toLowerCase().includes(q)
+    );
+  });
+
+  const filteredCanceledMeetings = auditData.cancelledMeetings.filter((m) => {
+    if (!canceledMeetingsSearch.trim()) return true;
+    const q = canceledMeetingsSearch.toLowerCase();
     return (
       m.meetingTitle?.toLowerCase().includes(q) ||
       m.participantName?.toLowerCase().includes(q) ||
@@ -337,23 +375,60 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
       {/* Detail table + CSV export for whichever audit summary card is expanded */}
       {expandedAuditCard === 'logins' && (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
-          <div className="p-5 sm:p-6 border-b border-gray-100 flex items-center justify-between gap-4">
+          <div className="p-5 sm:p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-sm font-bold text-gray-900">Successful Login History</h2>
               <p className="text-xs text-gray-500">Every successful sign-in recorded since this tracking shipped</p>
             </div>
             <button
               type="button"
-              onClick={() => exportToCsv('logins.csv', auditData.successfulLogins)}
-              disabled={auditData.successfulLogins.length === 0}
+              onClick={() => exportToCsv('logins.csv', filteredLogins)}
+              disabled={filteredLogins.length === 0}
               className="px-3.5 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold text-gray-700 flex items-center gap-2 shrink-0 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
               Export CSV
             </button>
           </div>
-          {auditData.successfulLogins.length === 0 ? (
-            <div className="p-10 text-center text-gray-500 text-xs">No successful logins recorded yet.</div>
+
+          <div className="p-4 sm:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="relative flex-1 sm:max-w-xs">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                type="text"
+                value={loginsSearch}
+                onChange={(e) => setLoginsSearch(e.target.value)}
+                placeholder="Search email, IP, user agent..."
+                className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+              />
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {([
+                ['all', 'All'],
+                ['m365', 'Microsoft 365 SSO'],
+                ['local', 'Local / Demo'],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setLoginsProviderFilter(value)}
+                  className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+                    loginsProviderFilter === value ? 'bg-[#0b5cff] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span className="text-[11px] text-gray-500 font-medium sm:ml-auto">
+              {filteredLogins.length} of {auditData.successfulLogins.length}
+            </span>
+          </div>
+
+          {filteredLogins.length === 0 ? (
+            <div className="p-10 text-center text-gray-500 text-xs">
+              {auditData.successfulLogins.length === 0 ? 'No successful logins recorded yet.' : 'No logins match your search or filter.'}
+            </div>
           ) : (
             <div className="overflow-x-auto max-h-96 overflow-y-auto">
               <table className="w-full text-left text-xs">
@@ -367,7 +442,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {auditData.successfulLogins.map((log) => (
+                  {filteredLogins.map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50/70 transition-colors">
                       <td className="py-3.5 px-4 font-mono text-gray-500 whitespace-nowrap">{new Date(log.timestamp).toLocaleString()}</td>
                       <td className="py-3.5 px-4 font-bold text-gray-900">{log.email}</td>
@@ -385,23 +460,64 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
 
       {expandedAuditCard === 'systemLogs' && (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
-          <div className="p-5 sm:p-6 border-b border-gray-100 flex items-center justify-between gap-4">
+          <div className="p-5 sm:p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-sm font-bold text-gray-900">System Logs</h2>
               <p className="text-xs text-gray-500">Every tracked system action: Zoom API calls, admin config changes, booking lifecycle, meeting type edits, M365 sync, push subscriptions</p>
             </div>
             <button
               type="button"
-              onClick={() => exportToCsv('system-logs.csv', auditData.systemLogs)}
-              disabled={auditData.systemLogs.length === 0}
+              onClick={() => exportToCsv('system-logs.csv', filteredSystemLogs)}
+              disabled={filteredSystemLogs.length === 0}
               className="px-3.5 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold text-gray-700 flex items-center gap-2 shrink-0 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
               Export CSV
             </button>
           </div>
-          {auditData.systemLogs.length === 0 ? (
-            <div className="p-10 text-center text-gray-500 text-xs">No system logs recorded yet.</div>
+
+          <div className="p-4 sm:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="relative flex-1 sm:max-w-xs">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                type="text"
+                value={systemLogsSearch}
+                onChange={(e) => setSystemLogsSearch(e.target.value)}
+                placeholder="Search action, actor, details..."
+                className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+              />
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {([
+                ['all', 'All'],
+                ['zoom', 'Zoom'],
+                ['admin', 'Admin'],
+                ['booking', 'Booking'],
+                ['meeting-type', 'Meeting Type'],
+                ['m365', 'M365'],
+                ['push', 'Push'],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setSystemLogsCategoryFilter(value)}
+                  className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+                    systemLogsCategoryFilter === value ? 'bg-[#0b5cff] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span className="text-[11px] text-gray-500 font-medium sm:ml-auto">
+              {filteredSystemLogs.length} of {auditData.systemLogs.length}
+            </span>
+          </div>
+
+          {filteredSystemLogs.length === 0 ? (
+            <div className="p-10 text-center text-gray-500 text-xs">
+              {auditData.systemLogs.length === 0 ? 'No system logs recorded yet.' : 'No logs match your search or filter.'}
+            </div>
           ) : (
             <div className="overflow-x-auto max-h-96 overflow-y-auto">
               <table className="w-full text-left text-xs">
@@ -415,7 +531,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {auditData.systemLogs.map((log) => (
+                  {filteredSystemLogs.map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50/70 transition-colors">
                       <td className="py-3.5 px-4 font-mono text-gray-500 whitespace-nowrap">{new Date(log.timestamp).toLocaleString()}</td>
                       <td className="py-3.5 px-4">
@@ -437,37 +553,56 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
 
       {expandedAuditCard === 'canceled' && (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
-          <div className="p-5 sm:p-6 border-b border-gray-100 flex items-center justify-between gap-4">
+          <div className="p-5 sm:p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-sm font-bold text-gray-900">Canceled Meetings</h2>
               <p className="text-xs text-gray-500">All bookings currently marked as canceled</p>
             </div>
             <button
               type="button"
-              onClick={() => exportToCsv('canceled-meetings.csv', auditData.cancelledMeetings)}
-              disabled={auditData.cancelledMeetings.length === 0}
+              onClick={() => exportToCsv('canceled-meetings.csv', filteredCanceledMeetings)}
+              disabled={filteredCanceledMeetings.length === 0}
               className="px-3.5 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold text-gray-700 flex items-center gap-2 shrink-0 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
               Export CSV
             </button>
           </div>
-          {auditData.cancelledMeetings.length === 0 ? (
-            <div className="p-10 text-center text-gray-500 text-xs">No canceled meetings.</div>
+
+          <div className="p-4 sm:px-6 border-b border-gray-100 flex items-center gap-3">
+            <div className="relative flex-1 sm:max-w-xs">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                type="text"
+                value={canceledMeetingsSearch}
+                onChange={(e) => setCanceledMeetingsSearch(e.target.value)}
+                placeholder="Search meeting, creator, host..."
+                className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+              />
+            </div>
+            <span className="text-[11px] text-gray-500 font-medium ml-auto">
+              {filteredCanceledMeetings.length} of {auditData.cancelledMeetings.length}
+            </span>
+          </div>
+
+          {filteredCanceledMeetings.length === 0 ? (
+            <div className="p-10 text-center text-gray-500 text-xs">
+              {auditData.cancelledMeetings.length === 0 ? 'No canceled meetings.' : 'No meetings match your search.'}
+            </div>
           ) : (
             <div className="overflow-x-auto max-h-96 overflow-y-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-[#FAFAFA] text-gray-600 font-semibold border-b border-gray-100 sticky top-0">
                   <tr>
                     <th className="py-3 px-4">Meeting</th>
-                    <th className="py-3 px-4">Participant</th>
+                    <th className="py-3 px-4">Created By</th>
                     <th className="py-3 px-4">Host</th>
                     <th className="py-3 px-4">Date / Time</th>
                     <th className="py-3 px-4">Created</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {auditData.cancelledMeetings.map((m) => (
+                  {filteredCanceledMeetings.map((m) => (
                     <tr key={m.id} className="hover:bg-gray-50/70 transition-colors">
                       <td className="py-3.5 px-4 font-bold text-gray-900">{m.meetingTitle}</td>
                       <td className="py-3.5 px-4 text-gray-600">
