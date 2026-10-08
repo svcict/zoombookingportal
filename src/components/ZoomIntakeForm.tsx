@@ -294,17 +294,23 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#0b5cff] text-white">
                   Zoom Registration
                 </span>
+                <span className="text-[11px] font-semibold px-2 py-0.5 bg-white/10 border border-white/10 text-white rounded-full">
+                  {meetingType.duration} mins
+                </span>
                 <span className="text-xs text-gray-300 hidden sm:inline">
-                  • 1-Click Secure Scheduling
+                  • 1-Click Secure Scheduling • Microsoft 365 Connected • Instant Confirmation
                 </span>
               </div>
               <h2 className="text-xl sm:text-2xl font-bold mt-1 text-white tracking-tight">
                 {topic || meetingType.title}
               </h2>
+              <p className="text-xs text-gray-300 mt-0.5">
+                Zoom Enterprise Video Conference
+              </p>
             </div>
           </div>
 
@@ -331,30 +337,6 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
             <Globe className="w-4 h-4 text-[#0b5cff] shrink-0" />
             <span className="truncate text-white">{selectedTimezone.split('/')[1]?.replace('_', ' ') || selectedTimezone}</span>
           </div>
-        </div>
-      </div>
-
-      {/* Meeting Details Bar */}
-      <div className="bg-[#F7F9FA] px-6 sm:px-8 py-3.5 border-b border-gray-200 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#0b5cff] text-white flex items-center justify-center shadow-xs">
-            <Video className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-sm font-bold text-gray-900 flex items-center gap-2">
-              <span>{topic || meetingType.title}</span>
-              <span className="text-[11px] font-semibold px-2 py-0.5 bg-blue-100 text-[#0b5cff] rounded-full">
-                {meetingType.duration} mins
-              </span>
-            </div>
-            <p className="text-xs text-gray-500">Zoom Enterprise Video Conference • Microsoft 365 Connected</p>
-          </div>
-        </div>
-
-        <div className="hidden md:flex items-center gap-3 text-xs text-gray-600">
-          <span className="flex items-center gap-1 font-medium">
-            <ShieldCheck className="w-3.5 h-3.5 text-green-600" /> Instant Confirmation
-          </span>
         </div>
       </div>
 
