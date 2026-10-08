@@ -332,11 +332,11 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
                 {bookings.length} {isAdmin ? 'Total System' : 'Booked'}
               </span>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              {isAdmin
-                ? 'Admin directory view: Complete organizational visibility across all hosts, attendees, and M365 Exchange calendars.'
-                : 'Your personal meeting schedule. Only meetings booked under your account are displayed here.'}
-            </p>
+            {!isAdmin && (
+              <p className="text-xs text-gray-500 mt-1">
+                Your personal meeting schedule. Only meetings booked under your account are displayed here.
+              </p>
+            )}
           </div>
 
           {onCancelAllMine && myActiveCount > 0 && (
