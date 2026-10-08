@@ -670,22 +670,11 @@ export default function App() {
 
       {/* Subtle Zoom Footer */}
       <footer className="bg-white border-t border-gray-200 py-6 mt-12 text-center text-xs text-gray-500">
-        <div className="max-w-[1600px] mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-md bg-[#0b5cff] text-white flex items-center justify-center text-[10px] font-bold">
-              Z
-            </div>
-            <span className="font-semibold text-gray-800">Zoom Scheduling Portal</span>
-            <span>• Powered by Microsoft 365 Graph Sync</span>
+        <div className="max-w-[1600px] mx-auto px-4 flex items-center justify-center gap-2">
+          <div className="w-5 h-5 rounded-md bg-[#0b5cff] text-white flex items-center justify-center text-[10px] font-bold">
+            Z
           </div>
-
-          <div className="flex items-center gap-4 text-gray-500">
-            <span>Enhanced AES-256 Encryption</span>
-            <span>•</span>
-            <span>Automated Email &amp; Push Reminders</span>
-            <span>•</span>
-            <span>Seamless Timezone Engine</span>
-          </div>
+          <span className="font-semibold text-gray-800">Ayala Foundation Zoom Booking Portal</span>
         </div>
       </footer>
 
