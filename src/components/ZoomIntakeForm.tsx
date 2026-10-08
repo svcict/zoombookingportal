@@ -574,7 +574,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                   onBlur={() => {
                     hostBlurTimeoutRef.current = setTimeout(() => setShowHostDirectoryResults(false), 150);
                   }}
-                  placeholder="boss@company.com or search by name"
+                  placeholder="delacruz.j@ayalafoundation.org or search by name"
                   className="w-full pl-10 pr-4 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
                 />
 
@@ -605,11 +605,6 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                   </div>
                 )}
               </div>
-              <p className="text-[11px] text-gray-500 mt-1.5 italic">
-                Guide: start typing a name to search your organization&apos;s directory, then select a
-                match. Booking for an external guest with no directory account? Just type their full
-                email address instead - it&apos;ll be used as-is.
-              </p>
               {errors.hostOnBehalfEmail && <p className="text-red-500 text-xs mt-2">{errors.hostOnBehalfEmail}</p>}
             </div>
           )}
