@@ -53,7 +53,7 @@ export const DashboardWelcomeCard: React.FC<DashboardWelcomeCardProps> = ({
   onScheduleMeeting,
   onNavigateToSchedule,
 }) => {
-  const accountEmail = authUser?.email || userEmail || m365State?.accountEmail || 'buhatar@gmail.com';
+  const accountEmail = authUser?.email || userEmail || m365State?.accountEmail || 'Not signed in';
   const accountName = authUser?.name || userName || 'Authorized User';
 
   const handleSchedule = () => {

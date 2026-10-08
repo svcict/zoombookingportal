@@ -432,7 +432,7 @@ export default function App() {
               authUser={authUser}
               m365State={m365State}
               selectedTimezone={selectedTimezone}
-              userEmail={authUser?.email || 'buhatar@gmail.com'}
+              userEmail={authUser?.email}
               userName={authUser?.name || 'Authorized User'}
               onScheduleMeeting={() => {
                 setCurrentView('booking');
@@ -456,7 +456,7 @@ export default function App() {
                   onSelectBookingForDetails={(booking) => {
                     setSelectedBookingForDetails(booking);
                   }}
-                  userEmail={authUser?.email || 'buhatar@gmail.com'}
+                  userEmail={authUser?.email}
                   userName={authUser?.name || 'Authorized User'}
                   selectedTimezone={selectedTimezone}
                 />

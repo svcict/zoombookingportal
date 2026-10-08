@@ -297,8 +297,8 @@ let bookings: any[] = [
     hostEmail: 'sarah.jenkins@zoompartner.com',
     hostAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&auto=format&fit=crop&q=80',
     hostAccountId: 'acc-1',
-    participantName: 'Arman Buhat',
-    participantEmail: 'buhatar@gmail.com',
+    participantName: 'Demo Participant',
+    participantEmail: 'demo.participant@example.com',
     participantPhone: '+63 917 555 1234',
     participantCompany: 'Ayala Foundation',
     guestEmails: ['program-team@ayalafoundation.org'],
@@ -329,7 +329,6 @@ let bookings: any[] = [
       pmiNumber: '869 563 2911',
       hasAgenda: true,
       agenda: 'Q3 Operations review and Zoom/Office 365 Exchange integration milestone sign-off.',
-      attachments: [{ id: 'att-1', name: 'Ayala_Foundation_Strategy_Q3.pdf', size: '2.4 MB' }],
       passcodeEnabled: true,
       passcode: '7894676141',
       waitingRoom: false,
@@ -804,7 +803,7 @@ let m365DirectoryUsers: M365UserProfile[] = [
   {
     id: 'm365-usr-guest',
     name: 'Enterprise Client',
-    email: 'buhatar@gmail.com',
+    email: 'enterprise.client@example.com',
     role: 'Enterprise Member',
     isAdmin: false,
     department: 'Partner Accounts',
@@ -3123,7 +3122,6 @@ app.post('/api/bookings', async (req, res) => {
         pmiNumber: assignedHost.zoomPmi || '',
         hasAgenda: false,
         agenda: '',
-        attachments: [],
         passcodeEnabled: zoomConfig?.passcodeEnabled ?? true,
         passcode: zoomDetails.passcode,
         waitingRoom: zoomConfig?.waitingRoom ?? false,
@@ -3269,7 +3267,11 @@ app.patch('/api/bookings/:id', async (req, res) => {
       const updatePayload = {
         topic: meetingTitle,
         agenda: zoomConfig?.agenda,
-        passcode: zoomConfig?.passcode,
+        // Matches the same passcodeEnabled gate used at booking creation -
+        // without this, unchecking "Passcode" in the edit modal looked like
+        // it disabled the requirement but silently kept resending the old
+        // passcode to Zoom on every save.
+        passcode: zoomConfig?.passcodeEnabled !== false ? zoomConfig?.passcode : undefined,
         waitingRoom: zoomConfig?.waitingRoom,
         autoRecording: zoomConfig?.autoRecord,
         autoRecordTo: 'cloud' as const,

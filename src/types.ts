@@ -112,7 +112,6 @@ export interface ZoomMeetingConfig {
   pmiNumber: string;
   hasAgenda: boolean;
   agenda: string;
-  attachments: Array<{ id: string; name: string; size: string; type?: string }>;
   // Security
   passcodeEnabled: boolean;
   passcode: string;

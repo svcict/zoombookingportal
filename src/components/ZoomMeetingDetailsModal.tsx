@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   X,
   Info,
-  Plus,
-  Paperclip,
   ChevronDown,
   CheckCircle2
 } from 'lucide-react';
@@ -28,9 +26,18 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
   onSave,
   readOnly = false,
 }) => {
-  // Extract or generate default config matching the images
-  const defaultPasscode = booking?.zoomDetails?.passcode || '7894676141';
-  const defaultPmi = '869 563 2911';
+  // Fallback only used when a booking has no real zoomDetails yet (e.g. this
+  // modal rendered before Zoom provisioning completed) - generated fresh
+  // rather than a fixed literal, so it's never the same predictable value
+  // reused across every booking that happens to hit this fallback.
+  const [defaultPasscode] = useState<string>(() => {
+    if (booking?.zoomDetails?.passcode) return booking.zoomDetails.passcode;
+    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz';
+    let out = '';
+    for (let i = 0; i < 10; i++) out += chars.charAt(Math.floor(Math.random() * chars.length));
+    return out;
+  });
+  const defaultPmi = 'Not assigned';
 
   // Invitees is a real Zoom API concern for calendar/access purposes only
   // via the booking's own guestEmails - Zoom's meeting API has no separate
@@ -51,10 +58,6 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
   // form's custom questions (those vary per meeting type and aren't
   // reliably "the agenda"), so there's exactly one place this comes from.
   const [agenda, setAgenda] = useState<string>(initialConfig?.agenda || '');
-
-  const [attachments, setAttachments] = useState<Array<{ id: string; name: string; size: string; type?: string }>>(
-    initialConfig?.attachments || []
-  );
 
   // Security
   const [passcodeEnabled, setPasscodeEnabled] = useState<boolean>(
@@ -127,7 +130,6 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
       setMeetingIdType(cfg.meetingIdType || 'auto');
       setAgenda(cfg.agenda || '');
       setShowAgendaInput(Boolean(cfg.agenda));
-      setAttachments(cfg.attachments || []);
       setPasscodeEnabled(cfg.passcodeEnabled ?? true);
       setPasscode(cfg.passcode || booking.zoomDetails?.passcode || defaultPasscode);
       setWaitingRoom(cfg.waitingRoom ?? false);
@@ -158,20 +160,6 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
     setInvitees(invitees.filter((_, idx) => idx !== indexToRemove));
   };
 
-  const handleAddSampleAttachment = () => {
-    const sampleFiles = [
-      { id: `att-${Date.now()}-1`, name: 'Meeting_Agenda_Ayala_Sync.pdf', size: '342 KB', type: 'application/pdf' },
-      { id: `att-${Date.now()}-2`, name: 'Technical_Architecture_Overview.docx', size: '1.2 MB', type: 'application/docx' },
-      { id: `att-${Date.now()}-3`, name: 'Q3_Operations_SlideDeck.pptx', size: '4.8 MB', type: 'application/pptx' },
-    ];
-    const fileToAdd = sampleFiles[attachments.length % sampleFiles.length];
-    setAttachments([...attachments, fileToAdd]);
-  };
-
-  const handleRemoveAttachment = (idToRemove: string) => {
-    setAttachments(attachments.filter((a) => a.id !== idToRemove));
-  };
-
   const handleSave = async () => {
     setIsSaving(true);
     const updatedConfig: ZoomMeetingConfig = {
@@ -180,7 +168,6 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
       pmiNumber,
       hasAgenda: Boolean(agenda.trim()),
       agenda: agenda.trim(),
-      attachments,
       passcodeEnabled,
       passcode,
       waitingRoom,
@@ -328,7 +315,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 disabled={readOnly}
                 className="w-4 h-4 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
               />
-              <span>Personal Meeting ID {pmiNumber}</span>
+              <span>Personal Meeting ID{pmiNumber !== defaultPmi ? ` ${pmiNumber}` : ' (not assigned on this account)'}</span>
             </label>
           </div>
         </div>
@@ -384,60 +371,6 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
           )}
         </div>
 
-        {/* 4. Attachments (Image 1) */}
-        <div className="space-y-2.5">
-          <div className="flex items-center gap-1.5 font-semibold text-gray-900">
-            <span>Attachments</span>
-            <div className="group relative">
-              <Info className="w-3.5 h-3.5 text-gray-500 cursor-pointer" />
-              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-gray-900 text-white text-[11px] rounded shadow-lg z-30">
-                Attach slides, agendas, or documents visible to participants
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={handleAddSampleAttachment}
-              disabled={readOnly}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 border border-gray-400 text-gray-800 rounded-lg text-xs font-semibold hover:bg-gray-50 transition-colors cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add attachments</span>
-            </button>
-            <span className="text-xs text-gray-500">
-              {attachments.length === 0 ? 'No files attached' : `${attachments.length} attachment(s)`}
-            </span>
-          </div>
-
-          {/* Attachment list */}
-          {attachments.length > 0 && (
-            <div className="space-y-1.5 pt-1">
-              {attachments.map((file) => (
-                <div
-                  key={file.id}
-                  className="flex items-center justify-between p-2 rounded-lg bg-gray-50 border border-gray-200 text-xs"
-                >
-                  <div className="flex items-center gap-2">
-                    <Paperclip className="w-3.5 h-3.5 text-gray-500" />
-                    <span className="font-medium text-gray-800">{file.name}</span>
-                    <span className="text-gray-500">({file.size})</span>
-                  </div>
-                  {!readOnly && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveAttachment(file.id)}
-                      className="text-gray-500 hover:text-red-600 p-1"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
 
         {/* 5. Meeting Security (Image 2) */}
         <div className="pt-2 space-y-4">
