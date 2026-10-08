@@ -11,6 +11,7 @@ import {
   Plus,
   X,
   ArrowLeft,
+  KeyRound,
 } from 'lucide-react';
 import { MeetingType, TimeSlot, M365User, ZoomMeetingConfig } from '../types';
 
@@ -501,9 +502,15 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
         </div>
 
         {/* Section: Send Host Key, and (once enabled) booking on someone
-            else's behalf */}
+            else's behalf. Styled with the AFI brand palette (orange accent,
+            primary blue toggle) and darker body text than the rest of the
+            form's muted gray-500, since this toggle controls a real
+            security/access decision and was getting missed at a glance. */}
         <div className="pt-4 border-t border-gray-100">
-          <div className="flex items-start gap-3 p-3.5 bg-[#F7F9FA] rounded-xl">
+          <div className="flex items-start gap-3 p-4 bg-[#FCEDD9]/60 border border-[#FF7B00]/40 rounded-xl">
+            <div className="w-8 h-8 rounded-lg bg-[#FF7B00] text-white flex items-center justify-center shrink-0 shadow-xs">
+              <KeyRound className="w-4 h-4" />
+            </div>
             <button
               type="button"
               role="switch"
@@ -518,7 +525,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                 })
               }
               className={`relative shrink-0 w-10 h-6 rounded-full transition-colors cursor-pointer mt-0.5 ${
-                sendHostKey ? 'bg-[#0b5cff]' : 'bg-gray-300'
+                sendHostKey ? 'bg-[#0433FF]' : 'bg-gray-300'
               }`}
             >
               <span
@@ -528,12 +535,12 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
               />
             </button>
             <div>
-              <p className="text-xs font-bold text-gray-700">Send Host Key</p>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-sm font-bold text-[#0320AF]">Send Host Key</p>
+              <p className="text-xs text-gray-700 mt-0.5">
                 Tap this button to enable sending the Host Key. The Host Key is used to claim host
                 privileges such as recording the meeting.
               </p>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-700 mt-1">
                 Note: The Host Key will be included in your confirmation email and shown here
                 immediately once the meeting is booked.
               </p>
