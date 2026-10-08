@@ -104,10 +104,6 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({ adminEmail, auth
           <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
             Grant or Revoke Admin Access
           </h1>
-          <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-            Admin access is decided here, by exact email - it works for both Microsoft 365 SSO sign-ins and
-            Supabase accounts. Anyone granted here becomes an admin the next time they sign in.
-          </p>
         </div>
         <button
           type="button"

@@ -452,20 +452,17 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
 
               {/* Hover Information Popup */}
               {activeHoverField === 'MICROSOFT_TENANT_ID' && (
-                <div className="absolute left-0 bottom-full mb-2 w-80 bg-gray-900 text-white p-3.5 rounded-xl shadow-xl z-50 border border-gray-700 animate-in fade-in zoom-in-95 pointer-events-none">
-                  <div className="text-xs font-bold text-blue-400 mb-1 flex items-center gap-1.5">
+                <div className="absolute left-0 bottom-full mb-2 w-72 rounded-md border border-gray-800 bg-gray-900 p-3 text-gray-50 shadow-md z-50 animate-in fade-in-0 zoom-in-95 pointer-events-none">
+                  <div className="text-xs font-semibold flex items-center gap-1.5 mb-1">
                     <Info className="w-3.5 h-3.5" />
                     {FIELD_TOOLTIPS.MICROSOFT_TENANT_ID.title}
                   </div>
-                  <p className="text-[11px] text-gray-300 leading-relaxed mb-2">
+                  <p className="text-xs text-gray-300 leading-relaxed">
                     {FIELD_TOOLTIPS.MICROSOFT_TENANT_ID.description}
                   </p>
-                  <div className="p-2 bg-gray-800 rounded-lg text-[10px] space-y-1">
-                    <div className="text-gray-400">Azure Location: <span className="text-gray-200">{FIELD_TOOLTIPS.MICROSOFT_TENANT_ID.portalLocation}</span></div>
-                    <div className="text-gray-400">Format: <span className="text-blue-300 font-mono">{FIELD_TOOLTIPS.MICROSOFT_TENANT_ID.formatExample}</span></div>
-                  </div>
-                  <div className="mt-1.5 text-[9px] text-green-400 font-medium">
-                    ⚡ Modifying this field saves directly to your project&apos;s .env file and tests live against Azure.
+                  <div className="mt-2 pt-2 border-t border-gray-800 space-y-1 text-xs text-gray-400">
+                    <div>{FIELD_TOOLTIPS.MICROSOFT_TENANT_ID.portalLocation}</div>
+                    <div className="font-mono">{FIELD_TOOLTIPS.MICROSOFT_TENANT_ID.formatExample}</div>
                   </div>
                 </div>
               )}
@@ -510,17 +507,17 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
 
               {/* Hover Information Popup */}
               {activeHoverField === 'MICROSOFT_CLIENT_ID' && (
-                <div className="absolute left-0 bottom-full mb-2 w-80 bg-gray-900 text-white p-3.5 rounded-xl shadow-xl z-50 border border-gray-700 animate-in fade-in zoom-in-95 pointer-events-none">
-                  <div className="text-xs font-bold text-blue-400 mb-1 flex items-center gap-1.5">
+                <div className="absolute left-0 bottom-full mb-2 w-72 rounded-md border border-gray-800 bg-gray-900 p-3 text-gray-50 shadow-md z-50 animate-in fade-in-0 zoom-in-95 pointer-events-none">
+                  <div className="text-xs font-semibold flex items-center gap-1.5 mb-1">
                     <Info className="w-3.5 h-3.5" />
                     {FIELD_TOOLTIPS.MICROSOFT_CLIENT_ID.title}
                   </div>
-                  <p className="text-[11px] text-gray-300 leading-relaxed mb-2">
+                  <p className="text-xs text-gray-300 leading-relaxed">
                     {FIELD_TOOLTIPS.MICROSOFT_CLIENT_ID.description}
                   </p>
-                  <div className="p-2 bg-gray-800 rounded-lg text-[10px] space-y-1">
-                    <div className="text-gray-400">Azure Location: <span className="text-gray-200">{FIELD_TOOLTIPS.MICROSOFT_CLIENT_ID.portalLocation}</span></div>
-                    <div className="text-gray-400">Format: <span className="text-blue-300 font-mono">{FIELD_TOOLTIPS.MICROSOFT_CLIENT_ID.formatExample}</span></div>
+                  <div className="mt-2 pt-2 border-t border-gray-800 space-y-1 text-xs text-gray-400">
+                    <div>{FIELD_TOOLTIPS.MICROSOFT_CLIENT_ID.portalLocation}</div>
+                    <div className="font-mono">{FIELD_TOOLTIPS.MICROSOFT_CLIENT_ID.formatExample}</div>
                   </div>
                 </div>
               )}
@@ -568,17 +565,17 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
 
               {/* Hover Information Popup */}
               {activeHoverField === 'MICROSOFT_CLIENT_SECRET' && (
-                <div className="absolute left-0 bottom-full mb-2 w-80 bg-gray-900 text-white p-3.5 rounded-xl shadow-xl z-50 border border-gray-700 animate-in fade-in zoom-in-95 pointer-events-none">
-                  <div className="text-xs font-bold text-amber-400 mb-1 flex items-center gap-1.5">
+                <div className="absolute left-0 bottom-full mb-2 w-72 rounded-md border border-gray-800 bg-gray-900 p-3 text-gray-50 shadow-md z-50 animate-in fade-in-0 zoom-in-95 pointer-events-none">
+                  <div className="text-xs font-semibold flex items-center gap-1.5 mb-1">
                     <Lock className="w-3.5 h-3.5" />
                     {FIELD_TOOLTIPS.MICROSOFT_CLIENT_SECRET.title}
                   </div>
-                  <p className="text-[11px] text-gray-300 leading-relaxed mb-2">
+                  <p className="text-xs text-gray-300 leading-relaxed">
                     {FIELD_TOOLTIPS.MICROSOFT_CLIENT_SECRET.description}
                   </p>
-                  <div className="p-2 bg-gray-800 rounded-lg text-[10px] space-y-1">
-                    <div className="text-gray-400">Azure Location: <span className="text-gray-200">{FIELD_TOOLTIPS.MICROSOFT_CLIENT_SECRET.portalLocation}</span></div>
-                    <div className="text-gray-400">Security: <span className="text-amber-300">Stored in server .env; authenticated securely against login.microsoftonline.com</span></div>
+                  <div className="mt-2 pt-2 border-t border-gray-800 space-y-1 text-xs text-gray-400">
+                    <div>{FIELD_TOOLTIPS.MICROSOFT_CLIENT_SECRET.portalLocation}</div>
+                    <div>Stored in server .env; authenticated securely against login.microsoftonline.com</div>
                   </div>
                 </div>
               )}
@@ -624,17 +621,17 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
 
               {/* Hover Information Popup */}
               {activeHoverField === 'MICROSOFT_REDIRECT_URI' && (
-                <div className="absolute left-0 bottom-full mb-2 w-80 bg-gray-900 text-white p-3.5 rounded-xl shadow-xl z-50 border border-gray-700 animate-in fade-in zoom-in-95 pointer-events-none">
-                  <div className="text-xs font-bold text-blue-400 mb-1 flex items-center gap-1.5">
+                <div className="absolute left-0 bottom-full mb-2 w-72 rounded-md border border-gray-800 bg-gray-900 p-3 text-gray-50 shadow-md z-50 animate-in fade-in-0 zoom-in-95 pointer-events-none">
+                  <div className="text-xs font-semibold flex items-center gap-1.5 mb-1">
                     <Globe className="w-3.5 h-3.5" />
                     {FIELD_TOOLTIPS.MICROSOFT_REDIRECT_URI.title}
                   </div>
-                  <p className="text-[11px] text-gray-300 leading-relaxed mb-2">
+                  <p className="text-xs text-gray-300 leading-relaxed">
                     {FIELD_TOOLTIPS.MICROSOFT_REDIRECT_URI.description}
                   </p>
-                  <div className="p-2 bg-gray-800 rounded-lg text-[10px] space-y-1">
-                    <div className="text-gray-400">Azure Location: <span className="text-gray-200">{FIELD_TOOLTIPS.MICROSOFT_REDIRECT_URI.portalLocation}</span></div>
-                    <div className="text-gray-400">Note: <span className="text-blue-300">Must match your Azure App Registration Web URI</span></div>
+                  <div className="mt-2 pt-2 border-t border-gray-800 space-y-1 text-xs text-gray-400">
+                    <div>{FIELD_TOOLTIPS.MICROSOFT_REDIRECT_URI.portalLocation}</div>
+                    <div>Must match your Azure App Registration Web URI</div>
                   </div>
                 </div>
               )}
@@ -680,16 +677,16 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
 
               {/* Hover Information Popup */}
               {activeHoverField === 'MICROSOFT_GRAPH_SCOPES' && (
-                <div className="absolute left-0 bottom-full mb-2 w-96 bg-gray-900 text-white p-3.5 rounded-xl shadow-xl z-50 border border-gray-700 animate-in fade-in zoom-in-95 pointer-events-none">
-                  <div className="text-xs font-bold text-amber-400 mb-1 flex items-center gap-1.5">
+                <div className="absolute left-0 bottom-full mb-2 w-80 rounded-md border border-gray-800 bg-gray-900 p-3 text-gray-50 shadow-md z-50 animate-in fade-in-0 zoom-in-95 pointer-events-none">
+                  <div className="text-xs font-semibold flex items-center gap-1.5 mb-1">
                     <Zap className="w-3.5 h-3.5" />
                     {FIELD_TOOLTIPS.MICROSOFT_GRAPH_SCOPES.title}
                   </div>
-                  <p className="text-[11px] text-gray-300 leading-relaxed mb-2">
+                  <p className="text-xs text-gray-300 leading-relaxed">
                     {FIELD_TOOLTIPS.MICROSOFT_GRAPH_SCOPES.description}
                   </p>
-                  <div className="p-2 bg-gray-800 rounded-lg text-[10px] space-y-1">
-                    <div className="text-gray-400">Recommended: <span className="text-emerald-300 font-mono">User.Read Calendars.ReadWrite Mail.Send offline_access</span></div>
+                  <div className="mt-2 pt-2 border-t border-gray-800 text-xs text-gray-400 font-mono">
+                    User.Read Calendars.ReadWrite Mail.Send offline_access
                   </div>
                 </div>
               )}
@@ -735,17 +732,17 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
 
               {/* Hover Information Popup */}
               {activeHoverField === 'MICROSOFT_ORGANIZATION_DOMAIN' && (
-                <div className="absolute left-0 bottom-full mb-2 w-80 bg-gray-900 text-white p-3.5 rounded-xl shadow-xl z-50 border border-gray-700 animate-in fade-in zoom-in-95 pointer-events-none">
-                  <div className="text-xs font-bold text-blue-400 mb-1 flex items-center gap-1.5">
+                <div className="absolute left-0 bottom-full mb-2 w-72 rounded-md border border-gray-800 bg-gray-900 p-3 text-gray-50 shadow-md z-50 animate-in fade-in-0 zoom-in-95 pointer-events-none">
+                  <div className="text-xs font-semibold flex items-center gap-1.5 mb-1">
                     <Globe className="w-3.5 h-3.5" />
                     {FIELD_TOOLTIPS.MICROSOFT_ORGANIZATION_DOMAIN.title}
                   </div>
-                  <p className="text-[11px] text-gray-300 leading-relaxed mb-2">
+                  <p className="text-xs text-gray-300 leading-relaxed">
                     {FIELD_TOOLTIPS.MICROSOFT_ORGANIZATION_DOMAIN.description}
                   </p>
-                  <div className="p-2 bg-gray-800 rounded-lg text-[10px] space-y-1">
-                    <div className="text-gray-400">Location: <span className="text-gray-200">{FIELD_TOOLTIPS.MICROSOFT_ORGANIZATION_DOMAIN.portalLocation}</span></div>
-                    <div className="text-gray-400">Format: <span className="text-blue-300 font-mono">{FIELD_TOOLTIPS.MICROSOFT_ORGANIZATION_DOMAIN.formatExample}</span></div>
+                  <div className="mt-2 pt-2 border-t border-gray-800 space-y-1 text-xs text-gray-400">
+                    <div>{FIELD_TOOLTIPS.MICROSOFT_ORGANIZATION_DOMAIN.portalLocation}</div>
+                    <div className="font-mono">{FIELD_TOOLTIPS.MICROSOFT_ORGANIZATION_DOMAIN.formatExample}</div>
                   </div>
                 </div>
               )}

@@ -299,13 +299,6 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
               </span>
             </div>
 
-            <p className="text-xs text-gray-600">
-              Bookings are provisioned by alternating between two Zoom Server-to-Server OAuth credentials, so
-              overlapping meetings never collide on the same account's concurrent-meeting limit. Changes here
-              are written to the server's <code className="bg-gray-100 px-1 py-0.5 rounded text-[10px]">.env</code> file,
-              so they survive a restart &mdash; use this when swapping in a new Zoom account.
-            </p>
-
             {accountNotice && (
               <div className={`p-2.5 rounded-lg text-[11px] font-medium flex items-center justify-between gap-2 ${
                 accountNotice.type === 'success'
@@ -473,10 +466,6 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
                 {config?.webhookSecretConfigured ? 'Signature Verified' : 'Secret Not Set'}
               </span>
             </div>
-            <p className="text-xs text-gray-600">
-              Listens for real-time events: <code className="bg-gray-100 px-1 py-0.5 rounded text-[11px]">meeting.started</code>, <code className="bg-gray-100 px-1 py-0.5 rounded text-[11px]">meeting.ended</code>, <code className="bg-gray-100 px-1 py-0.5 rounded text-[11px]">meeting.participant_joined</code> and
-              matches them to a booking by Zoom meeting ID.
-            </p>
             <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-200 font-mono text-[11px] text-gray-700 truncate">
               {config?.webhookUrl || '/api/zoom/webhooks'}
             </div>
