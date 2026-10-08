@@ -10,7 +10,8 @@ import {
   Cpu,
   Pencil,
   X,
-  Save
+  Save,
+  Eye
 } from 'lucide-react';
 import { ZoomApiConfig, ZoomApiLog } from '../types';
 
@@ -38,6 +39,7 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
   const [isPinging, setIsPinging] = useState(false);
   const [pingResult, setPingResult] = useState<any | null>(null);
   const [activeRoomsCount, setActiveRoomsCount] = useState(0);
+  const [viewingLog, setViewingLog] = useState<ZoomApiLog | null>(null);
 
   // Admin-editable rotating account credentials
   const [adminAccounts, setAdminAccounts] = useState<ZoomAccountAdminView[]>([]);
@@ -499,6 +501,7 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
                 <th className="pb-3 font-semibold">Status</th>
                 <th className="pb-3 font-semibold">Latency</th>
                 <th className="pb-3 font-semibold">Payload Summary</th>
+                <th className="pb-3 font-semibold text-right">View</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -529,8 +532,18 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
                   <td className="py-3 font-mono text-gray-500 text-[11px]">
                     {log.responseTimeMs}ms
                   </td>
-                  <td className="py-3 text-gray-600 text-xs">
+                  <td className="py-3 text-gray-600 text-xs max-w-[280px] truncate">
                     {log.payloadSummary}
+                  </td>
+                  <td className="py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => setViewingLog(log)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-gray-200 text-gray-600 hover:border-[#0433FF] hover:text-[#0433FF] hover:bg-blue-50 text-[11px] font-semibold transition-colors cursor-pointer"
+                    >
+                      <Eye className="w-3 h-3" />
+                      View
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -538,6 +551,82 @@ export const ZoomApiIntegrationView: React.FC<ZoomApiIntegrationViewProps> = ({ 
           </table>
         </div>
       </div>
+
+      {viewingLog && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setViewingLog(null)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-gray-200 shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-[#0433FF]" />
+                <h3 className="font-bold text-gray-900 text-sm">API Transaction Details</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingLog(null)}
+                className="w-7 h-7 rounded-md flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-gray-500 font-semibold mb-1">Timestamp</div>
+                  <div className="text-gray-900">{new Date(viewingLog.timestamp).toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-gray-500 font-semibold mb-1">Method</div>
+                  <span className={`inline-block px-2 py-0.5 rounded font-bold text-[10px] ${
+                    viewingLog.method === 'POST'
+                      ? 'bg-blue-100 text-[#0433FF]'
+                      : viewingLog.method === 'GET'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-red-100 text-red-700'
+                  }`}>
+                    {viewingLog.method}
+                  </span>
+                </div>
+                <div>
+                  <div className="text-gray-500 font-semibold mb-1">Status Code</div>
+                  <span className="inline-block px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 font-bold text-[10px]">
+                    {viewingLog.statusCode}
+                  </span>
+                </div>
+                <div>
+                  <div className="text-gray-500 font-semibold mb-1">Response Time</div>
+                  <div className="text-gray-900">{viewingLog.responseTimeMs}ms</div>
+                </div>
+              </div>
+
+              <div>
+                <div className="text-gray-500 font-semibold mb-1">Endpoint</div>
+                <div className="text-gray-900 bg-gray-50 border border-gray-200 rounded-lg p-3 break-all">
+                  {viewingLog.endpoint}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-gray-500 font-semibold mb-1">Payload Summary</div>
+                <div className="text-gray-900 bg-gray-50 border border-gray-200 rounded-lg p-3 whitespace-pre-wrap">
+                  {viewingLog.payloadSummary}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-gray-500 font-semibold mb-1">Log ID</div>
+                <div className="text-gray-500">{viewingLog.id}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
