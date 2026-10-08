@@ -13,7 +13,7 @@ interface ZoomMeetingDetailsModalProps {
   isOpen?: boolean;
   isInlineCard?: boolean;
   onClose?: () => void;
-  onSave?: (updatedConfig: ZoomMeetingConfig) => Promise<void> | void;
+  onSave?: (updatedConfig: ZoomMeetingConfig, sendHostKey: boolean) => Promise<void> | void;
   readOnly?: boolean;
 }
 
@@ -115,6 +115,11 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
   const [alternativeHosts, setAlternativeHosts] = useState<string>(
     initialConfig?.alternativeHosts || ''
   );
+  // Off by default, same as the intake form - saving with this on resends
+  // the real Host Key via a new email; it never fires just from editing
+  // other settings. Not part of ZoomMeetingConfig since it's a one-time
+  // action flag, not a persisted setting.
+  const [sendHostKey, setSendHostKey] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -186,7 +191,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
 
     try {
       if (onSave) {
-        await onSave(updatedConfig);
+        await onSave(updatedConfig, sendHostKey);
       }
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
@@ -703,28 +708,68 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 <span>Automatically record meeting to the cloud</span>
               </label>
 
-              {/* Alternative hosts (Image 4) */}
-              <div className="pt-2 space-y-2">
-                <label className="block text-gray-800">
-                  Alternative hosts:
-                </label>
-                <input
-                  type="text"
-                  value={alternativeHosts}
-                  onChange={(e) => setAlternativeHosts(e.target.value)}
-                  placeholder="john@company.com"
-                  disabled={readOnly}
-                  className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#0b5cff] focus:ring-1 focus:ring-[#0b5cff]"
-                />
-                <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                  <span>Defaults to the booker&apos;s email. Only takes effect if that person is a Licensed user on this Zoom account - otherwise Zoom silently ignores it.</span>
-                  <div className="group relative">
-                    <Info className="w-3 h-3 text-gray-500 cursor-pointer" />
-                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-gray-900 text-white text-[11px] rounded shadow-lg z-30">
-                      Alternative hosts have full permissions to host, record, and moderate
-                    </div>
+              {/* Send Host Key + designated host (matches the booking-creation
+                  intake form's flow - see ZoomIntakeForm.tsx). Host Key is
+                  this app's real mechanism for handing host privileges to a
+                  nominee regardless of Zoom license; Alternative Host (the
+                  raw Zoom field, still set from the email below) is the
+                  secondary, license-dependent benefit when it applies. */}
+              <div className="pt-2 space-y-3">
+                <div className="flex items-start gap-3 p-3.5 bg-[#F7F9FA] rounded-xl">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={sendHostKey}
+                    onClick={() => !readOnly && setSendHostKey((v) => !v)}
+                    disabled={readOnly}
+                    className={`relative shrink-0 w-10 h-6 rounded-full transition-colors cursor-pointer mt-0.5 ${
+                      sendHostKey ? 'bg-[#0b5cff]' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${
+                        sendHostKey ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                  <div>
+                    <p className="text-xs font-bold text-gray-700">Send Host Key</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Saving with this on emails the real Host Key to the booker (and the designated
+                      host below, if set) - it works regardless of Zoom license, unlike Alternative Host.
+                    </p>
                   </div>
                 </div>
+
+                {sendHostKey && (
+                  <div className="space-y-2">
+                    <label className="block text-gray-800">
+                      Meeting Host <span className="text-gray-500 font-normal">(optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={alternativeHosts}
+                      onChange={(e) => setAlternativeHosts(e.target.value)}
+                      placeholder="john@company.com"
+                      disabled={readOnly}
+                      className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#0b5cff] focus:ring-1 focus:ring-[#0b5cff]"
+                    />
+                    <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                      <span>
+                        Booking on someone else&apos;s behalf? Enter their email and they&apos;ll be set as the
+                        designated host and included in the Host Key email. Defaults to the booker if left blank.
+                        Also sets Zoom&apos;s real Alternative Host field - only takes effect if that person is a
+                        Licensed user on this Zoom account, otherwise Zoom silently ignores it.
+                      </span>
+                      <div className="group relative">
+                        <Info className="w-3 h-3 text-gray-500 cursor-pointer shrink-0" />
+                        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-gray-900 text-white text-[11px] rounded shadow-lg z-30">
+                          Alternative hosts have full permissions to host, record, and moderate
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
             </div>

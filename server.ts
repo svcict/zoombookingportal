@@ -3257,7 +3257,7 @@ app.patch('/api/bookings/:id', async (req, res) => {
     return res.status(404).json({ success: false, error: 'Booking not found' });
   }
 
-  const { zoomConfig, meetingTitle, notes, guestEmails } = req.body;
+  const { zoomConfig, meetingTitle, notes, guestEmails, sendHostKey } = req.body;
 
   const accountKey = booking.zoomAccountKey as ZoomAccountKey | undefined;
   let appliedAlternativeHosts = zoomConfig?.alternativeHosts;
@@ -3328,6 +3328,35 @@ app.patch('/api/bookings/:id', async (req, res) => {
     booking.zoomDetails.passcode = zoomConfig.passcode;
   }
 
+  // Resend the Host Key - this app's real mechanism for handing host
+  // privileges to a nominee regardless of Zoom license, matching the same
+  // "Send Host Key" + designated-host flow used at booking creation (see
+  // POST /api/bookings). Only fires when explicitly requested here; saving
+  // other edits never triggers this email on its own. Uses the REQUESTED
+  // nominee (zoomConfig?.alternativeHosts), not appliedAlternativeHosts -
+  // same reasoning as creation: Zoom resets that to '' when the nominee
+  // isn't eligible as Alternative Host, which is exactly when the Host Key
+  // fallback matters most.
+  let hostKeyMessage = '';
+  if (sendHostKey && accountKey && isAccountConfigured(accountKey)) {
+    const hostKey = getAccountHostKey(accountKey);
+    if (hostKey) {
+      booking.zoomDetails.hostKey = hostKey;
+      const nominatedHost = zoomConfig?.alternativeHosts || booking.participantEmail;
+      const isNominatedHost =
+        nominatedHost && nominatedHost.toLowerCase() !== String(booking.participantEmail || '').toLowerCase();
+      const recipients = [booking.participantEmail, ...(isNominatedHost ? [nominatedHost] : [])];
+      const senderMailbox = process.env[`ZOOM_ACCOUNT_${accountKey}_USER_ID`] || '';
+      const { subject, html } = buildBookingConfirmationEmail(booking, booking.hostName, true);
+      const emailResult = await sendGraphMail(senderMailbox, recipients, subject, html);
+      hostKeyMessage = emailResult.success
+        ? ` Host Key sent to ${recipients.join(', ')}.`
+        : ` Failed to send Host Key email: ${emailResult.error}`;
+    } else {
+      hostKeyMessage = ' Could not send Host Key: none is configured on this Zoom account.';
+    }
+  }
+
   // Keep the real Outlook calendar event's subject in sync when the
   // meeting title changes.
   let calendarSyncMessage = '';
@@ -3351,7 +3380,7 @@ app.patch('/api/bookings/:id', async (req, res) => {
   res.json({
     success: true,
     data: booking,
-    message: `Meeting details & Zoom configuration updated.${calendarSyncMessage}${altHostMessage}`
+    message: `Meeting details & Zoom configuration updated.${calendarSyncMessage}${altHostMessage}${hostKeyMessage}`
   });
 });
 

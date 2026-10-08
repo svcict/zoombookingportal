@@ -616,7 +616,7 @@ export default function App() {
           booking={selectedBookingForDetails}
           initialConfig={selectedBookingForDetails.zoomConfig}
           onClose={() => setSelectedBookingForDetails(null)}
-          onSave={async (updatedConfig) => {
+          onSave={async (updatedConfig, sendHostKey) => {
             try {
               const res = await fetch(`/api/bookings/${selectedBookingForDetails.id}`, {
                 method: 'PATCH',
@@ -624,16 +624,22 @@ export default function App() {
                   'Content-Type': 'application/json',
                   ...authHeaders,
                 },
-                body: JSON.stringify({ zoomConfig: updatedConfig, guestEmails: updatedConfig.invitees }),
+                body: JSON.stringify({
+                  zoomConfig: updatedConfig,
+                  guestEmails: updatedConfig.invitees,
+                  sendHostKey,
+                }),
               });
+              let message = 'Zoom meeting settings saved and synced with Microsoft 365 Exchange.';
               if (res.ok) {
                 const data = await res.json();
                 if (data.data) {
                   setBookings((prev) => prev.map((b) => (b.id === data.data.id ? data.data : b)));
                 }
+                if (data.message) message = data.message;
               }
-              setBannerNotice('Zoom meeting settings saved and synced with Microsoft 365 Exchange.');
-              setTimeout(() => setBannerNotice(null), 4000);
+              setBannerNotice(message);
+              setTimeout(() => setBannerNotice(null), 5000);
             } catch (e) {
               console.error('Failed to update booking:', e);
             }

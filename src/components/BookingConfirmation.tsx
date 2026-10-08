@@ -112,7 +112,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  const handleSaveConfig = async (updatedConfig: ZoomMeetingConfig) => {
+  const handleSaveConfig = async (updatedConfig: ZoomMeetingConfig, sendHostKey: boolean) => {
     try {
       const res = await fetch(`/api/bookings/${currentBooking.id}`, {
         method: 'PATCH',
@@ -120,7 +120,11 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           'Content-Type': 'application/json',
           ...authHeaders,
         },
-        body: JSON.stringify({ zoomConfig: updatedConfig, guestEmails: updatedConfig.invitees }),
+        body: JSON.stringify({
+          zoomConfig: updatedConfig,
+          guestEmails: updatedConfig.invitees,
+          sendHostKey,
+        }),
       });
       if (res.ok) {
         const data = await res.json();
