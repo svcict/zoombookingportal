@@ -43,7 +43,7 @@ export const SlotUnavailableModal: React.FC<SlotUnavailableModalProps> = ({ onCh
       <button
         type="button"
         onClick={onChooseAnotherSlot}
-        className="w-full px-4 py-2.5 rounded-xl bg-[#0b5cff] hover:bg-[#0049d1] text-white text-sm font-bold transition-colors cursor-pointer"
+        className="w-full px-4 py-2.5 rounded-xl bg-[#0433FF] hover:bg-[#0320AF] text-white text-sm font-bold transition-colors cursor-pointer"
       >
         Choose Another Slot
       </button>

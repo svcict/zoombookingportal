@@ -211,7 +211,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-white sticky top-0 z-20">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-[#0b5cff]">Zoom Meeting Settings</span>
+              <span className="text-sm font-semibold text-[#0433FF]">Zoom Meeting Settings</span>
               <span className="text-gray-500">•</span>
               <span className="text-xs text-gray-500 font-mono">
                 {booking?.zoomDetails?.formattedMeetingId || 'ID: 869-563-2911'}
@@ -256,13 +256,13 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
               }}
               placeholder="Add invitees"
               disabled={readOnly}
-              className="flex-1 px-3.5 py-2 bg-[#f0f2f5]/60 hover:bg-[#f0f2f5] focus:bg-white border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#0b5cff] focus:ring-1 focus:ring-[#0b5cff] transition-all"
+              className="flex-1 px-3.5 py-2 bg-[#f0f2f5]/60 hover:bg-[#f0f2f5] focus:bg-white border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#0433FF] focus:ring-1 focus:ring-[#0433FF] transition-all"
             />
             {inviteeInput.trim() && (
               <button
                 type="button"
                 onClick={handleAddInvitee}
-                className="px-3 py-2 bg-[#0b5cff] text-white rounded-lg text-xs font-semibold hover:bg-[#094fd9] cursor-pointer"
+                className="px-3 py-2 bg-[#0433FF] text-white rounded-lg text-xs font-semibold hover:bg-[#0320AF] cursor-pointer"
               >
                 Add
               </button>
@@ -275,7 +275,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
               {invitees.map((email, idx) => (
                 <span
                   key={idx}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-[#0b5cff] text-xs font-medium"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-[#0433FF] text-xs font-medium"
                 >
                   <span>{email}</span>
                   {!readOnly && (
@@ -306,7 +306,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 checked={meetingIdType === 'auto'}
                 onChange={() => setMeetingIdType('auto')}
                 disabled={readOnly}
-                className="w-4 h-4 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                className="w-4 h-4 text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
               />
               <span>Generate Automatically</span>
             </label>
@@ -318,7 +318,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 checked={meetingIdType === 'pmi'}
                 onChange={() => setMeetingIdType('pmi')}
                 disabled={readOnly}
-                className="w-4 h-4 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                className="w-4 h-4 text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
               />
               <span>Personal Meeting ID{pmiNumber !== defaultPmi ? ` ${pmiNumber}` : ' (not assigned on this account)'}</span>
             </label>
@@ -336,10 +336,10 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
               <button
                 type="button"
                 onClick={() => setShowAgendaInput(true)}
-                className="text-[#0b5cff] hover:text-[#094fd9] font-medium text-sm hover:underline flex items-center gap-1.5 cursor-pointer"
+                className="text-[#0433FF] hover:text-[#0320AF] font-medium text-sm hover:underline flex items-center gap-1.5 cursor-pointer"
               >
                 <span>Create agenda</span>
-                <span className="px-1.5 py-0.2 rounded-md bg-blue-50 border border-blue-200 text-[#0b5cff] text-[10px] font-bold">
+                <span className="px-1.5 py-0.2 rounded-md bg-blue-50 border border-blue-200 text-[#0433FF] text-[10px] font-bold">
                   NEW
                 </span>
               </button>
@@ -352,10 +352,10 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 placeholder="Enter meeting agenda items, discussion topics, and target outcomes..."
                 rows={3}
                 disabled={readOnly}
-                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:border-[#0b5cff] focus:ring-1 focus:ring-[#0b5cff]"
+                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:border-[#0433FF] focus:ring-1 focus:ring-[#0433FF]"
               />
               <div className="flex items-center justify-between text-xs text-gray-500">
-                <span className="flex items-center gap-1 text-[#0b5cff] font-medium">
+                <span className="flex items-center gap-1 text-[#0433FF] font-medium">
                   <span className="px-1.5 py-0.2 rounded-md bg-blue-50 text-[10px] font-bold">NEW</span>
                   Agenda shared with all attendees in Zoom invite
                 </span>
@@ -392,7 +392,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                   checked={passcodeEnabled}
                   onChange={(e) => setPasscodeEnabled(e.target.checked)}
                   disabled={readOnly}
-                  className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                  className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
                 />
                 <span className="font-semibold text-gray-900">Passcode</span>
               </label>
@@ -403,7 +403,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 onChange={(e) => setPasscode(e.target.value)}
                 disabled={!passcodeEnabled || readOnly}
                 maxLength={10}
-                className="w-32 px-3 py-1 bg-white border border-gray-300 rounded-md text-sm font-mono text-gray-800 focus:outline-none focus:border-[#0b5cff] focus:ring-1 focus:ring-[#0b5cff] disabled:opacity-50"
+                className="w-32 px-3 py-1 bg-white border border-gray-300 rounded-md text-sm font-mono text-gray-800 focus:outline-none focus:border-[#0433FF] focus:ring-1 focus:ring-[#0433FF] disabled:opacity-50"
               />
 
               <div className="group relative">
@@ -426,7 +426,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 checked={waitingRoom}
                 onChange={(e) => setWaitingRoom(e.target.checked)}
                 disabled={readOnly}
-                className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
               />
               <span className="font-semibold text-gray-900">Waiting Room</span>
             </label>
@@ -444,7 +444,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 checked={requireAuth}
                 onChange={(e) => setRequireAuth(e.target.checked)}
                 disabled={readOnly}
-                className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
               />
               <span className="text-gray-800">
                 Only authenticated users can join: Sign in to Zoom
@@ -464,7 +464,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
               checked={allowMyNotesTranscript}
               onChange={(e) => setAllowMyNotesTranscript(e.target.checked)}
               disabled={readOnly}
-              className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+              className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
             />
             <span className="text-gray-800">
               Allow everyone to use the meeting transcript with My Notes
@@ -484,7 +484,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 checked={enableContinuousChat}
                 onChange={(e) => setEnableContinuousChat(e.target.checked)}
                 disabled={readOnly}
-                className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
               />
               <span className="text-gray-800">
                 Enable Continuous Meeting Chat
@@ -515,7 +515,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 type="button"
                 onClick={() => !readOnly && setHostVideo(!hostVideo)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                  hostVideo ? 'bg-[#0b5cff]' : 'bg-gray-300'
+                  hostVideo ? 'bg-[#0433FF]' : 'bg-gray-300'
                 }`}
               >
                 <span
@@ -536,7 +536,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 type="button"
                 onClick={() => !readOnly && setParticipantVideo(!participantVideo)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                  participantVideo ? 'bg-[#0b5cff]' : 'bg-gray-300'
+                  participantVideo ? 'bg-[#0433FF]' : 'bg-gray-300'
                 }`}
               >
                 <span
@@ -565,7 +565,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 checked={audioOption === 'telephone'}
                 onChange={() => setAudioOption('telephone')}
                 disabled={readOnly}
-                className="w-4 h-4 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                className="w-4 h-4 text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
               />
               <span>Telephone</span>
             </label>
@@ -577,7 +577,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 checked={audioOption === 'computer'}
                 onChange={() => setAudioOption('computer')}
                 disabled={readOnly}
-                className="w-4 h-4 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                className="w-4 h-4 text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
               />
               <span>Computer Audio</span>
             </label>
@@ -589,7 +589,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 checked={audioOption === 'both'}
                 onChange={() => setAudioOption('both')}
                 disabled={readOnly}
-                className="w-4 h-4 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                className="w-4 h-4 text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
               />
               <span>Telephone and Computer Audio</span>
             </label>
@@ -601,7 +601,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 checked={audioOption === 'third_party'}
                 onChange={() => setAudioOption('third_party')}
                 disabled={readOnly}
-                className="w-4 h-4 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                className="w-4 h-4 text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
               />
               <span>3rd Party Audio</span>
             </label>
@@ -624,7 +624,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 checked={calendarType === 'outlook'}
                 onChange={() => setCalendarType('outlook')}
                 disabled={readOnly}
-                className="w-4 h-4 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                className="w-4 h-4 text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
               />
               <span className="font-semibold text-gray-900">Outlook</span>
             </label>
@@ -636,7 +636,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 checked={calendarType === 'google'}
                 onChange={() => setCalendarType('google')}
                 disabled={readOnly}
-                className="w-4 h-4 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                className="w-4 h-4 text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
               />
               <span>Google Calendar</span>
             </label>
@@ -648,7 +648,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                 checked={calendarType === 'other'}
                 onChange={() => setCalendarType('other')}
                 disabled={readOnly}
-                className="w-4 h-4 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                className="w-4 h-4 text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
               />
               <span>Other Calendars</span>
             </label>
@@ -660,7 +660,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
           <button
             type="button"
             onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
-            className="flex items-center gap-2 font-bold text-gray-900 hover:text-[#0b5cff] transition-colors py-1 cursor-pointer w-full text-left"
+            className="flex items-center gap-2 font-bold text-gray-900 hover:text-[#0433FF] transition-colors py-1 cursor-pointer w-full text-left"
           >
             <ChevronDown className={`w-4 h-4 transition-transform ${isAdvancedOpen ? '' : '-rotate-90'}`} />
             <span>Advanced</span>
@@ -675,7 +675,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                   checked={joinAnytime}
                   onChange={(e) => setJoinAnytime(e.target.checked)}
                   disabled={readOnly}
-                  className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                  className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
                 />
                 <span>Allow participants to join anytime</span>
               </label>
@@ -691,7 +691,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                   checked={muteOnEntry}
                   onChange={(e) => setMuteOnEntry(e.target.checked)}
                   disabled={readOnly}
-                  className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                  className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
                 />
                 <span>Mute participants upon entry</span>
               </label>
@@ -703,7 +703,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                   checked={autoRecord}
                   onChange={(e) => setAutoRecord(e.target.checked)}
                   disabled={readOnly}
-                  className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                  className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
                 />
                 <span>Automatically record meeting to the cloud</span>
               </label>
@@ -723,7 +723,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                     onClick={() => !readOnly && setSendHostKey((v) => !v)}
                     disabled={readOnly}
                     className={`relative shrink-0 w-10 h-6 rounded-full transition-colors cursor-pointer mt-0.5 ${
-                      sendHostKey ? 'bg-[#0b5cff]' : 'bg-gray-300'
+                      sendHostKey ? 'bg-[#0433FF]' : 'bg-gray-300'
                     }`}
                   >
                     <span
@@ -752,7 +752,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
                       onChange={(e) => setAlternativeHosts(e.target.value)}
                       placeholder="john@company.com"
                       disabled={readOnly}
-                      className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#0b5cff] focus:ring-1 focus:ring-[#0b5cff]"
+                      className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#0433FF] focus:ring-1 focus:ring-[#0433FF]"
                     />
                     <div className="flex items-center gap-1.5 text-xs text-gray-600">
                       <span>
@@ -783,7 +783,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
         <button
           type="button"
           onClick={() => setShowMoreOptionsModal(true)}
-          className="text-[#0b5cff] hover:text-[#094fd9] font-medium text-sm hover:underline cursor-pointer"
+          className="text-[#0433FF] hover:text-[#0320AF] font-medium text-sm hover:underline cursor-pointer"
         >
           More Options
         </button>
@@ -800,7 +800,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
             type="button"
             onClick={handleSave}
             disabled={isSaving || readOnly}
-            className="px-6 py-2 bg-[#0b5cff] hover:bg-[#094fd9] active:bg-[#0842b8] text-white font-semibold rounded-lg text-sm transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+            className="px-6 py-2 bg-[#0433FF] hover:bg-[#0320AF] active:bg-[#021B7A] text-white font-semibold rounded-lg text-sm transition-colors cursor-pointer shadow-xs disabled:opacity-50"
           >
             {isSaving ? 'Saving...' : 'Save'}
           </button>
@@ -841,7 +841,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
             <button
               type="button"
               onClick={() => setShowMoreOptionsModal(false)}
-              className="w-full py-2 bg-[#0b5cff] text-white font-bold rounded-xl text-xs"
+              className="w-full py-2 bg-[#0433FF] text-white font-bold rounded-xl text-xs"
             >
               Done
             </button>

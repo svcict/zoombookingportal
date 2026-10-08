@@ -295,22 +295,16 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
             </button>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#0b5cff] text-white">
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#0433FF] text-white">
                   Zoom Registration
                 </span>
                 <span className="text-[11px] font-semibold px-2 py-0.5 bg-white/10 border border-white/10 text-white rounded-full">
                   {meetingType.duration} mins
                 </span>
-                <span className="text-xs text-gray-300 hidden sm:inline">
-                  • 1-Click Secure Scheduling • Microsoft 365 Connected • Instant Confirmation
-                </span>
               </div>
               <h2 className="text-xl sm:text-2xl font-bold mt-1 text-white tracking-tight">
                 {topic || meetingType.title}
               </h2>
-              <p className="text-xs text-gray-300 mt-0.5">
-                Zoom Enterprise Video Conference
-              </p>
             </div>
           </div>
 
@@ -326,15 +320,15 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
         {/* Meeting Details Strip */}
         <div className="mt-6 pt-4 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-gray-300">
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-[#0b5cff] shrink-0" />
+            <Calendar className="w-4 h-4 text-[#0433FF] shrink-0" />
             <span className="text-white">{formattedDate}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-[#0b5cff] shrink-0" />
+            <Clock className="w-4 h-4 text-[#0433FF] shrink-0" />
             <span className="font-bold text-white">{selectedSlot.formattedTime} ({meetingType.duration} mins)</span>
           </div>
           <div className="flex items-center gap-2">
-            <Globe className="w-4 h-4 text-[#0b5cff] shrink-0" />
+            <Globe className="w-4 h-4 text-[#0433FF] shrink-0" />
             <span className="truncate text-white">{selectedTimezone.split('/')[1]?.replace('_', ' ') || selectedTimezone}</span>
           </div>
         </div>
@@ -346,7 +340,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
         {/* Section: Participant Credentials */}
         <div>
           <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2">
-            <User className="w-4 h-4 text-[#0b5cff]" />
+            <User className="w-4 h-4 text-[#0433FF]" />
             Your Contact Information
           </h3>
 
@@ -420,7 +414,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                   }
                 }}
                 placeholder="colleague@company.com or search by name"
-                className="w-full pl-10 pr-4 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+                className="w-full pl-10 pr-4 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0433FF]"
               />
 
               {/* Azure AD / Entra ID directory matches - click to add directly */}
@@ -436,7 +430,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                       }}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left hover:bg-blue-50 transition-colors cursor-pointer"
                     >
-                      <div className="w-8 h-8 rounded-full bg-blue-100 text-[#0b5cff] flex items-center justify-center text-xs font-bold shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 text-[#0433FF] flex items-center justify-center text-xs font-bold shrink-0">
                         {person.name ? person.name.charAt(0).toUpperCase() : person.email.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0">
@@ -465,7 +459,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
               {guestEmails.map((g) => (
                 <span
                   key={g}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs text-[#0b5cff] font-medium"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs text-[#0433FF] font-medium"
                 >
                   <Mail className="w-3 h-3" />
                   {g}
@@ -564,7 +558,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                     hostBlurTimeoutRef.current = setTimeout(() => setShowHostDirectoryResults(false), 150);
                   }}
                   placeholder="delacruz.j@ayalafoundation.org or search by name"
-                  className="w-full pl-10 pr-4 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+                  className="w-full pl-10 pr-4 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0433FF]"
                 />
 
                 {/* Azure AD / Entra ID directory matches - click to select directly */}
@@ -580,7 +574,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                         }}
                         className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left hover:bg-blue-50 transition-colors cursor-pointer"
                       >
-                        <div className="w-8 h-8 rounded-full bg-blue-100 text-[#0b5cff] flex items-center justify-center text-xs font-bold shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 text-[#0433FF] flex items-center justify-center text-xs font-bold shrink-0">
                           {person.name ? person.name.charAt(0).toUpperCase() : person.email.charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0">
@@ -602,7 +596,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
         {/* Section: Zoom Meeting Settings (set now, applied when the meeting is created) */}
         <div className="pt-4 border-t border-gray-100 space-y-5">
           <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
-            <Video className="w-4 h-4 text-[#0b5cff]" />
+            <Video className="w-4 h-4 text-[#0433FF]" />
             Zoom Meeting Settings
           </h3>
 
@@ -614,7 +608,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                 type="checkbox"
                 checked={waitingRoom}
                 onChange={(e) => setWaitingRoom(e.target.checked)}
-                className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
               />
               <span>Waiting Room</span>
             </label>
@@ -627,7 +621,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                 type="checkbox"
                 checked={requireAuth}
                 onChange={(e) => setRequireAuth(e.target.checked)}
-                className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
               />
               <span>Only authenticated users can join: Sign in to Zoom</span>
             </label>
@@ -643,7 +637,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                   type="button"
                   onClick={() => setHostVideo(!hostVideo)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                    hostVideo ? 'bg-[#0b5cff]' : 'bg-gray-300'
+                    hostVideo ? 'bg-[#0433FF]' : 'bg-gray-300'
                   }`}
                 >
                   <span
@@ -660,7 +654,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                   type="button"
                   onClick={() => setParticipantVideo(!participantVideo)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                    participantVideo ? 'bg-[#0b5cff]' : 'bg-gray-300'
+                    participantVideo ? 'bg-[#0433FF]' : 'bg-gray-300'
                   }`}
                 >
                   <span
@@ -690,7 +684,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                     name="intakeAudioOption"
                     checked={audioOption === value}
                     onChange={() => setAudioOption(value)}
-                    className="w-4 h-4 text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                    className="w-4 h-4 text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
                   />
                   <span>{label}</span>
                 </label>
@@ -706,7 +700,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                 type="checkbox"
                 checked={joinAnytime}
                 onChange={(e) => setJoinAnytime(e.target.checked)}
-                className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
               />
               <span>Allow participants to join anytime</span>
             </label>
@@ -719,7 +713,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                 type="checkbox"
                 checked={muteOnEntry}
                 onChange={(e) => setMuteOnEntry(e.target.checked)}
-                className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
               />
               <span>Mute participants upon entry</span>
             </label>
@@ -728,7 +722,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                 type="checkbox"
                 checked={autoRecord}
                 onChange={(e) => setAutoRecord(e.target.checked)}
-                className="w-4 h-4 rounded text-[#0b5cff] border-gray-300 focus:ring-[#0b5cff]"
+                className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
               />
               <span>Automatically record meeting to the cloud</span>
             </label>
@@ -748,7 +742,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-[#0b5cff] hover:bg-[#0049d1] text-white text-sm font-bold shadow-lg shadow-blue-200 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+            className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-[#0433FF] hover:bg-[#0320AF] text-white text-sm font-bold shadow-lg shadow-blue-200 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
           >
             {isSubmitting ? (
               <>
@@ -758,7 +752,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
             ) : (
               <>
                 <Video className="w-4 h-4" />
-                <span>Confirm &amp; Generate Zoom Link (One-Click)</span>
+                <span>Confirm &amp; Generate Zoom Link</span>
               </>
             )}
           </button>

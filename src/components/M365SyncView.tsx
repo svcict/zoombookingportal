@@ -140,7 +140,7 @@ export const M365SyncView: React.FC<M365SyncViewProps> = ({
       <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-4">
         <div>
           <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-[#0b5cff]" />
+            <Clock className="w-4 h-4 text-[#0433FF]" />
             Check Live M365 Calendar
           </h2>
           <p className="text-xs text-gray-500 mt-0.5">
@@ -153,12 +153,12 @@ export const M365SyncView: React.FC<M365SyncViewProps> = ({
             type="date"
             value={checkDate}
             onChange={(e) => setCheckDate(e.target.value)}
-            className="px-3.5 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-xs text-gray-900 focus:ring-2 focus:ring-[#0b5cff]"
+            className="px-3.5 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-xs text-gray-900 focus:ring-2 focus:ring-[#0433FF]"
           />
           <button
             type="submit"
             disabled={isChecking}
-            className="py-2.5 px-4 rounded-xl bg-[#0b5cff] hover:bg-[#0049d1] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-xs disabled:opacity-60"
+            className="py-2.5 px-4 rounded-xl bg-[#0433FF] hover:bg-[#0320AF] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-xs disabled:opacity-60"
           >
             <Search className="w-3.5 h-3.5" />
             <span>{isChecking ? 'Checking...' : 'Check Live Calendar Now'}</span>

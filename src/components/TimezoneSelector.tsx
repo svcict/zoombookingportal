@@ -39,7 +39,7 @@ export const TimezoneSelector: React.FC<TimezoneSelectorProps> = ({
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-[#F7F9FA]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#0b5cff] flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#0433FF] flex items-center justify-center">
               <Globe className="w-4 h-4" />
             </div>
             <div>
@@ -64,7 +64,7 @@ export const TimezoneSelector: React.FC<TimezoneSelectorProps> = ({
               placeholder="Search city, country, or time zone (e.g. London, Tokyo, EST)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] transition-all"
+              className="w-full pl-10 pr-4 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0433FF] transition-all"
               autoFocus
             />
           </div>
@@ -88,7 +88,7 @@ export const TimezoneSelector: React.FC<TimezoneSelectorProps> = ({
                   }}
                   className={`w-full text-left px-4 py-3 rounded-xl flex items-center justify-between transition-colors ${
                     isSelected
-                      ? 'bg-blue-50 text-[#0b5cff] font-bold'
+                      ? 'bg-blue-50 text-[#0433FF] font-bold'
                       : 'hover:bg-[#F7F9FA] text-gray-700 font-medium'
                   }`}
                 >
@@ -108,7 +108,7 @@ export const TimezoneSelector: React.FC<TimezoneSelectorProps> = ({
                       <div className="text-[10px] text-gray-500">Current time</div>
                     </div>
                     {isSelected ? (
-                      <div className="w-6 h-6 rounded-full bg-[#0b5cff] text-white flex items-center justify-center">
+                      <div className="w-6 h-6 rounded-full bg-[#0433FF] text-white flex items-center justify-center">
                         <Check className="w-3.5 h-3.5" />
                       </div>
                     ) : (
@@ -129,7 +129,7 @@ export const TimezoneSelector: React.FC<TimezoneSelectorProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="font-bold text-[#0b5cff] hover:underline"
+            className="font-bold text-[#0433FF] hover:underline"
           >
             Close
           </button>

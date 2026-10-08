@@ -160,7 +160,7 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={() => onViewChange('dashboard')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
                   currentView === 'dashboard'
-                    ? 'bg-blue-50 text-[#0b5cff] font-semibold'
+                    ? 'bg-blue-50 text-[#0433FF] font-semibold'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                 }`}
               >
@@ -172,7 +172,7 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={() => onViewChange('booking')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
                   currentView === 'booking'
-                    ? 'bg-blue-50 text-[#0b5cff] font-semibold'
+                    ? 'bg-blue-50 text-[#0433FF] font-semibold'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                 }`}
               >
@@ -191,7 +191,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-700 hover:bg-gray-100 hover:border-gray-300 transition-colors cursor-pointer"
               title="Click to switch time zone"
             >
-              <Globe className="w-3.5 h-3.5 text-[#0b5cff]" />
+              <Globe className="w-3.5 h-3.5 text-[#0433FF]" />
               <span className="hidden sm:inline font-medium truncate max-w-[130px]">
                 {selectedTimezone.split('/')[1]?.replace('_', ' ') || selectedTimezone}
               </span>
@@ -231,7 +231,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <img
                     src={authUser.avatar}
                     alt={authUser.name}
-                    className="w-8 h-8 rounded-full object-cover ring-2 ring-[#0b5cff]/30"
+                    className="w-8 h-8 rounded-full object-cover ring-2 ring-[#0433FF]/30"
                   />
                   <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
                 </button>
@@ -257,7 +257,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                     <div className="py-2 space-y-2 text-xs text-gray-600">
                       <div className="p-2.5 bg-gray-50 rounded-xl text-[11px] space-y-1.5 border border-gray-100">
-                        <div><strong>Role:</strong> {authUser.role} {isAdmin && <span className="text-[#0b5cff] font-bold">(Administrator)</span>}</div>
+                        <div><strong>Role:</strong> {authUser.role} {isAdmin && <span className="text-[#0433FF] font-bold">(Administrator)</span>}</div>
                         <div><strong>Tenant:</strong> {authUser.tenantName}</div>
                       </div>
 
@@ -265,7 +265,7 @@ export const Header: React.FC<HeaderProps> = ({
                       <div className="p-2.5 bg-blue-50/60 rounded-xl border border-blue-100 text-[11px] space-y-1.5">
                         <div className="flex items-center justify-between">
                           <div className="font-bold text-gray-900 flex items-center gap-1.5">
-                            <Database className="w-3.5 h-3.5 text-[#0b5cff]" />
+                            <Database className="w-3.5 h-3.5 text-[#0433FF]" />
                             <span>Database & Local Status</span>
                           </div>
                           <button
@@ -275,7 +275,7 @@ export const Header: React.FC<HeaderProps> = ({
                             title="Re-verify connection"
                             className="p-1 hover:bg-blue-100 rounded-md text-gray-500 hover:text-gray-700 transition-colors cursor-pointer"
                           >
-                            <RefreshCw className={`w-3 h-3 ${isCheckingSb ? 'animate-spin text-[#0b5cff]' : ''}`} />
+                            <RefreshCw className={`w-3 h-3 ${isCheckingSb ? 'animate-spin text-[#0433FF]' : ''}`} />
                           </button>
                         </div>
 
@@ -312,10 +312,10 @@ export const Header: React.FC<HeaderProps> = ({
                       {isAdmin && (
                         <a
                           href="/admin"
-                          className="w-full py-2 px-3 rounded-xl text-xs font-semibold text-[#0b5cff] bg-blue-50 hover:bg-blue-100 flex items-center justify-between transition-colors cursor-pointer"
+                          className="w-full py-2 px-3 rounded-xl text-xs font-semibold text-[#0433FF] bg-blue-50 hover:bg-blue-100 flex items-center justify-between transition-colors cursor-pointer"
                         >
                           <div className="flex items-center gap-1.5">
-                            <ShieldCheck className="w-3.5 h-3.5 text-[#0b5cff]" />
+                            <ShieldCheck className="w-3.5 h-3.5 text-[#0433FF]" />
                             <span>Open Admin Portal</span>
                           </div>
                           <span className="text-[10px] bg-blue-200/70 text-blue-800 px-1.5 py-0.2 rounded font-bold">
@@ -350,18 +350,18 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex md:hidden items-center justify-around py-2 border-t border-gray-100 text-xs font-medium">
           <button
             onClick={() => onViewChange('dashboard')}
-            className={`py-1 px-2 rounded cursor-pointer ${currentView === 'dashboard' ? 'text-[#0b5cff] font-bold' : 'text-gray-600'}`}
+            className={`py-1 px-2 rounded cursor-pointer ${currentView === 'dashboard' ? 'text-[#0433FF] font-bold' : 'text-gray-600'}`}
           >
             Dashboard
           </button>
           <button
             onClick={() => onViewChange('booking')}
-            className={`py-1 px-2 rounded cursor-pointer ${currentView === 'booking' ? 'text-[#0b5cff] font-bold' : 'text-gray-600'}`}
+            className={`py-1 px-2 rounded cursor-pointer ${currentView === 'booking' ? 'text-[#0433FF] font-bold' : 'text-gray-600'}`}
           >
             Schedule
           </button>
           {isAdmin && (
-            <a href="/admin" className="py-1 px-2 rounded cursor-pointer text-[#0b5cff] font-bold">
+            <a href="/admin" className="py-1 px-2 rounded cursor-pointer text-[#0433FF] font-bold">
               Admin Portal
             </a>
           )}

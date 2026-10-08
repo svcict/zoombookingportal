@@ -216,7 +216,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
             disabled={isLoading}
             className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-bold text-gray-700 flex items-center gap-2 shadow-2xs transition-colors cursor-pointer"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#0b5cff]' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#0433FF]' : ''}`} />
             <span>Refresh Audits</span>
           </button>
 
@@ -361,7 +361,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
             expandedAuditCard === 'created' ? 'border-blue-300 ring-2 ring-blue-100' : 'border-gray-200 hover:border-blue-200'
           }`}
         >
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 text-[#0b5cff] ring-1 ring-blue-100 flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 text-[#0433FF] ring-1 ring-blue-100 flex items-center justify-center shrink-0">
             <CalendarCheck2 className="w-6 h-6" />
           </div>
           <div>
@@ -399,7 +399,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
                 value={loginsSearch}
                 onChange={(e) => setLoginsSearch(e.target.value)}
                 placeholder="Search email, IP, user agent..."
-                className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+                className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#0433FF]"
               />
             </div>
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -413,7 +413,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
                   type="button"
                   onClick={() => setLoginsProviderFilter(value)}
                   className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
-                    loginsProviderFilter === value ? 'bg-[#0b5cff] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    loginsProviderFilter === value ? 'bg-[#0433FF] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
                   {label}
@@ -484,7 +484,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
                 value={systemLogsSearch}
                 onChange={(e) => setSystemLogsSearch(e.target.value)}
                 placeholder="Search action, actor, details..."
-                className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+                className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#0433FF]"
               />
             </div>
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -502,7 +502,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
                   type="button"
                   onClick={() => setSystemLogsCategoryFilter(value)}
                   className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
-                    systemLogsCategoryFilter === value ? 'bg-[#0b5cff] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    systemLogsCategoryFilter === value ? 'bg-[#0433FF] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
                   {label}
@@ -577,7 +577,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
                 value={canceledMeetingsSearch}
                 onChange={(e) => setCanceledMeetingsSearch(e.target.value)}
                 placeholder="Search meeting, creator, host..."
-                className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+                className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#0433FF]"
               />
             </div>
             <span className="text-[11px] text-gray-500 font-medium ml-auto">
@@ -647,7 +647,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
                 value={createdMeetingsSearch}
                 onChange={(e) => setCreatedMeetingsSearch(e.target.value)}
                 placeholder="Search meeting, creator, host..."
-                className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+                className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#0433FF]"
               />
             </div>
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -662,7 +662,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
                   onClick={() => setCreatedMeetingsStatusFilter(value)}
                   className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
                     createdMeetingsStatusFilter === value
-                      ? 'bg-[#0b5cff] text-white'
+                      ? 'bg-[#0433FF] text-white'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
@@ -779,7 +779,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
                       ) : limit.lockoutCycle === 1 ? (
                         <span className="text-amber-700 font-semibold">1st Lockout (1 Min)</span>
                       ) : limit.lockoutCycle > 1 ? (
-                        <span className="text-[#0b5cff] font-semibold">Repeat Cycle {limit.lockoutCycle - 1} (3 Min)</span>
+                        <span className="text-[#0433FF] font-semibold">Repeat Cycle {limit.lockoutCycle - 1} (3 Min)</span>
                       ) : (
                         <span className="text-gray-500">None</span>
                       )}
@@ -839,7 +839,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by email, IP..."
-              className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+              className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#0433FF]"
             />
           </div>
         </div>

@@ -217,7 +217,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
       <div className="pb-4 border-b border-gray-100 mb-4 flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className="w-9 h-9 rounded-[10px] bg-blue-100 flex items-center justify-center shrink-0">
-            <CalendarIcon className="w-4.5 h-4.5 text-[#0b5cff]" />
+            <CalendarIcon className="w-4.5 h-4.5 text-[#0433FF]" />
           </div>
           <div>
             <div className="font-bold text-gray-900 text-lg tracking-tight">Pick time and date</div>
@@ -231,11 +231,11 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
           onClick={onChangeTimezone}
           className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
         >
-          <Globe className="w-3.5 h-3.5 text-[#0b5cff]" />
+          <Globe className="w-3.5 h-3.5 text-[#0433FF]" />
           <span className="font-mono text-[11px] truncate max-w-[180px]">
             {selectedTimezone.split('/')[1]?.replace('_', ' ') || selectedTimezone}
           </span>
-          <span className="text-[10px] text-[#0b5cff] font-bold underline">Change</span>
+          <span className="text-[10px] text-[#0433FF] font-bold underline">Change</span>
         </button>
       </div>
 
@@ -247,7 +247,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
         <button
           type="button"
           onClick={() => setIsOpen((v) => !v)}
-          className="w-full flex items-center justify-between gap-3 px-4 py-3.5 bg-white border-2 border-[#0b5cff] rounded-lg text-left cursor-pointer"
+          className="w-full flex items-center justify-between gap-3 px-4 py-3.5 bg-white border-2 border-[#0433FF] rounded-lg text-left cursor-pointer"
         >
           <span className="text-[15px] text-gray-900 truncate">{summary}</span>
           <CalendarIcon className="w-[18px] h-[18px] text-gray-500 shrink-0" />
@@ -257,11 +257,11 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
           <div className="mt-2 bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
             {/* Step indicator */}
             <div className="flex items-center gap-2 px-5 pt-4">
-              <span className={`text-[11px] font-bold uppercase tracking-wider ${step === 'start' ? 'text-[#0b5cff]' : 'text-gray-500'}`}>
+              <span className={`text-[11px] font-bold uppercase tracking-wider ${step === 'start' ? 'text-[#0433FF]' : 'text-gray-500'}`}>
                 1. Start
               </span>
               <span className="text-gray-500">→</span>
-              <span className={`text-[11px] font-bold uppercase tracking-wider ${step === 'end' ? 'text-[#0b5cff]' : 'text-gray-500'}`}>
+              <span className={`text-[11px] font-bold uppercase tracking-wider ${step === 'end' ? 'text-[#0433FF]' : 'text-gray-500'}`}>
                 2. End
               </span>
             </div>
@@ -316,7 +316,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
                         onClick={() => onPickDay(dateStr)}
                         className={`aspect-square text-sm cursor-pointer rounded ${
                           isEdge
-                            ? `rounded-full font-bold text-white ${isActive ? 'bg-[#0b5cff]' : 'bg-[#0b5cff]/60'}`
+                            ? `rounded-full font-bold text-white ${isActive ? 'bg-[#0433FF]' : 'bg-[#0433FF]/60'}`
                             : isInRange
                               ? 'bg-blue-100 text-gray-800'
                               : 'text-gray-800 hover:bg-gray-100'
@@ -359,23 +359,23 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
             <div className="flex items-center justify-end gap-5 px-5 py-3.5 border-t border-gray-100">
               {step === 'start' ? (
                 <>
-                  <button type="button" onClick={handleCancel} className="text-[13px] font-bold tracking-wide text-[#0b5cff] cursor-pointer">
+                  <button type="button" onClick={handleCancel} className="text-[13px] font-bold tracking-wide text-[#0433FF] cursor-pointer">
                     CANCEL
                   </button>
-                  <button type="button" onClick={handleNext} className="text-[13px] font-bold tracking-wide text-[#0b5cff] cursor-pointer">
+                  <button type="button" onClick={handleNext} className="text-[13px] font-bold tracking-wide text-[#0433FF] cursor-pointer">
                     NEXT
                   </button>
                 </>
               ) : (
                 <>
-                  <button type="button" onClick={handleBack} className="text-[13px] font-bold tracking-wide text-[#0b5cff] cursor-pointer">
+                  <button type="button" onClick={handleBack} className="text-[13px] font-bold tracking-wide text-[#0433FF] cursor-pointer">
                     BACK
                   </button>
                   <button
                     type="button"
                     onClick={handleApply}
                     disabled={isBlocked}
-                    className={`text-[13px] font-bold tracking-wide cursor-pointer ${isBlocked ? 'text-gray-300 cursor-not-allowed' : 'text-[#0b5cff]'}`}
+                    className={`text-[13px] font-bold tracking-wide cursor-pointer ${isBlocked ? 'text-gray-300 cursor-not-allowed' : 'text-[#0433FF]'}`}
                   >
                     {applied ? 'APPLIED ✓' : 'APPLY'}
                   </button>
@@ -396,7 +396,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
             onClick={handleApply}
             disabled={isBlocked}
             className={`w-full py-3.5 rounded-xl text-[15px] font-bold text-white transition-colors ${
-              isBlocked ? 'bg-gray-300 cursor-not-allowed' : 'bg-[#0b5cff] hover:bg-[#0049d1] cursor-pointer'
+              isBlocked ? 'bg-gray-300 cursor-not-allowed' : 'bg-[#0433FF] hover:bg-[#0320AF] cursor-pointer'
             }`}
           >
             Next
@@ -428,7 +428,7 @@ function ScrollColumn<T extends string | number>({
           type="button"
           onClick={() => onSelect(v)}
           className={`w-full text-center py-2 text-sm cursor-pointer rounded-md mx-auto ${
-            v === active ? 'bg-[#0b5cff] text-white font-bold' : 'text-gray-800 hover:bg-gray-100 font-normal'
+            v === active ? 'bg-[#0433FF] text-white font-bold' : 'text-gray-800 hover:bg-gray-100 font-normal'
           }`}
         >
           {format(v)}

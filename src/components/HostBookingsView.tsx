@@ -63,7 +63,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
     className={`bg-white rounded-2xl border transition-all overflow-hidden ${
       booking.status === 'cancelled' || isPast
         ? 'border-gray-200 opacity-70 bg-[#F7F9FA]'
-        : 'border-gray-200 shadow-xs hover:border-[#0b5cff]/40'
+        : 'border-gray-200 shadow-xs hover:border-[#0433FF]/40'
     }`}
   >
     {/* Meeting Card Header Strip */}
@@ -71,8 +71,8 @@ const BookingCard: React.FC<BookingCardProps> = ({
 
       {/* Left: Time, Date & Title */}
       <div className="flex items-start gap-4">
-        <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#0b5cff] flex flex-col items-center justify-center border border-blue-100 shrink-0">
-          <span className="text-[10px] font-bold uppercase text-[#0b5cff]">
+        <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#0433FF] flex flex-col items-center justify-center border border-blue-100 shrink-0">
+          <span className="text-[10px] font-bold uppercase text-[#0433FF]">
             {new Date(booking.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short' })}
           </span>
           <span className="text-base font-extrabold text-gray-900 leading-none">
@@ -106,7 +106,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
           </div>
 
           <div className="flex items-center gap-4 mt-1.5 text-xs text-gray-600 flex-wrap">
-            <span className="flex items-center gap-1 font-semibold text-[#0b5cff]">
+            <span className="flex items-center gap-1 font-semibold text-[#0433FF]">
               <Clock className="w-3.5 h-3.5" />
               {booking.timeSlot} ({booking.timezone.split('/')[1]?.replace('_', ' ') || booking.timezone})
             </span>
@@ -134,7 +134,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
             href={booking.zoomDetails.joinUrl}
             target="_blank"
             rel="noreferrer"
-            className="px-4 py-2 rounded-xl bg-[#0b5cff] hover:bg-[#0049d1] text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
+            className="px-4 py-2 rounded-xl bg-[#0433FF] hover:bg-[#0320AF] text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
           >
             <Video className="w-3.5 h-3.5" />
             <span>Join Zoom Meeting</span>
@@ -210,7 +210,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
               href={booking.zoomDetails.recordingUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-[#0b5cff] hover:underline font-semibold cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-[#0433FF] hover:underline font-semibold cursor-pointer"
             >
               <PlayCircle className="w-4 h-4" />
               View Cloud Recording
@@ -338,7 +338,7 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
               <h1 className="text-lg font-bold text-gray-900">
                 {isAdmin ? 'All Scheduled Zoom Meetings' : 'My Booked Meetings'}
               </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold shrink-0 bg-blue-50 text-[#0b5cff] border border-blue-100">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold shrink-0 bg-blue-50 text-[#0433FF] border border-blue-100">
                 {bookings.length} {isAdmin ? 'Total System' : 'Booked'}
               </span>
             </div>
@@ -381,7 +381,7 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
             placeholder={isAdmin ? "Search attendee, host, ID..." : "Search title or meeting ID..."}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-3.5 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+            className="w-full pl-10 pr-3.5 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0433FF]"
           />
         </div>
       </div>
@@ -405,7 +405,7 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
           {onNavigateToSchedule && !searchTerm && (
             <button
               onClick={onNavigateToSchedule}
-              className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-[#0b5cff] hover:bg-[#0049d1] text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer"
+              className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-[#0433FF] hover:bg-[#0320AF] text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer"
             >
               <Calendar className="w-3.5 h-3.5" />
               <span>Go to Schedule</span>

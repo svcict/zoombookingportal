@@ -68,7 +68,7 @@ export const DashboardWelcomeCard: React.FC<DashboardWelcomeCardProps> = ({
     <div className="bg-white rounded-2xl p-5 sm:p-6 border border-gray-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div className="flex items-center gap-4">
         <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 shadow-2xs">
-          <CalendarIcon className="w-6 h-6 text-[#0b5cff]" />
+          <CalendarIcon className="w-6 h-6 text-[#0433FF]" />
         </div>
         <div>
           <h1 className="text-xl font-bold text-gray-900">Welcome, {accountName}!</h1>
@@ -87,7 +87,7 @@ export const DashboardWelcomeCard: React.FC<DashboardWelcomeCardProps> = ({
         <button
           type="button"
           onClick={handleSchedule}
-          className="group flex items-center gap-2 px-4 py-2 bg-[#0b5cff] hover:bg-[#094fd9] active:bg-[#0842b8] text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+          className="group flex items-center gap-2 px-4 py-2 bg-[#0433FF] hover:bg-[#0320AF] active:bg-[#021B7A] text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
         >
           <Plus className="w-4 h-4 transition-transform duration-500 ease-in-out group-hover:rotate-180" />
           <span>Schedule Meeting</span>
@@ -421,7 +421,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
               onClick={() => setViewMode('day')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'day'
-                  ? 'bg-white text-[#0b5cff] shadow-xs'
+                  ? 'bg-white text-[#0433FF] shadow-xs'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -434,7 +434,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
               onClick={() => setViewMode('week')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'week'
-                  ? 'bg-white text-[#0b5cff] shadow-xs'
+                  ? 'bg-white text-[#0433FF] shadow-xs'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -447,7 +447,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
               onClick={() => setViewMode('month')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'month'
-                  ? 'bg-white text-[#0b5cff] shadow-xs'
+                  ? 'bg-white text-[#0433FF] shadow-xs'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -484,7 +484,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
                       <span
                         className={`w-7 h-7 flex items-center justify-center rounded-full text-sm font-bold ${
                           day.isToday
-                            ? 'bg-[#0b5cff] text-white shadow-xs'
+                            ? 'bg-[#0433FF] text-white shadow-xs'
                             : 'text-gray-900'
                         }`}
                       >
@@ -545,7 +545,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
                                     >
                                       <div className="flex items-center gap-1 font-bold truncate">
                                         {isZoom ? (
-                                          <Video className="w-3 h-3 text-[#0b5cff] shrink-0" />
+                                          <Video className="w-3 h-3 text-[#0433FF] shrink-0" />
                                         ) : (
                                           <CalendarIcon className="w-3 h-3 text-emerald-600 shrink-0" />
                                         )}
@@ -554,7 +554,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
                                       <div className="text-[10px] text-gray-500 font-mono mt-0.5 flex items-center justify-between">
                                         <span>{evt.time}</span>
                                         {isZoom && (
-                                          <span className="text-[9px] px-1 rounded bg-[#0b5cff] text-white font-bold">
+                                          <span className="text-[9px] px-1 rounded bg-[#0433FF] text-white font-bold">
                                             Zoom
                                           </span>
                                         )}
@@ -568,7 +568,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
                               <button
                                 type="button"
                                 onClick={handleSchedule}
-                                className="w-full h-full min-h-[48px] rounded-md opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 text-[11px] font-semibold text-[#0b5cff] bg-blue-50/50 hover:bg-blue-100/80 border border-dashed border-blue-300 transition-all cursor-pointer"
+                                className="w-full h-full min-h-[48px] rounded-md opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 text-[11px] font-semibold text-[#0433FF] bg-blue-50/50 hover:bg-blue-100/80 border border-dashed border-blue-300 transition-all cursor-pointer"
                               >
                                 <Plus className="w-3 h-3" />
                                 <span>Book</span>
@@ -629,7 +629,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
                                 <div className="space-y-0.5">
                                   <div className="flex items-center gap-2">
                                     {isZoom ? (
-                                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#0b5cff] text-white">
+                                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#0433FF] text-white">
                                         Zoom Meeting
                                       </span>
                                     ) : (
@@ -672,7 +672,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
                                       href={evt.joinUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="px-3 py-1.5 bg-[#0b5cff] hover:bg-[#094fd9] text-white rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                                      className="px-3 py-1.5 bg-[#0433FF] hover:bg-[#0320AF] text-white rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
                                     >
                                       <span>Join Zoom</span>
                                       <ExternalLink className="w-3 h-3" />
@@ -694,7 +694,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
                       <button
                         type="button"
                         onClick={handleSchedule}
-                        className="px-3 py-1.5 bg-gray-100 hover:bg-blue-50 text-gray-700 hover:text-[#0b5cff] rounded-lg text-xs font-semibold transition-colors cursor-pointer shrink-0"
+                        className="px-3 py-1.5 bg-gray-100 hover:bg-blue-50 text-gray-700 hover:text-[#0433FF] rounded-lg text-xs font-semibold transition-colors cursor-pointer shrink-0"
                       >
                         + Book this Slot
                       </button>
@@ -738,7 +738,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
                       <span
                         className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${
                           d.isToday
-                            ? 'bg-[#0b5cff] text-white shadow-xs'
+                            ? 'bg-[#0433FF] text-white shadow-xs'
                             : d.isCurrentMonth
                             ? 'text-gray-800'
                             : 'text-gray-500'
@@ -747,7 +747,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
                         {d.dayNum}
                       </span>
                       {dayEvents.length > 0 && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-blue-100 text-[#0b5cff]">
+                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-blue-100 text-[#0433FF]">
                           {dayEvents.length}
                         </span>
                       )}
@@ -765,7 +765,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
                           }}
                           className={`px-1.5 py-0.5 rounded text-[10px] font-semibold truncate border cursor-pointer ${
                             evt.type === 'zoom_booking'
-                              ? 'bg-blue-50 border-blue-200 text-[#0b5cff]'
+                              ? 'bg-blue-50 border-blue-200 text-[#0433FF]'
                               : 'bg-emerald-50 border-emerald-200 text-emerald-800'
                           }`}
                           title={evt.title}

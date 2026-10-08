@@ -218,15 +218,15 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
         className="p-5 sm:p-6 bg-gradient-to-r from-gray-50 via-white to-gray-50 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-gray-50/80 transition-colors select-none"
       >
         <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0b5cff] flex items-center justify-center shrink-0 border border-blue-200 shadow-2xs">
-            <Key className="w-5 h-5 text-[#0b5cff]" />
+          <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0433FF] flex items-center justify-center shrink-0 border border-blue-200 shadow-2xs">
+            <Key className="w-5 h-5 text-[#0433FF]" />
           </div>
           <div>
             <div className="flex items-center gap-2.5 flex-wrap">
               <h2 className="text-base font-bold text-gray-900">
                 Office 365 &amp; Azure Entra ID Login Settings
               </h2>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100/70 text-[#0b5cff] border border-blue-200 flex items-center gap-1">
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100/70 text-[#0433FF] border border-blue-200 flex items-center gap-1">
                 <FileCode className="w-3 h-3" />
                 Direct .env Sync
               </span>
@@ -401,7 +401,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
           {lastSavedToast && (
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 font-semibold flex items-center justify-between animate-in fade-in slide-in-from-top-2">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-[#0b5cff]" />
+                <CheckCircle2 className="w-4 h-4 text-[#0433FF]" />
                 <span>{lastSavedToast}</span>
               </div>
               <span className="text-[10px] bg-blue-200/70 text-blue-900 px-2 py-0.5 rounded font-mono font-bold">
@@ -422,7 +422,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
                   <span>Directory (Tenant) ID</span>
-                  <Info className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#0b5cff] cursor-help transition-colors" />
+                  <Info className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#0433FF] cursor-help transition-colors" />
                 </label>
                 <button
                   type="button"
@@ -439,7 +439,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                 value={config.tenantId}
                 onChange={(e) => handleFieldChange('tenantId', e.target.value)}
                 placeholder="e.g. 72f988bf-86f1-41af-91ab-2d7cd011db47"
-                className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0b5cff] focus:border-[#0b5cff] transition-all shadow-2xs"
+                className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0433FF] focus:border-[#0433FF] transition-all shadow-2xs"
               />
 
               <div className="flex items-center justify-between mt-2 text-[10px] text-gray-500">
@@ -480,7 +480,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
                   <span>Application (Client) ID</span>
-                  <Info className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#0b5cff] cursor-help transition-colors" />
+                  <Info className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#0433FF] cursor-help transition-colors" />
                 </label>
                 <button
                   type="button"
@@ -497,7 +497,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                 value={config.clientId}
                 onChange={(e) => handleFieldChange('clientId', e.target.value)}
                 placeholder="e.g. 04b07795-8ddb-461a-bbee-02f9e1bf7b46"
-                className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0b5cff] focus:border-[#0b5cff] transition-all shadow-2xs"
+                className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0433FF] focus:border-[#0433FF] transition-all shadow-2xs"
               />
 
               <div className="flex items-center justify-between mt-2 text-[10px] text-gray-500">
@@ -536,7 +536,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                 <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
                   <Lock className="w-3.5 h-3.5 text-amber-600" />
                   <span>Client Secret (API Password)</span>
-                  <Info className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#0b5cff] cursor-help transition-colors" />
+                  <Info className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#0433FF] cursor-help transition-colors" />
                 </label>
                 <button
                   type="button"
@@ -554,7 +554,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                   value={config.clientSecret}
                   onChange={(e) => handleFieldChange('clientSecret', e.target.value)}
                   placeholder="Enter your Azure client secret"
-                  className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0b5cff] focus:border-[#0b5cff] transition-all shadow-2xs"
+                  className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0433FF] focus:border-[#0433FF] transition-all shadow-2xs"
                 />
               </div>
 
@@ -592,9 +592,9 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
             >
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-[#0b5cff]" />
+                  <Globe className="w-3.5 h-3.5 text-[#0433FF]" />
                   <span>OAuth 2.0 Redirect URI</span>
-                  <Info className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#0b5cff] cursor-help transition-colors" />
+                  <Info className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#0433FF] cursor-help transition-colors" />
                 </label>
                 <button
                   type="button"
@@ -611,7 +611,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                 value={config.redirectUri}
                 onChange={(e) => handleFieldChange('redirectUri', e.target.value)}
                 placeholder="https://your-domain.com/auth/callback"
-                className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0b5cff] focus:border-[#0b5cff] transition-all shadow-2xs"
+                className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0433FF] focus:border-[#0433FF] transition-all shadow-2xs"
               />
 
               <div className="flex items-center justify-between mt-2 text-[10px] text-gray-500">
@@ -650,7 +650,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                 <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
                   <Zap className="w-3.5 h-3.5 text-amber-500" />
                   <span>Microsoft Graph API Scopes &amp; Permissions</span>
-                  <Info className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#0b5cff] cursor-help transition-colors" />
+                  <Info className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#0433FF] cursor-help transition-colors" />
                 </label>
                 <button
                   type="button"
@@ -667,7 +667,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                 value={config.scopes}
                 onChange={(e) => handleFieldChange('scopes', e.target.value)}
                 placeholder="User.Read Calendars.ReadWrite Mail.Send offline_access"
-                className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0b5cff] focus:border-[#0b5cff] transition-all shadow-2xs"
+                className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0433FF] focus:border-[#0433FF] transition-all shadow-2xs"
               />
 
               <div className="flex items-center justify-between mt-2 text-[10px] text-gray-500">
@@ -703,9 +703,9 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
             >
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-[#0b5cff]" />
+                  <Globe className="w-3.5 h-3.5 text-[#0433FF]" />
                   <span>Organization Tenant Domain</span>
-                  <Info className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#0b5cff] cursor-help transition-colors" />
+                  <Info className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#0433FF] cursor-help transition-colors" />
                 </label>
                 <button
                   type="button"
@@ -722,7 +722,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                 value={config.orgDomain}
                 onChange={(e) => handleFieldChange('orgDomain', e.target.value)}
                 placeholder="e.g. ayalafoundation.org"
-                className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0b5cff] focus:border-[#0b5cff] transition-all shadow-2xs"
+                className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0433FF] focus:border-[#0433FF] transition-all shadow-2xs"
               />
 
               <div className="flex items-center justify-between mt-2 text-[10px] text-gray-500">
@@ -756,7 +756,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
           {/* Quick Action Footer */}
           <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2 text-gray-600">
-              <FileCode className="w-4 h-4 text-[#0b5cff]" />
+              <FileCode className="w-4 h-4 text-[#0433FF]" />
               <span>
                 All API keys are verified live against <code className="bg-white px-1.5 py-0.5 border rounded text-gray-800 font-mono font-bold">login.microsoftonline.com</code> and synced with <code className="bg-white px-1.5 py-0.5 border rounded text-gray-800 font-mono font-bold">.env</code>.
               </span>

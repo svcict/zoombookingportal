@@ -395,7 +395,7 @@ export default function App() {
     : null;
 
   return (
-    <div className="min-h-screen bg-[#F7F9FA] text-[#2D2E33] font-sans flex flex-col selection:bg-blue-100 selection:text-[#0b5cff]">
+    <div className="min-h-screen bg-[#F7F9FA] text-[#2D2E33] font-sans flex flex-col selection:bg-blue-100 selection:text-[#0433FF]">
       
       {/* Header with RBAC Navigation */}
       <Header
@@ -495,7 +495,7 @@ export default function App() {
                     <div className="w-full space-y-2">
                       <div className="flex items-center justify-between">
                         <label htmlFor="meeting-topic-input" className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-2">
-                          <Video className="w-4 h-4 text-[#0b5cff]" />
+                          <Video className="w-4 h-4 text-[#0433FF]" />
                           <span>Topic <span className="text-red-500">*</span></span>
                         </label>
                       </div>
@@ -513,7 +513,7 @@ export default function App() {
                           className={`w-full px-4 py-3.5 bg-[#F7F9FA] hover:bg-gray-100/70 focus:bg-white border rounded-xl text-base font-semibold text-gray-900 placeholder:text-gray-400 placeholder:font-normal focus:outline-none focus:ring-4 transition-all shadow-2xs ${
                             topicError
                               ? 'border-red-400 focus:border-red-400 focus:ring-red-400/10'
-                              : 'border-gray-200 focus:border-[#0b5cff] focus:ring-[#0b5cff]/10'
+                              : 'border-gray-200 focus:border-[#0433FF] focus:ring-[#0433FF]/10'
                           }`}
                         />
                         {meetingTopic && (
@@ -671,7 +671,7 @@ export default function App() {
       {/* Subtle Zoom Footer */}
       <footer className="bg-white border-t border-gray-200 py-6 mt-12 text-center text-xs text-gray-500">
         <div className="max-w-[1600px] mx-auto px-4 flex items-center justify-center gap-2">
-          <div className="w-5 h-5 rounded-md bg-[#0b5cff] text-white flex items-center justify-center text-[10px] font-bold">
+          <div className="w-5 h-5 rounded-md bg-[#0433FF] text-white flex items-center justify-center text-[10px] font-bold">
             Z
           </div>
           <span className="font-semibold text-gray-800">Ayala Foundation Zoom Booking Portal</span>

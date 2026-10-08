@@ -248,7 +248,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           )}
 
         {/* Meeting Countdown Bar */}
-        <div className="mt-5 inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 text-[#0b5cff] border border-blue-200 rounded-full text-xs font-semibold">
+        <div className="mt-5 inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 text-[#0433FF] border border-blue-200 rounded-full text-xs font-semibold">
           <Clock className="w-3.5 h-3.5" />
           <span>Meeting countdown: {countdown}</span>
         </div>
@@ -297,7 +297,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
         
         {/* Zoom Blue Ribbon */}
-        <div className="bg-[#0b5cff] text-white px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="bg-[#0433FF] text-white px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
               <Video className="w-5 h-5 text-white" />
@@ -316,7 +316,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               href={currentBooking.zoomDetails.joinUrl}
               target="_blank"
               rel="noreferrer"
-              className="px-4 py-2 rounded-xl bg-white text-[#0b5cff] font-bold text-xs hover:bg-blue-50 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-white text-[#0433FF] font-bold text-xs hover:bg-blue-50 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <Video className="w-4 h-4" />
               <span>Join Zoom Meeting</span>
@@ -354,7 +354,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowHostKey(!showHostKey)}
-                    className="text-[#0b5cff] hover:underline text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                    className="text-[#0433FF] hover:underline text-xs font-semibold flex items-center gap-1 cursor-pointer"
                   >
                     {showHostKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     {showHostKey ? 'Hide' : 'Show'}
@@ -374,7 +374,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
                 href={currentBooking.zoomDetails.recordingUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 w-fit text-[#0b5cff] hover:underline font-semibold cursor-pointer"
+                className="inline-flex items-center gap-1.5 w-fit text-[#0433FF] hover:underline font-semibold cursor-pointer"
               >
                 <PlayCircle className="w-4 h-4" />
                 View Cloud Recording
@@ -393,7 +393,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowPasscode(!showPasscode)}
-                    className="text-[#0b5cff] hover:underline text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                    className="text-[#0433FF] hover:underline text-xs font-semibold flex items-center gap-1 cursor-pointer"
                   >
                     {showPasscode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     {showPasscode ? 'Hide' : 'Show'}
@@ -437,7 +437,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
                 href={currentBooking.zoomDetails.joinUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="text-[#0b5cff] hover:underline font-mono text-xs truncate"
+                className="text-[#0433FF] hover:underline font-mono text-xs truncate"
               >
                 {currentBooking.zoomDetails.joinUrl}
               </a>
@@ -502,7 +502,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
                       <MicrosoftOutlookIcon className="w-5 h-5" />
                     </div>
                     <span className="text-xs font-medium text-gray-800">
-                      Microsoft 365 {isOrgMember && <span className="text-[#0b5cff]">(Organization)</span>}
+                      Microsoft 365 {isOrgMember && <span className="text-[#0433FF]">(Organization)</span>}
                     </span>
                   </a>
                 </div>
@@ -558,7 +558,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               className="w-full px-6 sm:px-8 py-3.5 bg-gray-50 hover:bg-gray-100 flex items-center justify-between text-xs font-bold text-gray-700 transition-colors cursor-pointer"
             >
               <span className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-[#0b5cff]" />
+                <Phone className="w-4 h-4 text-[#0433FF]" />
                 International Phone Dial-in &amp; SIP/H.323 System Addresses
               </span>
               {showDialIn ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -590,7 +590,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               href={currentBooking.zoomDetails.joinUrl}
               target="_blank"
               rel="noreferrer"
-              className="px-5 py-2.5 bg-[#0b5cff] hover:bg-[#0049d1] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+              className="px-5 py-2.5 bg-[#0433FF] hover:bg-[#0320AF] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
             >
               <Video className="w-3.5 h-3.5" />
               <span>Start</span>
@@ -634,7 +634,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
             {onViewMeetings && (
               <button
                 onClick={onViewMeetings}
-                className="px-5 py-2.5 bg-[#0b5cff] hover:bg-[#0049d1] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer"
+                className="px-5 py-2.5 bg-[#0433FF] hover:bg-[#0320AF] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer"
               >
                 <Layers className="w-3.5 h-3.5" />
                 <span>View My Scheduled Meetings</span>

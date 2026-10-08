@@ -27,7 +27,7 @@ export const MeetingAgendaQuestions: React.FC<MeetingAgendaQuestionsProps> = ({
       className="bg-white rounded-2xl p-6 sm:p-7 border border-gray-200 shadow-xs space-y-4"
     >
       <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
-        <Video className="w-4 h-4 text-[#0b5cff]" />
+        <Video className="w-4 h-4 text-[#0433FF]" />
         Meeting Preparation Questions
       </h3>
 
@@ -48,7 +48,7 @@ export const MeetingAgendaQuestions: React.FC<MeetingAgendaQuestionsProps> = ({
                 value={val}
                 onChange={(e) => onAnswerChange(q.id, e.target.value)}
                 placeholder={q.placeholder || 'Your response...'}
-                className={`w-full px-4 py-3 bg-[#F7F9FA] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] transition-all ${
+                className={`w-full px-4 py-3 bg-[#F7F9FA] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0433FF] transition-all ${
                   hasError ? 'ring-2 ring-red-400 bg-red-50/50' : ''
                 }`}
               />
@@ -60,7 +60,7 @@ export const MeetingAgendaQuestions: React.FC<MeetingAgendaQuestionsProps> = ({
                 value={val}
                 onChange={(e) => onAnswerChange(q.id, e.target.value)}
                 placeholder={q.placeholder || ''}
-                className={`w-full px-4 py-3 bg-[#F7F9FA] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] transition-all ${
+                className={`w-full px-4 py-3 bg-[#F7F9FA] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0433FF] transition-all ${
                   hasError ? 'ring-2 ring-red-400 bg-red-50/50' : ''
                 }`}
               />
@@ -70,7 +70,7 @@ export const MeetingAgendaQuestions: React.FC<MeetingAgendaQuestionsProps> = ({
               <select
                 value={val}
                 onChange={(e) => onAnswerChange(q.id, e.target.value)}
-                className={`w-full px-4 py-3 bg-[#F7F9FA] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0b5cff] ${
+                className={`w-full px-4 py-3 bg-[#F7F9FA] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0433FF] ${
                   hasError ? 'ring-2 ring-red-400 bg-red-50/50' : ''
                 }`}
               >
@@ -96,7 +96,7 @@ export const MeetingAgendaQuestions: React.FC<MeetingAgendaQuestionsProps> = ({
                       value={opt}
                       checked={val === opt}
                       onChange={() => onAnswerChange(q.id, opt)}
-                      className="w-4 h-4 text-[#0b5cff] focus:ring-[#0b5cff]"
+                      className="w-4 h-4 text-[#0433FF] focus:ring-[#0433FF]"
                     />
                     <span>{opt}</span>
                   </label>

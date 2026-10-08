@@ -95,8 +95,8 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({ adminEmail, auth
       <div className="bg-white rounded-2xl p-6 sm:p-8 border border-gray-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1.5 max-w-2xl">
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-[#0b5cff] border border-blue-200 flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#0b5cff]" />
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-[#0433FF] border border-blue-200 flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#0433FF]" />
               Admin Users
             </span>
             <span className="text-xs text-gray-500 font-medium">Admin Exclusive Access</span>
@@ -115,7 +115,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({ adminEmail, auth
           disabled={isLoading}
           className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-bold text-gray-700 flex items-center gap-2 shadow-2xs transition-colors cursor-pointer shrink-0"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#0b5cff]' : ''}`} />
+          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#0433FF]' : ''}`} />
           <span>Refresh</span>
         </button>
       </div>
@@ -160,12 +160,12 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({ adminEmail, auth
             onChange={(e) => setNewEmail(e.target.value)}
             placeholder="name@ayalafoundation.org"
             required
-            className="flex-1 px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#0b5cff]"
+            className="flex-1 px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#0433FF]"
           />
           <button
             type="submit"
             disabled={isSubmitting || !newEmail.trim()}
-            className="px-4 py-2.5 rounded-xl bg-[#0b5cff] hover:bg-[#0a4fd9] text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+            className="px-4 py-2.5 rounded-xl bg-[#0433FF] hover:bg-[#0a4fd9] text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
           >
             <UserPlus className="w-3.5 h-3.5" />
             <span>{isSubmitting ? 'Granting...' : 'Grant Admin'}</span>
@@ -211,7 +211,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({ adminEmail, auth
               .map((email) => (
                 <div key={email} className="flex items-center justify-between px-5 sm:px-6 py-3.5">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0b5cff] flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0433FF] flex items-center justify-center">
                       <ShieldCheck className="w-4 h-4" />
                     </div>
                     <div className="text-sm font-bold text-gray-900">{email}</div>
