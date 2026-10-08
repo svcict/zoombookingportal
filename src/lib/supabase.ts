@@ -332,7 +332,6 @@ export async function testSupabaseConnection(): Promise<{
   url: string | null;
   hasAnonKey: boolean;
   hasServiceRoleKey: boolean;
-  profilesCount?: number;
   authUsersCount?: number;
   latencyMs: number;
   error?: string;
@@ -352,11 +351,15 @@ export async function testSupabaseConnection(): Promise<{
   }
 
   try {
-    // 1. Query profiles table
-    const { data: profiles, error: profileErr } = await client
-      .from('profiles')
-      .select('id, email, full_name, is_admin')
-      .limit(10);
+    // admin_emails is one of this app's own tables (see
+    // supabase/migrations/0003_admin_emails.sql) - this app never creates a
+    // `profiles` table, so probing that one always reported "not
+    // connected" even when Supabase was fully reachable and every real
+    // table worked fine.
+    const { error: queryErr } = await client
+      .from('admin_emails')
+      .select('email')
+      .limit(1);
 
     let authUsersCount = 0;
     try {
@@ -371,15 +374,14 @@ export async function testSupabaseConnection(): Promise<{
 
     const latencyMs = Date.now() - startTime;
 
-    if (profileErr) {
-      // If table query returned an error
+    if (queryErr) {
       return {
         connected: false,
         url: process.env.SUPABASE_URL || null,
         hasAnonKey: Boolean(process.env.SUPABASE_ANON_KEY),
         hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
         latencyMs,
-        error: profileErr.message || 'Error querying Supabase profiles table',
+        error: queryErr.message || 'Error querying Supabase',
       };
     }
 
@@ -388,7 +390,6 @@ export async function testSupabaseConnection(): Promise<{
       url: process.env.SUPABASE_URL || null,
       hasAnonKey: Boolean(process.env.SUPABASE_ANON_KEY),
       hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
-      profilesCount: profiles ? profiles.length : 0,
       authUsersCount,
       latencyMs,
     };
