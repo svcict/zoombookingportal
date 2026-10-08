@@ -1,11 +1,16 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
 @layer base {
   html, body {
     overflow-x: hidden;
     width: 100%;
     min-height: 100%;
     -webkit-tap-highlight-color: transparent;
+    font-family: var(--font-sans);
   }
 
   #root {
