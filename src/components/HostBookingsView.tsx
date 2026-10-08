@@ -121,10 +121,10 @@ const BookingCard: React.FC<BookingCardProps> = ({
 
       {/* Right Actions: Direct Zoom Launch & Copy Link */}
       <div className="flex items-center gap-2 flex-wrap justify-end">
-        {isPast ? (
+        {booking.status === 'cancelled' || isPast ? (
           <span
             className="px-4 py-2 rounded-xl bg-gray-100 text-gray-400 text-xs font-bold flex items-center gap-1.5 cursor-not-allowed"
-            title="This meeting has already ended"
+            title={booking.status === 'cancelled' ? 'This meeting was cancelled' : 'This meeting has already ended'}
           >
             <Video className="w-3.5 h-3.5" />
             <span>Join Zoom Meeting</span>
