@@ -191,15 +191,22 @@ export default function AdminPortal() {
                 </button>
               ))}
             </nav>
+
+            <a
+              href="/"
+              className="hidden md:inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-gray-200 bg-white text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:border-gray-300 transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Booking Portal</span>
+            </a>
           </div>
 
           <div className="flex items-center gap-1">
             <a
               href="/"
-              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-gray-200 bg-white text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:border-gray-300 transition-colors"
+              className="inline-flex md:hidden items-center gap-1.5 h-9 px-3 rounded-md border border-gray-200 bg-white text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:border-gray-300 transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Booking Portal</span>
             </a>
             <div className="relative flex h-8 w-8 shrink-0 overflow-hidden rounded-full border border-gray-200 mx-1">
               <img src={authUser.avatar} alt={authUser.name} className="w-full h-full object-cover" />
