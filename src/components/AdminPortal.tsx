@@ -174,31 +174,33 @@ export default function AdminPortal() {
 
             {/* Nav tabs - shadcn Tabs pattern: a muted pill track with a
                 raised white "active" trigger, instead of a colored-fill
-                active state. */}
+                active state. Booking Portal sits right after Admin Users,
+                inside the same track, as a plain (non-toggling) link. */}
             <nav className="hidden md:inline-flex items-center gap-1 ml-4 p-1 rounded-md bg-gray-100">
-              {navItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setCurrentView(item.id)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-sm font-medium transition-colors cursor-pointer ${
-                    currentView === item.id
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-900'
-                  }`}
-                >
-                  {item.icon}
-                  {item.label}
-                </button>
+              {navItems.map((item, index) => (
+                <React.Fragment key={item.id}>
+                  <button
+                    onClick={() => setCurrentView(item.id)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-sm font-medium transition-colors cursor-pointer ${
+                      currentView === item.id
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-900'
+                    }`}
+                  >
+                    {item.icon}
+                    {item.label}
+                  </button>
+                  {index === 0 && (
+                    <a
+                      href="/"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-sm font-medium text-gray-500 hover:text-gray-900 hover:bg-white/60 transition-colors"
+                    >
+                      Booking Portal
+                    </a>
+                  )}
+                </React.Fragment>
               ))}
             </nav>
-
-            <a
-              href="/"
-              className="hidden md:inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-gray-200 bg-white text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:border-gray-300 transition-colors"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Booking Portal</span>
-            </a>
           </div>
 
           <div className="flex items-center gap-1">
