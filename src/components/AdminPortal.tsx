@@ -165,22 +165,25 @@ export default function AdminPortal() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3">
               <AyalaFoundationLogo height={28} width="auto" className="h-7" />
-              <div className="h-5 w-[1px] bg-gray-300 mx-1 hidden sm:block" />
+              <div className="h-5 w-[1px] bg-gray-200 mx-1 hidden sm:block" />
               <span className="font-semibold text-gray-700 hidden sm:inline text-sm">Admin Portal</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-[#0433FF] border border-blue-200">
+              <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-[#0433FF]">
                 Admins Only
               </span>
             </div>
 
-            <nav className="hidden md:flex items-center gap-1 pl-4 border-l border-gray-200">
+            {/* Nav tabs - shadcn Tabs pattern: a muted pill track with a
+                raised white "active" trigger, instead of a colored-fill
+                active state. */}
+            <nav className="hidden md:inline-flex items-center gap-1 ml-4 p-1 rounded-md bg-gray-100">
               {navItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => setCurrentView(item.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-sm font-medium transition-colors cursor-pointer ${
                     currentView === item.id
-                      ? 'bg-blue-50 text-[#0433FF] font-semibold'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-900'
                   }`}
                 >
                   {item.icon}
@@ -190,35 +193,35 @@ export default function AdminPortal() {
             </nav>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
             <a
               href="/"
-              className="text-xs font-semibold text-gray-500 hover:text-gray-800 flex items-center gap-1.5"
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Booking Portal</span>
             </a>
-            <div className="flex items-center gap-2">
-              <img src={authUser.avatar} alt={authUser.name} className="w-8 h-8 rounded-full object-cover ring-2 ring-[#0433FF]/30" />
-              <button
-                type="button"
-                onClick={handleSignOut}
-                title="Sign out"
-                className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
+            <div className="relative flex h-8 w-8 shrink-0 overflow-hidden rounded-full border border-gray-200 mx-1">
+              <img src={authUser.avatar} alt={authUser.name} className="w-full h-full object-cover" />
             </div>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              title="Sign out"
+              className="inline-flex items-center justify-center h-9 w-9 rounded-md text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
         {/* Mobile nav */}
-        <div className="flex md:hidden items-center justify-around py-2 border-t border-gray-100 text-xs font-medium">
+        <div className="flex md:hidden items-center justify-around py-2 border-t border-gray-100 text-sm font-medium">
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setCurrentView(item.id)}
-              className={`py-1 px-2 rounded cursor-pointer ${currentView === item.id ? 'text-[#0433FF] font-bold' : 'text-gray-600'}`}
+              className={`py-1 px-2 rounded-sm cursor-pointer ${currentView === item.id ? 'text-[#0433FF] font-semibold' : 'text-gray-600'}`}
             >
               {item.label}
             </button>
