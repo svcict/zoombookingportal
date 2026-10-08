@@ -231,9 +231,6 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                 Direct .env Sync
               </span>
             </div>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Live Microsoft Entra &amp; Graph API OAuth 2.0 credentials synchronized with your server <code className="text-gray-700 bg-gray-100 px-1 py-0.2 rounded font-mono text-[11px]">.env</code>.
-            </p>
           </div>
         </div>
 
@@ -295,9 +292,6 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                       Live Verified
                     </span>
                   </div>
-                  <p className="text-xs text-green-800 leading-relaxed max-w-2xl">
-                    Live connection to Microsoft Entra identity servers (<code>login.microsoftonline.com</code>) is verified. Real-time Outlook calendar read/write and Graph API tokens are active.
-                  </p>
                   <div className="flex items-center gap-4 text-[11px] text-green-800 pt-1 font-medium flex-wrap">
                     <span>Tenant: <strong>{config.orgDomain || config.tenantId || 'Entra Tenant'}</strong></span>
                     <span>•</span>
