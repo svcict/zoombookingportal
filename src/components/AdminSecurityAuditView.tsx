@@ -220,10 +220,6 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
           <h1 className="text-2xl font-semibold leading-none tracking-tight text-gray-900">
             Failed Login Audits &amp; IP Protection
           </h1>
-
-          <p className="text-sm text-gray-500 leading-relaxed">
-            Monitor real-time authentication failures, progressive 1-minute and 3-minute lockouts, and permanently blocked IPs. Administrators can unblock IPs or clear audit logs below.
-          </p>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
