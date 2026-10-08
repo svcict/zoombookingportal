@@ -296,10 +296,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#0433FF] text-white">
-                  Zoom Registration
-                </span>
-                <span className="text-[11px] font-semibold px-2 py-0.5 bg-white/10 border border-white/10 text-white rounded-full">
-                  {meetingType.duration} mins
+                  Agenda
                 </span>
               </div>
               <h2 className="text-xl sm:text-2xl font-bold mt-1 text-white tracking-tight">
