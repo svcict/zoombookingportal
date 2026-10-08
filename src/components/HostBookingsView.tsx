@@ -121,16 +121,26 @@ const BookingCard: React.FC<BookingCardProps> = ({
 
       {/* Right Actions: Direct Zoom Launch & Copy Link */}
       <div className="flex items-center gap-2 flex-wrap justify-end">
-        <a
-          href={booking.zoomDetails.joinUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="px-4 py-2 rounded-xl bg-[#0b5cff] hover:bg-[#0049d1] text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
-        >
-          <Video className="w-3.5 h-3.5" />
-          <span>Join Zoom Meeting</span>
-          <ExternalLink className="w-3 h-3 opacity-80" />
-        </a>
+        {isPast ? (
+          <span
+            className="px-4 py-2 rounded-xl bg-gray-100 text-gray-400 text-xs font-bold flex items-center gap-1.5 cursor-not-allowed"
+            title="This meeting has already ended"
+          >
+            <Video className="w-3.5 h-3.5" />
+            <span>Join Zoom Meeting</span>
+          </span>
+        ) : (
+          <a
+            href={booking.zoomDetails.joinUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="px-4 py-2 rounded-xl bg-[#0b5cff] hover:bg-[#0049d1] text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
+          >
+            <Video className="w-3.5 h-3.5" />
+            <span>Join Zoom Meeting</span>
+            <ExternalLink className="w-3 h-3 opacity-80" />
+          </a>
+        )}
 
         <button
           onClick={() => onCopy(booking.zoomDetails.joinUrl, booking.id)}
