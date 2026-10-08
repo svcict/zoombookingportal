@@ -62,7 +62,7 @@ export default function AdminPortal() {
   }, [isAdmin]);
 
   const handleToggleM365Sync = async () => {
-    const res = await fetch('/api/m365/sync-toggle', { method: 'POST' });
+    const res = await fetch('/api/m365/sync-toggle', { method: 'POST', headers: authHeaders });
     const data = await res.json();
     if (data.success) setM365State(data.data);
   };

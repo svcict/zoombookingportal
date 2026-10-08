@@ -3783,12 +3783,15 @@ app.get('/api/m365/status', (req, res) => {
   });
 });
 
-app.post('/api/m365/sync-toggle', (req, res) => {
+app.post('/api/m365/sync-toggle', async (req, res) => {
+  const adminEmail = await requireAdmin(req, res);
+  if (!adminEmail) return;
+
   m365CalendarState.syncEnabled = !m365CalendarState.syncEnabled;
   logSystemActivity(
     'm365',
     'M365 sync toggled',
-    String(req.headers['x-user-email'] || 'unknown'),
+    adminEmail,
     `Microsoft 365 Calendar Sync ${m365CalendarState.syncEnabled ? 'enabled' : 'paused'}.`
   );
   res.json({
