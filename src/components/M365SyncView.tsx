@@ -85,11 +85,6 @@ export const M365SyncView: React.FC<M365SyncViewProps> = ({
                   {m365State.connected ? 'Graph Reachable' : 'Not Checked Yet'}
                 </span>
               </div>
-              <p className="text-xs text-gray-600 mt-1 max-w-xl">
-                Reads each rotating Zoom account&apos;s own real Microsoft 365 calendar via Graph
-                (<code className="font-mono">getSchedule</code>) and skips a slot when that account is genuinely busy
-                in Outlook - read-only, it does not write bookings back into Outlook as calendar events.
-              </p>
             </div>
           </div>
 
