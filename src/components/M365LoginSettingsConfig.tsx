@@ -754,37 +754,28 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
           </div>
 
           {/* Quick Action Footer */}
-          <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2 text-gray-600">
-              <FileCode className="w-4 h-4 text-[#0433FF]" />
-              <span>
-                All API keys are verified live against <code className="bg-white px-1.5 py-0.5 border rounded text-gray-800 font-mono font-bold">login.microsoftonline.com</code> and synced with <code className="bg-white px-1.5 py-0.5 border rounded text-gray-800 font-mono font-bold">.env</code>.
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  saveKeysToEnv(
-                    {
-                      MICROSOFT_TENANT_ID: config.tenantId,
-                      MICROSOFT_CLIENT_ID: config.clientId,
-                      MICROSOFT_CLIENT_SECRET: config.clientSecret,
-                      MICROSOFT_REDIRECT_URI: config.redirectUri,
-                      MICROSOFT_GRAPH_SCOPES: config.scopes,
-                      MICROSOFT_ORGANIZATION_DOMAIN: config.orgDomain
-                    },
-                    '✓ All Microsoft 365 settings written directly to .env'
-                  );
-                }}
-                disabled={isSaving}
-                className="px-3.5 py-1.5 rounded-xl bg-gray-900 hover:bg-black text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <Check className="w-3.5 h-3.5 text-green-400" />
-                <span>{isSaving ? 'Syncing...' : 'Force Sync All to .env'}</span>
-              </button>
-            </div>
+          <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 flex items-center justify-end gap-3 text-xs">
+            <button
+              type="button"
+              onClick={() => {
+                saveKeysToEnv(
+                  {
+                    MICROSOFT_TENANT_ID: config.tenantId,
+                    MICROSOFT_CLIENT_ID: config.clientId,
+                    MICROSOFT_CLIENT_SECRET: config.clientSecret,
+                    MICROSOFT_REDIRECT_URI: config.redirectUri,
+                    MICROSOFT_GRAPH_SCOPES: config.scopes,
+                    MICROSOFT_ORGANIZATION_DOMAIN: config.orgDomain
+                  },
+                  '✓ All Microsoft 365 settings written directly to .env'
+                );
+              }}
+              disabled={isSaving}
+              className="px-3.5 py-1.5 rounded-xl bg-gray-900 hover:bg-black text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Check className="w-3.5 h-3.5 text-green-400" />
+              <span>{isSaving ? 'Syncing...' : 'Sync details'}</span>
+            </button>
           </div>
 
         </div>
