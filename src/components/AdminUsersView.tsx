@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, UserPlus, UserMinus, RefreshCw, CheckCircle2, AlertTriangle, Server, Lock } from 'lucide-react';
+import { ShieldCheck, UserPlus, UserMinus, RefreshCw, CheckCircle2, AlertTriangle, Server, Lock, Database } from 'lucide-react';
 
 interface AdminUsersViewProps {
   adminEmail?: string;
@@ -19,6 +19,29 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({ adminEmail, auth
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [revokingEmail, setRevokingEmail] = useState<string | null>(null);
+  const [supabaseStatus, setSupabaseStatus] = useState<{
+    connected: boolean;
+    url?: string | null;
+    latencyMs?: number;
+  } | null>(null);
+  const [isCheckingSb, setIsCheckingSb] = useState(false);
+
+  const fetchSupabaseStatus = async () => {
+    setIsCheckingSb(true);
+    try {
+      const res = await fetch('/api/auth/supabase/status');
+      const data = await res.json();
+      setSupabaseStatus(data);
+    } catch (err) {
+      console.warn('Failed to fetch Supabase status:', err);
+    } finally {
+      setIsCheckingSb(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSupabaseStatus();
+  }, []);
 
   const fetchUsers = async () => {
     if (!adminEmail) return;
@@ -114,6 +137,48 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({ adminEmail, auth
           <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#0433FF]' : ''}`} />
           <span>Refresh</span>
         </button>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-xs p-5 sm:p-6">
+        <div className="flex items-center justify-between mb-3">
+          <div className="font-bold text-gray-900 text-sm flex items-center gap-1.5">
+            <Database className="w-4 h-4 text-[#0433FF]" />
+            <span>Database & Local Status</span>
+          </div>
+          <button
+            type="button"
+            onClick={fetchSupabaseStatus}
+            disabled={isCheckingSb}
+            title="Re-verify connection"
+            className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 hover:text-gray-700 transition-colors cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isCheckingSb ? 'animate-spin text-[#0433FF]' : ''}`} />
+          </button>
+        </div>
+        <div className="space-y-2 text-xs">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-gray-600">Supabase Cloud DB:</span>
+            {supabaseStatus?.connected ? (
+              <span className="font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Connected {supabaseStatus.latencyMs ? `(${supabaseStatus.latencyMs}ms)` : ''}
+              </span>
+            ) : isCheckingSb ? (
+              <span className="text-gray-500">Checking...</span>
+            ) : (
+              <span className="font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded">
+                Not connected
+              </span>
+            )}
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-gray-600">Local API Service:</span>
+            <span className="font-bold text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded flex items-center gap-1">
+              <Server className="w-3 h-3 text-blue-600" />
+              Active
+            </span>
+          </div>
+        </div>
       </div>
 
       {!data.supabaseConfigured && (
