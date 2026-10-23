@@ -3210,7 +3210,10 @@ app.post('/api/bookings', async (req, res) => {
         reminderMinutes: [1440, 60, 15]
       },
       createdAt: new Date().toISOString(),
-      notes: notes || 'Booked via Zoom Scheduling Portal'
+      notes: notes || 'Booked via Zoom Scheduling Portal',
+      // Lets the confirmation explain a requested Host Key that couldn't be
+      // sent (none configured on the account), instead of silently omitting it.
+      hostKeyRequested: Boolean(sendHostKey)
     };
 
     bookings.unshift(newBooking);
@@ -3408,6 +3411,7 @@ app.patch('/api/bookings/:id', async (req, res) => {
   let hostKeyMessage = '';
   let hostKeyEmail: Promise<void> = Promise.resolve();
   if (sendHostKey && accountKey && isAccountConfigured(accountKey)) {
+    booking.hostKeyRequested = true;
     const hostKey = getAccountHostKey(accountKey);
     if (hostKey) {
       booking.zoomDetails.hostKey = hostKey;

@@ -62,6 +62,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const scheduleCopiedReset = useResetTimer();
   const [showDialIn, setShowDialIn] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [showPasscode, setShowPasscode] = useState(false);
   const [showHostKey, setShowHostKey] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -91,6 +92,9 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
   // not again every time the booking object changes (saving settings,
   // cancelling the meeting).
   useEffect(() => {
+    // Only when the invitations actually went out - celebrating right above
+    // "nobody has been notified yet" contradicts the message that matters.
+    if (!booking.reminders?.emailSent) return;
     // Loaded on demand - it's only ever used here, once per booking.
     import('canvas-confetti')
       .then(({ default: confetti }) => confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } }))
@@ -211,6 +215,20 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
   };
 
   const isCancelled = currentBooking.status === 'cancelled';
+  // "Mon, Oct 26, 2026 · 2:00 – 3:00 PM", in the meeting's own timezone.
+  const timezoneCity = currentBooking.timezone.split('/')[1]?.replace('_', ' ') || currentBooking.timezone;
+  const timeRangeLabel = (() => {
+    try {
+      const tz = currentBooking.timezone;
+      const start = new Date(currentBooking.startTimeIso);
+      const end = new Date(currentBooking.endTimeIso);
+      const day = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }).format(start);
+      const time = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' });
+      return `${day} · ${time.format(start)} – ${time.format(end)}`;
+    } catch {
+      return `${currentBooking.date} ${currentBooking.timeSlot}`;
+    }
+  })();
   const emailFailed = !currentBooking.reminders?.emailSent;
   const outlookFailed = currentBooking.m365SyncStatus === 'failed';
   // The raw reasons, once each - the two confirmation emails often fail for
@@ -247,18 +265,36 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           </>
         ) : (
           <>
-        <div className="w-14 h-14 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center mx-auto mb-4 border border-green-200">
-          <CheckCircle2 className="w-8 h-8" />
-        </div>
-
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 border border-green-200 rounded-full text-xs font-bold mb-2">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>You are scheduled!</span>
-        </div>
-
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-          Zoom Meeting Confirmed
-        </h1>
+        {emailFailed ? (
+          <>
+            <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4 border border-amber-200">
+              <AlertTriangle className="w-8 h-8" />
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-full text-xs font-bold mb-2">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              <span>Action needed</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+              Meeting booked, invitations not sent
+            </h1>
+            <p className="text-sm text-gray-600 mt-2 max-w-lg mx-auto">
+              The Zoom meeting is ready, but your invitees haven&apos;t been told about it yet.
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="w-14 h-14 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center mx-auto mb-4 border border-green-200">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 border border-green-200 rounded-full text-xs font-bold mb-2">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>You are scheduled!</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+              Zoom Meeting Confirmed
+            </h1>
+          </>
+        )}
 
         {currentBooking.reminders?.emailSent && (
           <p className="text-sm text-gray-600 mt-2 max-w-lg mx-auto">
@@ -274,11 +310,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
             <div className="flex items-center gap-2 text-sm font-bold text-amber-800">
               <AlertTriangle className="w-4 h-4 shrink-0" />
               <span>
-                {emailFailed && outlookFailed
-                  ? "Your meeting is booked, but nobody has been notified yet"
-                  : emailFailed
-                    ? "Your meeting is booked, but the confirmation email wasn't sent"
-                    : "Your meeting is booked, but the Outlook invite wasn't created"}
+                {emailFailed ? 'What still needs doing' : "Your meeting is booked, but the Outlook invite wasn't created"}
               </span>
             </div>
             <ul className="mt-3 space-y-3">
@@ -290,9 +322,9 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
                   <button
                     type="button"
                     onClick={copyInvitation}
-                    className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                    className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#0433FF] hover:bg-[#0320AF] text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
                   >
-                    {copiedField === 'invitation' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedField === 'invitation' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                     <span>{copiedField === 'invitation' ? 'Copied' : 'Copy invitation'}</span>
                   </button>
                 </li>
@@ -333,8 +365,10 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           currentBooking.zoomConfig.alternativeHosts !== currentBooking.participantEmail && (
             <p className="text-xs text-gray-500 mt-1.5">
               <strong>{currentBooking.zoomConfig.alternativeHosts}</strong> was nominated as this
-              meeting's host - they've been added to the invitees below and sent the confirmation
-              email (with the Host Key, if Zoom won't let them start it directly).
+              meeting's host and added to the invitees below
+              {emailFailed
+                ? '. Include them when you send the invitation.'
+                : ' - they were sent the confirmation email (with the Host Key, if Zoom won\'t let them start it directly).'}
             </p>
           )}
 
@@ -431,7 +465,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
             <span className="text-gray-500 font-medium">Time</span>
             <span className="text-gray-900">
-              {currentBooking.date} {currentBooking.timeSlot} <span className="text-gray-500">({currentBooking.timezone})</span>
+              {timeRangeLabel} <span className="text-gray-500">({timezoneCity})</span>
             </span>
           </div>
 
@@ -459,6 +493,15 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
                   If nobody has host controls yet, use Participants → Claim Host in Zoom and enter this key. Works regardless of your Zoom license.
                 </p>
               </div>
+            </div>
+          )}
+
+          {currentBooking.hostKeyRequested && !currentBooking.zoomDetails.hostKey && !isCancelled && (
+            <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
+              <span className="text-gray-500 font-medium">Host Key</span>
+              <span className="text-gray-700">
+                Not sent. This Zoom account doesn&apos;t have a Host Key set up yet, so there was nothing to send. Ask ICT to add one in the admin portal, then use Edit to send it.
+              </span>
             </div>
           )}
 
@@ -609,51 +652,72 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           </>
           )}
 
-          <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
-            <span className="text-gray-500 font-medium">Encryption</span>
-            <span className="text-green-700 font-medium flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              {currentBooking.zoomDetails.encryption}
-            </span>
-          </div>
-
-          <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
-            <span className="text-gray-500 font-medium">Video</span>
-            <span className="text-gray-900">
-              Host <span className="font-semibold">{currentBooking.zoomConfig?.hostVideo === false ? 'off' : 'on'}</span>
-              {', '}Participant <span className="font-semibold">{currentBooking.zoomConfig?.participantVideo === false ? 'off' : 'on'}</span>
-            </span>
-          </div>
-
-          <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
-            <span className="text-gray-500 font-medium">Audio</span>
-            <span className="text-gray-900">
-              {{
-                telephone: 'Telephone',
-                computer: 'Computer Audio',
-                both: 'Telephone and Computer Audio',
-                third_party: '3rd Party Audio',
-              }[currentBooking.zoomConfig?.audioOption || 'both']}
-            </span>
-          </div>
-
-          {(currentBooking.zoomConfig?.joinAnytime ||
-            currentBooking.zoomConfig?.muteOnEntry ||
-            currentBooking.zoomConfig?.autoRecord) && (
+          {/* Zoom settings - kept for reference, folded away so the essentials
+              (time, join link, invitees) lead the page */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowSettings(!showSettings)}
+              aria-expanded={showSettings}
+              className="w-full px-6 sm:px-8 py-3.5 bg-gray-50 hover:bg-gray-100 flex items-center justify-between text-xs font-bold text-gray-700 transition-colors cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[#0433FF]" />
+                Zoom meeting settings
+              </span>
+              {showSettings ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+            {showSettings && (
+            <div className="divide-y divide-gray-100 border-t border-gray-100">
             <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
-              <span className="text-gray-500 font-medium">Options</span>
-              <div className="space-y-1 text-gray-900">
-                {currentBooking.zoomConfig?.joinAnytime && <div>Allow participants to join anytime</div>}
-                {currentBooking.zoomConfig?.muteOnEntry && <div>Mute participants upon entry</div>}
-                {currentBooking.zoomConfig?.autoRecord && <div>Automatically record meeting to the cloud</div>}
-              </div>
+              <span className="text-gray-500 font-medium">Encryption</span>
+              <span className="text-green-700 font-medium flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                {currentBooking.zoomDetails.encryption}
+              </span>
             </div>
-          )}
+
+            <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
+              <span className="text-gray-500 font-medium">Video</span>
+              <span className="text-gray-900">
+                Host <span className="font-semibold">{currentBooking.zoomConfig?.hostVideo === false ? 'off' : 'on'}</span>
+                {', '}Participant <span className="font-semibold">{currentBooking.zoomConfig?.participantVideo === false ? 'off' : 'on'}</span>
+              </span>
+            </div>
+
+            <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
+              <span className="text-gray-500 font-medium">Audio</span>
+              <span className="text-gray-900">
+                {{
+                  telephone: 'Telephone',
+                  computer: 'Computer Audio',
+                  both: 'Telephone and Computer Audio',
+                  third_party: '3rd Party Audio',
+                }[currentBooking.zoomConfig?.audioOption || 'both']}
+              </span>
+            </div>
+
+            {(currentBooking.zoomConfig?.joinAnytime ||
+              currentBooking.zoomConfig?.muteOnEntry ||
+              currentBooking.zoomConfig?.autoRecord) && (
+              <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
+                <span className="text-gray-500 font-medium">Options</span>
+                <div className="space-y-1 text-gray-900">
+                  {currentBooking.zoomConfig?.joinAnytime && <div>Allow participants to join anytime</div>}
+                  {currentBooking.zoomConfig?.muteOnEntry && <div>Mute participants upon entry</div>}
+                  {currentBooking.zoomConfig?.autoRecord && <div>Automatically record meeting to the cloud</div>}
+                </div>
+              </div>
+            )}
+            </div>
+            )}
+          </div>
 
           {/* Dial-in numbers collapsible */}
           <div>
             <button
               onClick={() => setShowDialIn(!showDialIn)}
+              aria-expanded={showDialIn}
               className="w-full px-6 sm:px-8 py-3.5 bg-gray-50 hover:bg-gray-100 flex items-center justify-between text-xs font-bold text-gray-700 transition-colors cursor-pointer"
             >
               <span className="flex items-center gap-2">

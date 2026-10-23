@@ -72,6 +72,14 @@ interface ZoomIntakeFormProps {
   submitError?: string | null;
 }
 
+// Error key -> the field to send focus to when that check fails.
+const FIELD_IDS = {
+  fullName: 'intake-full-name',
+  email: 'intake-email',
+  guestEmails: 'intake-invitees',
+  hostOnBehalfEmail: 'intake-meeting-host',
+} as const;
+
 export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   meetingType,
   meetingTopic,
@@ -86,6 +94,17 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   submitError = null,
 }) => {
   const topic = meetingTopic || meetingType.title || 'Zoom Video Meeting';
+  // "2:00 – 3:00 PM": the end comes from the picked start plus the length.
+  const timeRangeLabel = (() => {
+    try {
+      const start = new Date(selectedSlot.isoString);
+      const end = new Date(start.getTime() + meetingType.duration * 60000);
+      const fmt = new Intl.DateTimeFormat('en-US', { timeZone: selectedTimezone, hour: 'numeric', minute: '2-digit' });
+      return `${fmt.format(start)} – ${fmt.format(end)}`;
+    } catch {
+      return selectedSlot.formattedTime;
+    }
+  })();
   const fullName = authUser?.name || '';
   const email = authUser?.email || '';
   const [guestEmailInput, setGuestEmailInput] = useState('');
@@ -241,11 +260,11 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
     }
   };
 
-  const validate = () => {
+  const validate = (invitees: string[]) => {
     const newErrors: Record<string, string> = {};
     if (!fullName.trim()) newErrors.fullName = 'Full name is required';
     if (!email.trim() || !email.includes('@')) newErrors.email = 'Valid work email is required';
-    if (guestEmails.length === 0) newErrors.guestEmails = 'At least one invitee is required';
+    if (invitees.length === 0) newErrors.guestEmails = 'Add at least one invitee';
     if (hostOnBehalfEmail.trim() && !hostOnBehalfEmail.includes('@')) {
       newErrors.hostOnBehalfEmail = 'Enter a valid email address';
     }
@@ -253,18 +272,43 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
     // on the scheduling step now, before the user ever reaches this form.
 
     setErrors(newErrors);
+
+    // Take the booker straight to the first problem - on a phone the field
+    // can be a long way above the submit button.
+    const firstInvalidId = (['fullName', 'email', 'guestEmails', 'hostOnBehalfEmail'] as const)
+      .filter((key) => newErrors[key])
+      .map((key) => FIELD_IDS[key])[0];
+    if (firstInvalidId) {
+      requestAnimationFrame(() => {
+        const field = document.getElementById(firstInvalidId);
+        field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        field?.focus({ preventScroll: true });
+      });
+    }
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) return;
+
+    // An email typed into the invitee box but not yet added counts - nobody
+    // expects to be told "add at least one invitee" with one sitting there.
+    const pendingInvitee = guestEmailInput.trim();
+    const invitees =
+      pendingInvitee.includes('@') && !guestEmails.some((g) => g.toLowerCase() === pendingInvitee.toLowerCase())
+        ? [...guestEmails, pendingInvitee]
+        : guestEmails;
+    if (invitees !== guestEmails) {
+      setGuestEmails(invitees);
+      setGuestEmailInput('');
+    }
+    if (!validate(invitees)) return;
 
     const trimmedHostOnBehalf = hostOnBehalfEmail.trim();
     const finalGuestEmails =
-      trimmedHostOnBehalf && !guestEmails.some((g) => g.toLowerCase() === trimmedHostOnBehalf.toLowerCase())
-        ? [...guestEmails, trimmedHostOnBehalf]
-        : guestEmails;
+      trimmedHostOnBehalf && !invitees.some((g) => g.toLowerCase() === trimmedHostOnBehalf.toLowerCase())
+        ? [...invitees, trimmedHostOnBehalf]
+        : invitees;
 
     await onSubmit({
       participantName: fullName.trim(),
@@ -300,8 +344,8 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
             <button
               onClick={onBack}
               className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors"
-              title="Back to date and time"
-              aria-label="Back to date and time"
+              title="Change time"
+              aria-label="Change time"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -334,7 +378,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-[#0433FF] shrink-0" />
-            <span className="font-bold text-white">{selectedSlot.formattedTime} ({meetingType.duration} mins)</span>
+            <span className="font-bold text-white">{timeRangeLabel} ({meetingType.duration} mins)</span>
           </div>
           <div className="flex items-center gap-2">
             <Globe className="w-4 h-4 text-[#0433FF] shrink-0" />
@@ -769,6 +813,15 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
           </div>
         </div>
 
+        {Object.keys(errors).length > 0 && !isSubmitting && (
+          <p className="flex items-center gap-1.5 text-xs font-medium text-red-600">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+            {Object.keys(errors).length === 1
+              ? 'One field above needs attention before you can book.'
+              : `${Object.keys(errors).length} fields above need attention before you can book.`}
+          </p>
+        )}
+
         {submitError && !isSubmitting && (
           <div role="alert" className="flex items-start gap-2 p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700">
             <AlertCircle className="w-4 h-4 mt-px shrink-0" />
@@ -785,7 +838,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
             onClick={onBack}
             className="w-full sm:w-auto px-6 py-3.5 rounded-xl border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-colors"
           >
-            Cancel &amp; Change Time
+            Change time
           </button>
 
           <button

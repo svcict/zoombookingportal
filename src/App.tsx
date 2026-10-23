@@ -83,6 +83,11 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState<string>(initialDateStr);
 
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
+  // The slot the intake form was last opened for. The form stays mounted
+  // (just hidden) while the booker goes Back to change the time, so their
+  // invitees, Host Key choice and settings survive; clearing this starts a
+  // genuinely new booking with an empty form.
+  const [intakeSlot, setIntakeSlot] = useState<TimeSlot | null>(null);
   const [bookingStep, setBookingStep] = useState<'slots' | 'intake' | 'confirmed'>('slots');
   const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
@@ -215,6 +220,14 @@ export default function App() {
   };
 
   // Handle slot selection -> proceed to Zoom intake form
+  // A fresh booking: back to the time picker with no slot and an empty form.
+  const startNewBooking = () => {
+    setBookingStep('slots');
+    setSelectedSlot(null);
+    setIntakeSlot(null);
+    setBookingError(null);
+  };
+
   const handleSelectSlot = (slot: TimeSlot) => {
     if (!meetingTopic.trim()) {
       setTopicError(true);
@@ -237,6 +250,7 @@ export default function App() {
     setAnswerErrors({});
 
     setSelectedSlot(slot);
+    setIntakeSlot(slot);
     setBookingStep('intake');
   };
 
@@ -290,6 +304,7 @@ export default function App() {
       if (data.success && data.data) {
         setConfirmedBooking(data.data);
         setBookings((prev) => [data.data, ...prev]);
+        setIntakeSlot(null);
         setBookingStep('confirmed');
         playZoomNotificationSound('chime');
 
@@ -389,8 +404,7 @@ export default function App() {
         onViewChange={(view) => {
           setCurrentView(view);
           if (view === 'booking' && bookingStep === 'confirmed') {
-            setBookingStep('slots');
-            setSelectedSlot(null);
+            startNewBooking();
           }
         }}
         authUser={authUser}
@@ -431,8 +445,7 @@ export default function App() {
               userName={authUser?.name || 'Authorized User'}
               onScheduleMeeting={() => {
                 setCurrentView('booking');
-                setBookingStep('slots');
-                setSelectedSlot(null);
+                startNewBooking();
               }}
             />
 
@@ -445,8 +458,7 @@ export default function App() {
                   hideWelcomeCard
                   onScheduleMeeting={() => {
                     setCurrentView('booking');
-                    setBookingStep('slots');
-                    setSelectedSlot(null);
+                    startNewBooking();
                   }}
                   onSelectBookingForDetails={(booking) => {
                     setSelectedBookingForDetails(booking);
@@ -568,12 +580,13 @@ export default function App() {
             )}
 
             {/* STEP 2: CUSTOM ZOOM INTAKE FORM */}
-            {bookingStep === 'intake' && effectiveMeetingType && selectedSlot && (
+            {(bookingStep === 'intake' || bookingStep === 'slots') && effectiveMeetingType && intakeSlot && (
+              <div hidden={bookingStep !== 'intake'}>
               <ZoomIntakeForm
                 meetingType={effectiveMeetingType}
                 meetingTopic={meetingTopic || effectiveMeetingType.title}
                 formattedDate={formattedDateStr}
-                selectedSlot={selectedSlot}
+                selectedSlot={intakeSlot}
                 selectedTimezone={selectedTimezone}
                 authUser={authUser}
                 answers={meetingAnswers}
@@ -585,6 +598,7 @@ export default function App() {
                 isSubmitting={isSubmittingBooking}
                 submitError={bookingError}
               />
+              </div>
             )}
 
             {/* STEP 3: ZOOM CONFIRMATION HUB */}
@@ -593,8 +607,7 @@ export default function App() {
                 booking={confirmedBooking}
                 authHeaders={authHeaders}
                 onBookAnother={() => {
-                  setBookingStep('slots');
-                  setSelectedSlot(null);
+                  startNewBooking();
                   setConfirmedBooking(null);
                 }}
                 onViewMeetings={() => setCurrentView('dashboard')}

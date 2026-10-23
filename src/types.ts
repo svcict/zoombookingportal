@@ -175,6 +175,7 @@ export interface Booking {
   };
   createdAt: string;
   notes?: string;
+  hostKeyRequested?: boolean; // booker asked for the Host Key (it may still be unavailable)
 }
 
 export interface TimezoneOption {
