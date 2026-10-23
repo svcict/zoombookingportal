@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CalendarX2, Clock, Users, Video, CalendarMinus, AlertTriangle, Loader2, X } from 'lucide-react';
 import { Booking } from '../types';
 
@@ -53,9 +54,13 @@ export const CancelMeetingDialog: React.FC<CancelMeetingDialogProps> = ({ bookin
   const inviteeCount = booking.guestEmails?.length || 0;
   const isOnOutlook = booking.m365SyncStatus === 'synced';
 
-  return (
+  // Portalled to <body> so it always covers the whole page: rendered in place
+  // it inherits the stacking context of whatever opened it (e.g. the sticky
+  // My Meetings column), and the calendar's sticky header then paints on top
+  // of the backdrop.
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
+      className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
       onClick={() => !isCancelling && onClose()}
     >
       <div
@@ -159,6 +164,7 @@ export const CancelMeetingDialog: React.FC<CancelMeetingDialogProps> = ({ bookin
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
