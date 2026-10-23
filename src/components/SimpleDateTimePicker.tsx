@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Calendar as CalendarIcon, Globe, CheckCircle2, XCircle, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { zonedTimeToUtc, getNowInTimezone, getWallTimeInTimezone } from '../utils/timezone';
+import { isBookableStart, isBookableEnd, isWeekendDate, BOOKING_END_HOUR, BOOKING_HOURS_LABEL } from '../utils/bookingHours';
 import { TimeSlot } from '../types';
 
 interface SimpleDateTimePickerProps {
@@ -73,6 +74,33 @@ const splitWall = (t: WallTime) => {
 
 const DEFAULT_DURATION = 30;
 
+// First start time at or after `from`, on a 30-minute boundary, that is
+// bookable (a weekday within booking hours) and not before `earliest`.
+// Used for the auto-suggestion and when a pick has nothing valid nearby.
+const nextBookableStart = (from: WallTime, earliest: WallTime): WallTime => {
+  const base = compareWall(from, earliest) < 0 ? earliest : from;
+  let t: WallTime = { date: base.date, minutes: Math.ceil(base.minutes / 30) * 30 };
+  if (t.minutes >= 1440) t = addMinutes({ date: t.date, minutes: 0 }, t.minutes);
+  for (let i = 0; i < 14 * 48; i++) {
+    if (isBookableStart(t.date, t.minutes) && compareWall(t, earliest) >= 0) return t;
+    t = addMinutes(t, 30);
+  }
+  return base;
+};
+
+// The allowed time on the same date closest to `t` (preferring later), in
+// 5-minute steps, or null if that whole date has nothing allowed.
+const nearestAllowedOnDate = (t: WallTime, allowed: (w: WallTime) => boolean): WallTime | null => {
+  for (let offset = 0; offset < 1440; offset += 5) {
+    for (const minutes of [t.minutes + offset, t.minutes - offset]) {
+      if (minutes < 0 || minutes >= 1440) continue;
+      const candidate = { date: t.date, minutes };
+      if (allowed(candidate)) return candidate;
+    }
+  }
+  return null;
+};
+
 const formatDateLabel = (dateStr: string) =>
   new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
@@ -103,27 +131,34 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
     return () => clearInterval(id);
   }, [selectedTimezone]);
 
-  // Earliest bookable start: the next 5-minute mark strictly after now.
+  // Earliest possible start: the next 5-minute mark strictly after now.
   const earliestStart = addMinutes({ date: now.dateStr, minutes: 0 }, Math.floor(now.minutes / 5) * 5 + 5);
+  // A start is allowed when it's not in the past and within booking hours
+  // (weekdays, 8 AM to 8 PM, not the 12:00 lunch buffer - bookingHours.ts).
+  const isStartAllowed = (t: WallTime) => compareWall(t, earliestStart) >= 0 && isBookableStart(t.date, t.minutes);
 
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<Step>('start');
   const [applied, setApplied] = useState(false);
 
-  // Restore a previously applied slot; otherwise auto-suggest the next open
-  // half-hour from the current time, unless a later day was already picked.
+  // Restore a previously applied slot; otherwise auto-suggest the next
+  // bookable half-hour from now (rolling past the evening, weekends and the
+  // lunch buffer), or 9:00 AM when a later day was already picked.
   const [start, setStartRaw] = useState<WallTime>(() => {
     if (appliedSlot?.isoString) {
       const wall = getWallTimeInTimezone(new Date(appliedSlot.isoString), selectedTimezone);
       return { date: wall.dateStr, minutes: wall.minutes };
     }
     const nowWall = getNowInTimezone(selectedTimezone);
-    if (selectedDate && selectedDate > nowWall.dateStr) return { date: selectedDate, minutes: 9 * 60 };
-    return addMinutes({ date: nowWall.dateStr, minutes: 0 }, Math.floor(nowWall.minutes / 30) * 30 + 30);
+    const earliest = addMinutes({ date: nowWall.dateStr, minutes: 0 }, Math.floor(nowWall.minutes / 5) * 5 + 5);
+    const from = selectedDate && selectedDate > nowWall.dateStr ? { date: selectedDate, minutes: 9 * 60 } : earliest;
+    return nextBookableStart(from, earliest);
   });
-  const [end, setEndRaw] = useState<WallTime>(() =>
-    addMinutes(start, appliedSlot && appliedDurationMinutes && appliedDurationMinutes > 0 ? appliedDurationMinutes : DEFAULT_DURATION)
-  );
+  const [end, setEndRaw] = useState<WallTime>(() => {
+    const wanted = addMinutes(start, appliedSlot && appliedDurationMinutes && appliedDurationMinutes > 0 ? appliedDurationMinutes : DEFAULT_DURATION);
+    // Keep the suggested end within booking hours too (e.g. 7:45 PM + 30 min).
+    return isBookableEnd(wanted.date, wanted.minutes) ? wanted : { date: start.date, minutes: BOOKING_END_HOUR * 60 };
+  });
 
   const startDate = start.date;
   const endDate = end.date;
@@ -141,25 +176,37 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
     setViewMonth(Number(dateStr.slice(5, 7)) - 1);
   };
 
-  // Moving the start never lands in the past (snaps to the earliest open
-  // slot instead) and carries the end along so the meeting length is kept.
+  // Moving the start never lands on a time that can't be booked: it snaps
+  // to the nearest allowed time that day (or the next bookable slot), and
+  // carries the end along so the meeting length is kept, within booking hours.
   const setStart = (next: WallTime) => {
-    const clamped = compareWall(next, earliestStart) < 0 ? earliestStart : next;
+    const length = durationMinutes > 0 ? durationMinutes : DEFAULT_DURATION;
+    // When the pick itself isn't allowed, prefer a nearby start that still
+    // fits the whole meeting before 8 PM, so the length survives the snap.
+    const fitsWholeMeeting = (t: WallTime) => {
+      const e = addMinutes(t, length);
+      return isStartAllowed(t) && isBookableEnd(e.date, e.minutes);
+    };
+    const snapped = isStartAllowed(next)
+      ? next
+      : nearestAllowedOnDate(next, fitsWholeMeeting) ?? nearestAllowedOnDate(next, isStartAllowed) ?? nextBookableStart(next, earliestStart);
+    const wantedEnd = addMinutes(snapped, length);
     setApplied(false);
-    setStartRaw(clamped);
-    setEndRaw(addMinutes(clamped, durationMinutes > 0 ? durationMinutes : DEFAULT_DURATION));
+    setStartRaw(snapped);
+    setEndRaw(isBookableEnd(wantedEnd.date, wantedEnd.minutes) ? wantedEnd : { date: snapped.date, minutes: BOOKING_END_HOUR * 60 });
   };
-  // The end can't be at or before the start.
+  // The end can't be at or before the start, or outside booking hours.
   const minEnd = addMinutes(start, 5);
+  const isEndAllowed = (t: WallTime) => compareWall(t, minEnd) >= 0 && isBookableEnd(t.date, t.minutes);
   const setEnd = (next: WallTime) => {
     setApplied(false);
-    setEndRaw(compareWall(next, minEnd) < 0 ? minEnd : next);
+    setEndRaw(isEndAllowed(next) ? next : nearestAllowedOnDate(next, isEndAllowed) ?? minEnd);
   };
 
   // If the clock (or a timezone change) overtakes the chosen start, move it
-  // up to the next open slot rather than leaving a stale past time selected.
+  // up to the next bookable time rather than leaving a stale one selected.
   useEffect(() => {
-    if (compareWall(start, earliestStart) < 0) setStart(earliestStart);
+    if (!isStartAllowed(start)) setStart(start);
   }, [earliestStart.date, earliestStart.minutes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startIso = zonedTimeToUtc(startDate, to24Hour(startHour, startAmpm), startMinute, selectedTimezone).toISOString();
@@ -232,7 +279,23 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
     setStep('start');
     showMonthOf(startDate);
   };
-  const handleCancel = () => setIsOpen(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  // Closing (Cancel, Esc, Apply) hands keyboard focus back to the field.
+  const closePicker = () => {
+    setIsOpen(false);
+    requestAnimationFrame(() => triggerRef.current?.focus({ preventScroll: true }));
+  };
+  const handleCancel = closePicker;
+  // Esc closes the open picker wherever keyboard focus is (usually still on
+  // the field that opened it).
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closePicker();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleApply = () => {
     if (isBlocked) return;
@@ -244,7 +307,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
       isAvailable: availability.status !== 'blocked',
     });
     setApplied(true);
-    setIsOpen(false);
+    closePicker();
   };
 
   const durationLabel = (() => {
@@ -264,20 +327,26 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
   const activeDateStr = step === 'start' ? startDate : endDate;
   const onPickDay = step === 'start' ? pickStartDay : pickEndDay;
 
-  // Whatever end is being edited, plus the earliest moment it may take -
-  // anything before that is grayed out in the calendar and time columns.
+  // Whatever end is being edited, and which times it may take - everything
+  // else (past, before the start, evenings, weekends) is grayed out in the
+  // calendar and time columns rather than rejected after the fact.
   const active = step === 'start' ? start : end;
-  const minAllowed = step === 'start' ? earliestStart : minEnd;
+  const isAllowed = step === 'start' ? isStartAllowed : isEndAllowed;
   const setActive = step === 'start' ? setStart : setEnd;
   const { hour12: activeHour, minute: activeMinute, ampm: activeAmpm } = splitWall(active);
   const at = (minutes: number): WallTime => ({ date: active.date, minutes });
-  const isBefore = (minutes: number) => compareWall(at(minutes), minAllowed) < 0;
-  const hourDisabled = (h12: number) => isBefore(to24Hour(h12, activeAmpm) * 60 + 55);
-  const minuteDisabled = (m: number) => isBefore(to24Hour(activeHour, activeAmpm) * 60 + m);
-  const ampmDisabled = (ap: Ampm) => isBefore(to24Hour(11, ap) * 60 + 55);
+  const minuteDisabled = (m: number) => !isAllowed(at(to24Hour(activeHour, activeAmpm) * 60 + m));
+  const hourDisabled = (h12: number) => !MINUTES.some((m) => isAllowed(at(to24Hour(h12, activeAmpm) * 60 + m)));
+  const ampmDisabled = (ap: Ampm) => !HOURS.some((h12) => MINUTES.some((m) => isAllowed(at(to24Hour(h12, ap) * 60 + m))));
+  const dayDisabled = (dateStr: string) => {
+    if (step === 'end') return dateStr < start.date || isWeekendDate(dateStr);
+    if (dateStr < earliestStart.date || isWeekendDate(dateStr)) return true;
+    // e.g. today after the last bookable start has passed
+    return dateStr === earliestStart.date && nearestAllowedOnDate({ date: dateStr, minutes: 0 }, isStartAllowed) === null;
+  };
 
   const availabilityReadout = (
-    <div className="flex flex-col items-center gap-2">
+    <div role="status" aria-live="polite" className="flex flex-col items-center gap-2">
       <span className="text-xs text-gray-500 font-medium">{durationLabel}</span>
       {!isValidRange ? (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full text-xs font-semibold text-center">
@@ -335,14 +404,21 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
         </button>
       </div>
 
-      <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">
-        Date &amp; Time Range
-      </label>
+      <div className="flex items-baseline justify-between gap-3 mb-2 max-w-[480px]">
+        <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">
+          Date &amp; Time Range
+        </label>
+        <span className="text-xs text-gray-500">Weekdays, {BOOKING_HOURS_LABEL}</span>
+      </div>
 
       <div className="relative w-full max-w-[480px]">
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setIsOpen((v) => !v)}
+          aria-expanded={isOpen}
+          aria-haspopup="dialog"
+          aria-label={`Meeting date and time: ${summary}. Change`}
           className="w-full flex items-center justify-between gap-3 px-4 py-3.5 bg-white border-2 border-[#0433FF] rounded-lg text-left cursor-pointer"
         >
           <span className="text-[15px] text-gray-900 truncate">{summary}</span>
@@ -350,7 +426,11 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
         </button>
 
         {isOpen && (
-          <div className="mt-2 bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
+          <div
+            role="dialog"
+            aria-label={step === 'start' ? 'Choose the start date and time' : 'Choose the end date and time'}
+            className="mt-2 bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden"
+          >
             {/* Step indicator */}
             <div className="flex items-center gap-2 px-5 pt-4">
               <span className={`text-[11px] font-bold uppercase tracking-wider ${step === 'start' ? 'text-[#0433FF]' : 'text-gray-500'}`}>
@@ -405,13 +485,15 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
                     const isEdge = isStart || isEnd;
                     const isInRange = startDate < dateStr && dateStr < endDate;
                     const isActive = dateStr === activeDateStr;
-                    const isDisabled = dateStr < minAllowed.date;
+                    const isDisabled = dayDisabled(dateStr);
                     return (
                       <button
                         key={day}
                         type="button"
                         onClick={() => onPickDay(dateStr)}
                         disabled={isDisabled}
+                        aria-label={formatDateLabel(dateStr)}
+                        aria-pressed={isActive}
                         className={`aspect-square text-sm rounded ${
                           isDisabled
                             ? 'text-gray-300 cursor-not-allowed'
@@ -432,6 +514,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
               {/* Hour / Minute / AM-PM columns for whichever end is active */}
               <div className="flex items-start py-3 px-1 border-t sm:border-t-0 sm:border-l border-gray-100">
                 <ScrollColumn
+                  label="Hour"
                   values={HOURS}
                   active={activeHour}
                   format={(v) => pad2(v)}
@@ -439,6 +522,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
                   onSelect={(h) => setActive(at(to24Hour(h, activeAmpm) * 60 + activeMinute))}
                 />
                 <ScrollColumn
+                  label="Minute"
                   values={MINUTES}
                   active={activeMinute}
                   format={(v) => pad2(v)}
@@ -446,6 +530,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
                   onSelect={(m) => setActive(at(to24Hour(activeHour, activeAmpm) * 60 + m))}
                 />
                 <ScrollColumn
+                  label="AM/PM"
                   values={AMPMS}
                   active={activeAmpm}
                   format={(v) => v}
@@ -509,12 +594,14 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
 };
 
 function ScrollColumn<T extends string | number>({
+  label,
   values,
   active,
   format,
   onSelect,
   isDisabled,
 }: {
+  label: string;
   values: T[];
   active: T;
   format: (v: T) => string;
@@ -538,7 +625,11 @@ function ScrollColumn<T extends string | number>({
   }, [active]);
 
   return (
-    <div ref={containerRef} className="relative w-16 max-h-[252px] overflow-y-auto no-scrollbar px-1 space-y-0.5">
+    <div className="w-16">
+    <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500 text-center pb-1.5" aria-hidden="true">
+      {label === 'Minute' ? 'Min' : label}
+    </div>
+    <div ref={containerRef} role="group" aria-label={label} className="relative max-h-[232px] overflow-y-auto no-scrollbar px-1 space-y-0.5">
       {values.map((v) => {
         const disabled = isDisabled?.(v) ?? false;
         const selected = v === active;
@@ -549,6 +640,8 @@ function ScrollColumn<T extends string | number>({
             data-active={selected}
             onClick={() => onSelect(v)}
             disabled={disabled}
+            aria-pressed={selected}
+            aria-label={`${label === 'AM/PM' ? '' : `${label} `}${format(v)}`}
             className={`w-full h-9 text-center text-sm rounded-md transition-colors ${
               selected
                 ? 'bg-[#0433FF] text-white font-bold cursor-pointer'
@@ -561,6 +654,7 @@ function ScrollColumn<T extends string | number>({
           </button>
         );
       })}
+    </div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import { createServer as createViteServer } from 'vite';
+import { BOOKING_START_HOUR, BOOKING_END_HOUR, BOOKING_HOURS_LABEL } from './src/utils/bookingHours';
 import {
   authenticateLocalUser,
   registerSupabaseUser,
@@ -2707,7 +2708,7 @@ app.get('/api/availability', async (req, res) => {
       );
     };
 
-    // Booking hours: 08:00 AM to 20:00 (8:00 PM)
+    // Booking hours: BOOKING_START_HOUR to BOOKING_END_HOUR (src/utils/bookingHours.ts)
     const slots: Array<{
       id: string;
       time: string;
@@ -2721,8 +2722,8 @@ app.get('/api/availability', async (req, res) => {
       bookedBy?: { name: string; company?: string };
     }> = [];
 
-    const startHour = 8;
-    const endHour = 20;
+    const startHour = BOOKING_START_HOUR;
+    const endHour = BOOKING_END_HOUR;
     const stepMinutes = duration <= 15 ? 15 : duration <= 30 ? 30 : duration <= 45 ? 45 : 60;
 
     // Track daily open slots count per host account
@@ -2894,8 +2895,8 @@ app.get('/api/availability/check', async (req, res) => {
     if (startMs <= Date.now()) {
       return res.json({ success: true, isAvailable: false, reason: 'This time has already passed', isoString: startIso });
     }
-    if (h < 8 || h >= 20) {
-      return res.json({ success: true, isAvailable: false, reason: 'Outside booking hours (8:00 AM - 8:00 PM)', isoString: startIso });
+    if (h < BOOKING_START_HOUR || h >= BOOKING_END_HOUR) {
+      return res.json({ success: true, isAvailable: false, reason: `Outside booking hours (${BOOKING_HOURS_LABEL})`, isoString: startIso });
     }
     if (h === 12 && m === 0) {
       return res.json({ success: true, isAvailable: false, reason: 'Lunch / Administrative Buffer', isoString: startIso });
@@ -3264,7 +3265,8 @@ app.post('/api/bookings', async (req, res) => {
 
     const emailResult = {
       success: sensitiveEmailResult.success && plainEmailResult.success,
-      error: [sensitiveEmailResult.error, plainEmailResult.error].filter(Boolean).join(' ') || undefined
+      // Both emails usually fail for the same reason - state it once.
+      error: Array.from(new Set([sensitiveEmailResult.error, plainEmailResult.error].filter(Boolean))).join(' ') || undefined
     };
     newBooking.reminders.emailSent = emailResult.success;
     if (emailResult.success) {

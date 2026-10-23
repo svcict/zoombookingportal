@@ -10,6 +10,7 @@ import {
   CalendarRange
 } from 'lucide-react';
 import { Booking, M365CalendarState, M365User } from '../types';
+import { BOOKING_START_HOUR, BOOKING_END_HOUR, BOOKING_HOURS_LABEL } from '../utils/bookingHours';
 
 interface SyncedM365Event {
   accountId?: string;
@@ -77,7 +78,7 @@ export const DashboardWelcomeCard: React.FC<DashboardWelcomeCardProps> = ({
             <span className="hidden sm:inline">•</span>
             <span>Timezone: {selectedTimezone}</span>
             <span className="hidden sm:inline">•</span>
-            <span className="text-gray-500">Hours: 8:00 AM – 5:00 PM</span>
+            <span className="text-gray-500">Hours: {BOOKING_HOURS_LABEL}</span>
           </p>
         </div>
       </div>
@@ -230,19 +231,13 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
     };
   }, [currentAnchorDate, todayKey]);
 
-  // Hours displayed on calendar grid: 8 AM to 5 PM
-  const businessHours = [
-    { hour24: 8, label: '08:00 AM' },
-    { hour24: 9, label: '09:00 AM' },
-    { hour24: 10, label: '10:00 AM' },
-    { hour24: 11, label: '11:00 AM' },
-    { hour24: 12, label: '12:00 PM' },
-    { hour24: 13, label: '01:00 PM' },
-    { hour24: 14, label: '02:00 PM' },
-    { hour24: 15, label: '03:00 PM' },
-    { hour24: 16, label: '04:00 PM' },
-    { hour24: 17, label: '05:00 PM' },
-  ];
+  // Hours displayed on the calendar grid: one row per bookable start hour,
+  // from the shared booking hours (8 AM to 8 PM, see bookingHours.ts).
+  const businessHours = Array.from({ length: BOOKING_END_HOUR - BOOKING_START_HOUR }, (_, i) => {
+    const hour24 = BOOKING_START_HOUR + i;
+    const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+    return { hour24, label: `${String(hour12).padStart(2, '0')}:00 ${hour24 < 12 ? 'AM' : 'PM'}` };
+  });
 
   // Group events by date and hour
   // Combines bookings and M365 synced busy events
@@ -609,7 +604,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
         {viewMode === 'day' && (
           <div className="p-4 sm:p-6 space-y-3">
             <div className="text-xs font-semibold text-gray-500 mb-2">
-              Daily Office 365 Timeline • Showing appointments from 8:00 AM to 5:00 PM
+              Daily Office 365 Timeline • Showing appointments from {BOOKING_HOURS_LABEL.replace('–', 'to')}
             </div>
 
             <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden">
