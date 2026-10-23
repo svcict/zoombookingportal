@@ -1566,6 +1566,10 @@ function getM365OAuthConfig(req: express.Request) {
 // account that hosts a given meeting is the only mailbox that matters
 // for it.
 let graphAppToken: { token: string; expiresAt: number } | null = null;
+// A token request already in flight, shared by concurrent callers (e.g. the
+// parallel confirmation emails + calendar event) so a cold cache triggers one
+// token fetch, not one per call.
+let graphAppTokenInFlight: Promise<string | null> | null = null;
 
 async function getGraphAppToken(): Promise<string | null> {
   const tenantId = (process.env.MICROSOFT_TENANT_ID || '').trim();
@@ -1577,6 +1581,15 @@ async function getGraphAppToken(): Promise<string | null> {
     return graphAppToken.token;
   }
 
+  if (!graphAppTokenInFlight) {
+    graphAppTokenInFlight = fetchGraphAppToken(tenantId, clientId, clientSecret).finally(() => {
+      graphAppTokenInFlight = null;
+    });
+  }
+  return graphAppTokenInFlight;
+}
+
+async function fetchGraphAppToken(tenantId: string, clientId: string, clientSecret: string): Promise<string | null> {
   const tokenRes = await fetch(`https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -3196,13 +3209,21 @@ app.post('/api/bookings', async (req, res) => {
     );
 
     const { subject, html: hostKeyHtml } = buildBookingConfirmationEmail(newBooking, realHostLabel, true);
-    const sensitiveEmailResult = await sendGraphMail(senderMailbox, sensitiveRecipients, subject, hostKeyHtml);
+    const plainHtml = plainRecipients.length > 0
+      ? buildBookingConfirmationEmail(newBooking, realHostLabel, false).html
+      : '';
 
-    let plainEmailResult: { success: boolean; error?: string } = { success: true };
-    if (plainRecipients.length > 0) {
-      const { html: plainHtml } = buildBookingConfirmationEmail(newBooking, realHostLabel, false);
-      plainEmailResult = await sendGraphMail(senderMailbox, plainRecipients, subject, plainHtml);
-    }
+    // Both emails and the Outlook event (Exchange sends its own native
+    // invite to every attendee, on the same rotating account's mailbox) are
+    // independent Graph calls that each catch their own errors, so run them
+    // together - the booker otherwise waits for all three back to back.
+    const [sensitiveEmailResult, plainEmailResult, eventResult] = await Promise.all([
+      sendGraphMail(senderMailbox, sensitiveRecipients, subject, hostKeyHtml),
+      plainRecipients.length > 0
+        ? sendGraphMail(senderMailbox, plainRecipients, subject, plainHtml)
+        : Promise.resolve<{ success: boolean; error?: string }>({ success: true }),
+      createGraphCalendarEvent(senderMailbox, newBooking),
+    ]);
 
     const emailResult = {
       success: sensitiveEmailResult.success && plainEmailResult.success,
@@ -3215,9 +3236,6 @@ app.post('/api/bookings', async (req, res) => {
       newBooking.reminders.emailError = emailResult.error;
     }
 
-    // Real Outlook calendar event, created on the same rotating account's
-    // mailbox - Exchange sends its own native invite to every attendee.
-    const eventResult = await createGraphCalendarEvent(senderMailbox, newBooking);
     if (eventResult.success) {
       newBooking.m365SyncStatus = 'synced';
       newBooking.m365EventId = eventResult.eventId;
