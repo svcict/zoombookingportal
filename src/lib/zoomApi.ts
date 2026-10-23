@@ -85,6 +85,10 @@ export function getAccountAdminView(key: ZoomAccountKey): ZoomAccountAdminView {
 }
 
 const tokenCache = new Map<ZoomAccountKey, { token: string; expiresAt: number }>();
+// Token requests already in flight per account, shared by concurrent callers
+// (e.g. a bulk cancel running several meetings at once) so a cold cache
+// triggers one OAuth request per account, not one per call.
+const tokenInFlight = new Map<ZoomAccountKey, Promise<string>>();
 
 async function getAccessToken(key: ZoomAccountKey): Promise<string> {
   const creds = readCredentials(key);
@@ -95,6 +99,18 @@ async function getAccessToken(key: ZoomAccountKey): Promise<string> {
     return cached.token;
   }
 
+  let pending = tokenInFlight.get(key);
+  if (!pending) {
+    pending = fetchAccessToken(key, creds).finally(() => tokenInFlight.delete(key));
+    tokenInFlight.set(key, pending);
+  }
+  return pending;
+}
+
+async function fetchAccessToken(
+  key: ZoomAccountKey,
+  creds: NonNullable<ReturnType<typeof readCredentials>>
+): Promise<string> {
   const basicAuth = Buffer.from(`${creds.clientId}:${creds.clientSecret}`).toString('base64');
   const res = await fetch(
     `${ZOOM_OAUTH_TOKEN_URL}?grant_type=account_credentials&account_id=${encodeURIComponent(creds.accountId)}`,

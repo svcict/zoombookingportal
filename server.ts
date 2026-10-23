@@ -537,7 +537,7 @@ function generateZoomDetails(meetingTitle: string, hostName: string = 'Sarah Jen
 
   // Record Zoom API REST Call Log
   const log: ZoomApiLog = {
-    id: `zlog-${Date.now()}`,
+    id: `zlog-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     timestamp: new Date().toISOString(),
     method: 'POST',
     endpoint: 'https://api.zoom.us/v2/users/me/meetings',
@@ -602,13 +602,11 @@ async function checkZoomAccountsFreeAt(startIso: string, endIso: string): Promis
     return blocks.some((block) => startMs < new Date(block.endIso).getTime() && endMs > new Date(block.startIso).getTime());
   };
 
-  const free: ZoomAccountKey[] = [];
-  for (const key of configured) {
-    if (overlapsExistingBooking(key)) continue;
-    if (await overlapsRealM365(key)) continue;
-    free.push(key);
-  }
-  return free;
+  // Cheap in-memory check first; the remaining accounts' M365 calendars are
+  // then checked together rather than one Graph call after another.
+  const candidates = configured.filter((key) => !overlapsExistingBooking(key));
+  const busyInM365 = await Promise.all(candidates.map((key) => overlapsRealM365(key)));
+  return candidates.filter((_, i) => !busyInM365[i]);
 }
 
 // Picks a Zoom account for a new meeting, favoring whichever configured
@@ -707,7 +705,7 @@ async function provisionZoomMeeting(
   }
 
   const provisionLog: ZoomApiLog = {
-    id: `zlog-${Date.now()}`,
+    id: `zlog-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     timestamp: new Date().toISOString(),
     method: 'POST',
     endpoint: result.endpoint,
@@ -1017,22 +1015,28 @@ async function initPersistence(): Promise<void> {
     await removeDeprecatedCustomQuestions();
   }
 
-  const loadedBookings = await loadTable<any>('bookings');
+  // The remaining tables are independent of each other (and of the seeding
+  // above), so load them together - this only speeds up server start.
+  const [
+    loadedBookings,
+    loadedZoomLogs,
+    loadedFailedLogins,
+    loadedPushSubscriptions,
+    loadedSuccessfulLogins,
+    loadedSystemActivityLogs,
+  ] = await Promise.all([
+    loadTable<any>('bookings'),
+    loadTable<ZoomApiLog>('zoom_api_logs'),
+    loadTable<FailedAttemptRecord>('failed_login_logs'),
+    loadTable<PushSubscriptionRecord>('push_subscriptions'),
+    loadTable<SuccessfulLoginRecord>('successful_logins'),
+    loadTable<SystemActivityLog>('system_activity_logs'),
+  ]);
   if (loadedBookings) bookings = loadedBookings;
-
-  const loadedZoomLogs = await loadTable<ZoomApiLog>('zoom_api_logs');
   if (loadedZoomLogs) zoomApiLogs = loadedZoomLogs;
-
-  const loadedFailedLogins = await loadTable<FailedAttemptRecord>('failed_login_logs');
   if (loadedFailedLogins) failedLoginLogs.push(...loadedFailedLogins);
-
-  const loadedPushSubscriptions = await loadTable<PushSubscriptionRecord>('push_subscriptions');
   if (loadedPushSubscriptions) pushSubscriptions = loadedPushSubscriptions;
-
-  const loadedSuccessfulLogins = await loadTable<SuccessfulLoginRecord>('successful_logins');
   if (loadedSuccessfulLogins) successfulLogins.push(...loadedSuccessfulLogins);
-
-  const loadedSystemActivityLogs = await loadTable<SystemActivityLog>('system_activity_logs');
   if (loadedSystemActivityLogs) systemActivityLogs = loadedSystemActivityLogs;
 
   console.log(
@@ -2664,13 +2668,14 @@ app.get('/api/availability', async (req, res) => {
     const zoomAccountM365Blocks = new Map<ZoomAccountKey, M365BusyBlock[]>();
     if (m365CalendarState.syncEnabled && configuredZoomAccounts.length > 0) {
       let anyReachable = false;
-      for (const key of configuredZoomAccounts) {
-        const blocks = await getZoomAccountM365BusyBlocks(key, date);
+      const allBlocks = await Promise.all(configuredZoomAccounts.map((key) => getZoomAccountM365BusyBlocks(key, date)));
+      configuredZoomAccounts.forEach((key, i) => {
+        const blocks = allBlocks[i];
         if (blocks !== null) {
           zoomAccountM365Blocks.set(key, blocks);
           anyReachable = true;
         }
-      }
+      });
       m365CalendarState.lastCheckedAt = new Date().toISOString();
       m365CalendarState.connected = anyReachable;
       m365CalendarState.lastError = anyReachable ? null : 'Could not reach Microsoft Graph for either rotating account mailbox.';
@@ -2934,11 +2939,14 @@ async function resolveIdentity(req: express.Request): Promise<RequestIdentity | 
       : null;
     if (!token) return null;
 
-    // Real Supabase sessions first; fall back to our own signed demo-account
-    // tokens (see issueDemoSessionToken) for explicitly allowlisted demo
-    // profiles that don't have a real Supabase Auth password, and to
-    // real Microsoft Entra ID SSO sessions (see issueM365SsoSessionToken).
-    return (await verifySessionToken(token)) || verifyDemoSessionToken(token) || verifyM365SsoSessionToken(token);
+    // Our own signed tokens - demo-account sessions (see
+    // issueDemoSessionToken) for allowlisted demo profiles without a real
+    // Supabase Auth password, and Microsoft Entra ID SSO sessions (see
+    // issueM365SsoSessionToken) - are recognised by prefix and verified
+    // locally, so check them first: otherwise every request carrying one
+    // first waits on two Supabase round trips that can only fail. Anything
+    // else is a real Supabase session.
+    return verifyDemoSessionToken(token) || verifyM365SsoSessionToken(token) || (await verifySessionToken(token));
   }
 
   const raw = req.headers['x-user-email'];
@@ -3082,7 +3090,10 @@ app.post('/api/bookings', async (req, res) => {
     // Jenkins") is a cosmetic label for which of the 2 rotating Zoom
     // accounts to route to, not who Zoom will show as host.
     const senderMailbox = zoomAccountKey ? (process.env[`ZOOM_ACCOUNT_${zoomAccountKey}_USER_ID`] || '') : '';
-    const realHostLabel = (zoomAccountKey ? await getZoomAccountRealName(zoomAccountKey) : null) || senderMailbox || assignedHost.name;
+    // Started now, awaited after the Zoom meeting is created - the two only
+    // depend on zoomAccountKey, so the name lookup (on a cold 1h cache)
+    // overlaps the Zoom call instead of delaying it.
+    const realHostNamePromise = zoomAccountKey ? getZoomAccountRealName(zoomAccountKey) : Promise.resolve(null);
 
     let zoomDetails;
     let usedAlternativeHosts = '';
@@ -3116,6 +3127,8 @@ app.post('/api/bookings', async (req, res) => {
     // privileges to whoever it reaches.
     const hostKey = zoomAccountKey && sendHostKey ? getAccountHostKey(zoomAccountKey) : null;
     if (hostKey) zoomDetails.hostKey = hostKey;
+
+    const realHostLabel = (await realHostNamePromise) || senderMailbox || assignedHost.name;
 
     const newBooking = {
       id: `zm-${Math.floor(100000 + Math.random() * 900000)}`,
@@ -3325,7 +3338,7 @@ app.patch('/api/bookings/:id', async (req, res) => {
       }
 
       const updateLog: ZoomApiLog = {
-        id: `zlog-${Date.now()}`,
+        id: `zlog-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         timestamp: new Date().toISOString(),
         method: 'PATCH',
         endpoint: result.endpoint,
@@ -3364,7 +3377,10 @@ app.patch('/api/bookings/:id', async (req, res) => {
   // same reasoning as creation: Zoom resets that to '' when the nominee
   // isn't eligible as Alternative Host, which is exactly when the Host Key
   // fallback matters most.
+  // The Host Key email and the Outlook subject update are independent Graph
+  // calls, so both are started here and awaited together below.
   let hostKeyMessage = '';
+  let hostKeyEmail: Promise<void> = Promise.resolve();
   if (sendHostKey && accountKey && isAccountConfigured(accountKey)) {
     const hostKey = getAccountHostKey(accountKey);
     if (hostKey) {
@@ -3375,10 +3391,11 @@ app.patch('/api/bookings/:id', async (req, res) => {
       const recipients = [booking.participantEmail, ...(isNominatedHost ? [nominatedHost] : [])];
       const senderMailbox = process.env[`ZOOM_ACCOUNT_${accountKey}_USER_ID`] || '';
       const { subject, html } = buildBookingConfirmationEmail(booking, booking.hostName, true);
-      const emailResult = await sendGraphMail(senderMailbox, recipients, subject, html);
-      hostKeyMessage = emailResult.success
-        ? ` Host Key sent to ${recipients.join(', ')}.`
-        : ` Failed to send Host Key email: ${emailResult.error}`;
+      hostKeyEmail = sendGraphMail(senderMailbox, recipients, subject, html).then((emailResult) => {
+        hostKeyMessage = emailResult.success
+          ? ` Host Key sent to ${recipients.join(', ')}.`
+          : ` Failed to send Host Key email: ${emailResult.error}`;
+      });
     } else {
       hostKeyMessage = ' Could not send Host Key: none is configured on this Zoom account.';
     }
@@ -3387,15 +3404,19 @@ app.patch('/api/bookings/:id', async (req, res) => {
   // Keep the real Outlook calendar event's subject in sync when the
   // meeting title changes.
   let calendarSyncMessage = '';
+  let calendarSync: Promise<void> = Promise.resolve();
   if (meetingTitle && booking.m365SyncStatus === 'synced' && booking.m365EventId && accountKey) {
     const mailbox = process.env[`ZOOM_ACCOUNT_${accountKey}_USER_ID`] || '';
-    const eventUpdate = await updateGraphCalendarEvent(mailbox, booking.m365EventId, { subject: meetingTitle });
-    if (!eventUpdate.success) {
-      booking.m365SyncStatus = 'failed';
-      booking.m365SyncError = eventUpdate.error;
-      calendarSyncMessage = ` Outlook calendar event failed to update: ${eventUpdate.error}`;
-    }
+    calendarSync = updateGraphCalendarEvent(mailbox, booking.m365EventId, { subject: meetingTitle }).then((eventUpdate) => {
+      if (!eventUpdate.success) {
+        booking.m365SyncStatus = 'failed';
+        booking.m365SyncError = eventUpdate.error;
+        calendarSyncMessage = ` Outlook calendar event failed to update: ${eventUpdate.error}`;
+      }
+    });
   }
+
+  await Promise.all([hostKeyEmail, calendarSync]);
 
   await upsertRow('bookings', booking.id, booking);
   logSystemActivity('booking', 'Meeting updated', identity.email, `Updated "${booking.meetingTitle}" (${booking.id}).`);
@@ -3423,7 +3444,7 @@ async function cancelBookingReal(booking: any): Promise<{ success: boolean; mess
     try {
       const result = await deleteZoomMeeting(accountKey, rawMeetingId);
       const cancelLog: ZoomApiLog = {
-        id: `zlog-${Date.now()}`,
+        id: `zlog-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         timestamp: new Date().toISOString(),
         method: 'DELETE',
         endpoint: result.endpoint,
@@ -3451,7 +3472,7 @@ async function cancelBookingReal(booking: any): Promise<{ success: boolean; mess
     }
   } else {
     const mockCancelLog: ZoomApiLog = {
-      id: `zlog-${Date.now()}`,
+      id: `zlog-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       timestamp: new Date().toISOString(),
       method: 'DELETE',
       endpoint: `https://api.zoom.us/v2/meetings/${rawMeetingId}`,
@@ -3523,11 +3544,21 @@ app.post('/api/bookings/cancel-mine', async (req, res) => {
     (b) => b.status !== 'cancelled' && (b.participantEmail || '').toLowerCase().trim() === identity.email
   );
 
-  const results: Array<{ id: string; success: boolean; message: string }> = [];
-  for (const booking of targets) {
-    const result = await cancelBookingReal(booking);
-    results.push({ id: booking.id, success: result.success, message: result.message });
-  }
+  // A few at a time rather than strictly one by one (each cancel is a Zoom
+  // DELETE + Graph DELETE + upsert, ~1s) - but bounded, since Zoom and Graph
+  // both throttle bursts against the same account/mailbox.
+  const CANCEL_CONCURRENCY = 3;
+  const results: Array<{ id: string; success: boolean; message: string }> = new Array(targets.length);
+  let nextIndex = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(CANCEL_CONCURRENCY, targets.length) }, async () => {
+      while (nextIndex < targets.length) {
+        const i = nextIndex++;
+        const result = await cancelBookingReal(targets[i]);
+        results[i] = { id: targets[i].id, success: result.success, message: result.message };
+      }
+    })
+  );
 
   const cancelledCount = results.filter((r) => r.success).length;
   if (cancelledCount > 0) {
