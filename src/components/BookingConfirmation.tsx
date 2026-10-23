@@ -390,7 +390,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
         
         {/* Zoom Blue Ribbon */}
-        <div className={`${isCancelled ? 'bg-gray-500' : 'bg-[#0433FF]'} text-white px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3`}>
+        <div className={`${isCancelled ? 'bg-gray-600' : 'bg-[#0433FF]'} text-white px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
               <Video className="w-5 h-5 text-white" />
