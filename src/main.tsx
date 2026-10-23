@@ -1,7 +1,5 @@
-import {StrictMode} from 'react';
+import {StrictMode, Suspense, lazy} from 'react';
 import {createRoot} from 'react-dom/client';
-import App from './App.tsx';
-import AdminPortal from './components/AdminPortal.tsx';
 // Self-hosted (bundled, not a runtime Google Fonts request) so Inter
 // reliably applies everywhere - an external font link can silently fail to
 // load depending on the network/CSP, which left some text falling back to
@@ -18,8 +16,16 @@ import './index.css';
 // share component state or a page shell.
 const isAdminPortal = window.location.pathname === '/admin';
 
+// Each page is its own chunk, so staff never download the admin screens
+// (security audit, M365/Zoom settings, user management) and vice versa.
+const Page = isAdminPortal
+  ? lazy(() => import('./components/AdminPortal.tsx'))
+  : lazy(() => import('./App.tsx'));
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {isAdminPortal ? <AdminPortal /> : <App />}
+    <Suspense fallback={null}>
+      <Page />
+    </Suspense>
   </StrictMode>,
 );

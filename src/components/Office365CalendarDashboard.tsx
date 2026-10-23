@@ -97,11 +97,15 @@ export const DashboardWelcomeCard: React.FC<DashboardWelcomeCardProps> = ({
   );
 };
 
+// Stable default so the calendarEventsMap memo below isn't invalidated by a
+// fresh [] every render when no synced events are passed.
+const EMPTY_SYNCED_EVENTS: SyncedM365Event[] = [];
+
 export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProps> = ({
   authUser,
   m365State,
   bookings,
-  syncedEvents = [],
+  syncedEvents = EMPTY_SYNCED_EVENTS,
   onNavigateToSchedule,
   onScheduleMeeting,
   onSelectBookingForDetails,
@@ -304,8 +308,25 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
       });
     });
 
+    // Earliest first within each day, so meetings sharing an hour slot (and
+    // the month view's list) read in time order, not booking-creation order.
+    Object.keys(map).forEach((date) => map[date].sort((a, b) => a.time.localeCompare(b.time)));
     return map;
   }, [bookings, syncedEvents, accountName]);
+
+  // The same events indexed by `${date}|${HH}`, so each hour cell of the
+  // day/week grid is a lookup instead of re-filtering its whole day.
+  const calendarEventsByHour = useMemo(() => {
+    const byHour: Record<string, typeof calendarEventsMap[string]> = {};
+    (Object.keys(calendarEventsMap)).forEach((date) => {
+      const events = calendarEventsMap[date];
+      events.forEach((e) => {
+        const key = `${date}|${e.time.split(':')[0]}`;
+        (byHour[key] ||= []).push(e);
+      });
+    });
+    return byHour;
+  }, [calendarEventsMap]);
 
   // Navigate dates
   const handlePrev = () => {
@@ -510,12 +531,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
 
                       {/* 7 Days Columns for this Hour */}
                       {weekDays.map((day) => {
-                        const dayEvents = calendarEventsMap[day.dateStr] || [];
-                        // Filter events matching this hour
-                        const matchingEvents = dayEvents.filter((e) => {
-                          const eventHour = e.time.split(':')[0];
-                          return eventHour === hourStr;
-                        });
+                        const matchingEvents = calendarEventsByHour[`${day.dateStr}|${hourStr}`] || [];
 
                         return (
                           <div
@@ -600,8 +616,7 @@ export const Office365CalendarDashboard: React.FC<Office365CalendarDashboardProp
               {businessHours.map((slot) => {
                 const hourStr = String(slot.hour24).padStart(2, '0');
                 const dateKey = toDateKey(currentAnchorDate);
-                const dayEvents = calendarEventsMap[dateKey] || [];
-                const matching = dayEvents.filter((e) => e.time.split(':')[0] === hourStr);
+                const matching = calendarEventsByHour[`${dateKey}|${hourStr}`] || [];
 
                 return (
                   <div

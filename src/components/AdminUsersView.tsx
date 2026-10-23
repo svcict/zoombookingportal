@@ -4,6 +4,9 @@ import { ShieldCheck, UserPlus, UserMinus, RefreshCw, CheckCircle2, AlertTriangl
 interface AdminUsersViewProps {
   adminEmail?: string;
   authHeaders?: Record<string, string>;
+  // Called when the server rejects the session (401) - AdminPortal uses this
+  // to prompt a fresh sign-in, so it doesn't need its own probe request.
+  onUnauthorized?: () => void;
 }
 
 interface AdminUsersData {
@@ -12,7 +15,7 @@ interface AdminUsersData {
   supabaseConfigured: boolean;
 }
 
-export const AdminUsersView: React.FC<AdminUsersViewProps> = ({ adminEmail, authHeaders = {} }) => {
+export const AdminUsersView: React.FC<AdminUsersViewProps> = ({ adminEmail, authHeaders = {}, onUnauthorized }) => {
   const [data, setData] = useState<AdminUsersData>({ grantedAdmins: [], bootstrapAdmins: [], supabaseConfigured: false });
   const [isLoading, setIsLoading] = useState(false);
   const [newEmail, setNewEmail] = useState('');
@@ -48,6 +51,10 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({ adminEmail, auth
     setIsLoading(true);
     try {
       const res = await fetch('/api/admin/users', { headers: authHeaders });
+      if (res.status === 401) {
+        onUnauthorized?.();
+        return;
+      }
       const json = await res.json();
       if (res.ok && json.success) {
         setData(json.data);

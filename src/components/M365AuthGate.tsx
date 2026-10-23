@@ -74,25 +74,26 @@ export const M365AuthGate: React.FC<M365AuthGateProps> = ({ onAuthenticated, var
       .catch(() => {});
   }, []);
 
-  // Countdown timer for lockout
+  // Countdown timer for lockout - one interval for the whole lockout (not
+  // rebuilt every second), with a pure updater; unlocking is a separate step
+  // below rather than a side effect inside the state updater.
+  const isCountingDown = isLockedOut && !isIpBlocked && lockoutRemaining > 0;
   useEffect(() => {
-    if (!isLockedOut || lockoutRemaining <= 0 || isIpBlocked) return;
-
+    if (!isCountingDown) return;
     const timer = setInterval(() => {
-      setLockoutRemaining((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setIsLockedOut(false);
-          setAuthError(null);
-          fetchRateLimitStatus();
-          return 0;
-        }
-        return prev - 1;
-      });
+      setLockoutRemaining((prev) => Math.max(prev - 1, 0));
     }, 1000);
-
     return () => clearInterval(timer);
-  }, [isLockedOut, lockoutRemaining, isIpBlocked]);
+  }, [isCountingDown]);
+
+  // Countdown reached zero: unlock the form and re-check with the server.
+  useEffect(() => {
+    if (isLockedOut && !isIpBlocked && lockoutRemaining === 0) {
+      setIsLockedOut(false);
+      setAuthError(null);
+      fetchRateLimitStatus();
+    }
+  }, [isLockedOut, isIpBlocked, lockoutRemaining]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const formatCountdown = (seconds: number) => {
     const mins = Math.floor(seconds / 60);

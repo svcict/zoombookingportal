@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
 import { Header } from './components/Header';
 import { M365AuthGate } from './components/M365AuthGate';
 import { SimpleDateTimePicker } from './components/SimpleDateTimePicker';
@@ -8,7 +8,6 @@ import { BookingConfirmation } from './components/BookingConfirmation';
 import { HostBookingsView } from './components/HostBookingsView';
 import { TimezoneSelector } from './components/TimezoneSelector';
 import { Office365CalendarDashboard, DashboardWelcomeCard } from './components/Office365CalendarDashboard';
-import { ZoomMeetingDetailsModal } from './components/ZoomMeetingDetailsModal';
 import { SlotUnavailableModal } from './components/SlotUnavailableModal';
 import { MeetingType, TimeSlot, Booking, M365CalendarState, M365User } from './types';
 import { INITIAL_MEETING_TYPES, INITIAL_M365_STATE } from './data/initialData';
@@ -16,6 +15,12 @@ import { getDetectedTimezone, formatDateInTimezone } from './utils/timezone';
 import { playZoomNotificationSound, sendBrowserPushNotification } from './utils/notifications';
 import { buildAuthHeaders } from './utils/auth';
 import { Video, Sparkles } from 'lucide-react';
+
+// Only opened on demand (a meeting's settings), so loaded on first open
+// rather than shipped in the initial bundle.
+const ZoomMeetingDetailsModal = lazy(() =>
+  import('./components/ZoomMeetingDetailsModal').then((m) => ({ default: m.ZoomMeetingDetailsModal }))
+);
 
 export default function App() {
   // 1. M365 Authentication State
@@ -82,6 +87,17 @@ export default function App() {
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
   const [isSlotUnavailableModalOpen, setIsSlotUnavailableModalOpen] = useState(false);
   const [bannerNotice, setBannerNotice] = useState<string | null>(null);
+  // One shared hide-timer, reset on each new notice - otherwise an earlier
+  // notice's timer hides a newer one early.
+  const bannerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showBanner = (message: string, durationMs = 4000) => {
+    if (bannerTimeoutRef.current) clearTimeout(bannerTimeoutRef.current);
+    setBannerNotice(message);
+    bannerTimeoutRef.current = setTimeout(() => setBannerNotice(null), durationMs);
+  };
+  useEffect(() => () => {
+    if (bannerTimeoutRef.current) clearTimeout(bannerTimeoutRef.current);
+  }, []);
 
   // Without this, navigating to a new view/step (e.g. the intake form to
   // the confirmation screen, or dashboard to booking) kept whatever scroll
@@ -142,23 +158,29 @@ export default function App() {
 
   // Periodically refresh bookings so live-meeting status (set by the Zoom
   // webhook listener on the server) shows up without a manual reload.
+  // Skipped while the tab is hidden, and a response identical to what's
+  // already shown keeps the same array so the calendar and lists don't
+  // re-render for nothing. Re-subscribes when authHeaders change (e.g. a
+  // refreshed session token) so it never keeps polling with a stale one.
   useEffect(() => {
     if (!authUser?.email) return;
     const headers = authHeaders;
     const interval = setInterval(async () => {
+      if (document.hidden) return;
       try {
         const res = await fetch('/api/bookings', { headers });
         if (!res.ok) return;
         const data = await res.json();
         if (data.success && Array.isArray(data.data)) {
-          setBookings(data.data);
+          const fresh = JSON.stringify(data.data);
+          setBookings((prev) => (JSON.stringify(prev) === fresh ? prev : data.data));
         }
       } catch {
         // Ignore transient network errors; next poll will retry
       }
     }, 20000);
     return () => clearInterval(interval);
-  }, [authUser?.email]);
+  }, [authUser?.email, authHeaders]);
 
   // Filter visible bookings according to RBAC:
   // Admin sees all organization meetings.
@@ -309,8 +331,7 @@ export default function App() {
     if (confirmedBooking?.id === bookingId) {
       setConfirmedBooking((prev) => (prev ? { ...prev, status: 'cancelled' } : null));
     }
-    setBannerNotice(data.message || 'Meeting cancelled.');
-    setTimeout(() => setBannerNotice(null), 4000);
+    showBanner(data.message || 'Meeting cancelled.');
   };
 
   // Cancel every one of the caller's own bookings for real (Zoom + Outlook)
@@ -326,8 +347,7 @@ export default function App() {
         setBookings((prev) =>
           prev.map((b) => (cancelledIds.has(b.id) ? { ...b, status: 'cancelled' } : b))
         );
-        setBannerNotice(data.message);
-        setTimeout(() => setBannerNotice(null), 4000);
+        showBanner(data.message);
       } else {
         alert(data.error || data.message || 'Failed to cancel bookings.');
       }
@@ -347,9 +367,12 @@ export default function App() {
   // The fixed meeting-type record still supplies host, Zoom style, and
   // custom questions - only its duration is overridden with whatever
   // length the user actually picked in SimpleDateTimePicker.
-  const effectiveMeetingType = selectedMeetingType
-    ? { ...selectedMeetingType, duration: customDurationMinutes }
-    : null;
+  // Memoized so typing in the Topic box doesn't hand the agenda questions and
+  // picker a brand-new object (and a re-render) on every keystroke.
+  const effectiveMeetingType = useMemo(
+    () => (selectedMeetingType ? { ...selectedMeetingType, duration: customDurationMinutes } : null),
+    [selectedMeetingType, customDurationMinutes]
+  );
 
   return (
     <div className="min-h-screen bg-[#F7F9FA] text-[#2D2E33] font-sans flex flex-col selection:bg-blue-100 selection:text-[#0433FF]">
@@ -558,8 +581,7 @@ export default function App() {
                     prev.map((b) => (b.id === confirmedBooking.id ? savedBooking ?? { ...b, zoomConfig: updatedConfig } : b))
                   );
                   setConfirmedBooking((prev) => (prev ? savedBooking ?? { ...prev, zoomConfig: updatedConfig } : null));
-                  setBannerNotice('Zoom meeting details updated and synced to Office 365 Exchange.');
-                  setTimeout(() => setBannerNotice(null), 4000);
+                  showBanner('Zoom meeting details updated and synced to Office 365 Exchange.');
                 }}
               />
             )}
@@ -571,39 +593,40 @@ export default function App() {
 
       {/* Zoom Meeting Details Modal (When user clicks meeting on Dashboard or list) */}
       {selectedBookingForDetails && (
-        <ZoomMeetingDetailsModal
-          booking={selectedBookingForDetails}
-          initialConfig={selectedBookingForDetails.zoomConfig}
-          onClose={() => setSelectedBookingForDetails(null)}
-          onSave={async (updatedConfig, sendHostKey) => {
-            try {
-              const res = await fetch(`/api/bookings/${selectedBookingForDetails.id}`, {
-                method: 'PATCH',
-                headers: {
-                  'Content-Type': 'application/json',
-                  ...authHeaders,
-                },
-                body: JSON.stringify({
-                  zoomConfig: updatedConfig,
-                  guestEmails: updatedConfig.invitees,
-                  sendHostKey,
-                }),
-              });
-              let message = 'Zoom meeting settings saved and synced with Microsoft 365 Exchange.';
-              if (res.ok) {
-                const data = await res.json();
-                if (data.data) {
-                  setBookings((prev) => prev.map((b) => (b.id === data.data.id ? data.data : b)));
+        <Suspense fallback={null}>
+          <ZoomMeetingDetailsModal
+            booking={selectedBookingForDetails}
+            initialConfig={selectedBookingForDetails.zoomConfig}
+            onClose={() => setSelectedBookingForDetails(null)}
+            onSave={async (updatedConfig, sendHostKey) => {
+              try {
+                const res = await fetch(`/api/bookings/${selectedBookingForDetails.id}`, {
+                  method: 'PATCH',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...authHeaders,
+                  },
+                  body: JSON.stringify({
+                    zoomConfig: updatedConfig,
+                    guestEmails: updatedConfig.invitees,
+                    sendHostKey,
+                  }),
+                });
+                let message = 'Zoom meeting settings saved and synced with Microsoft 365 Exchange.';
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data.data) {
+                    setBookings((prev) => prev.map((b) => (b.id === data.data.id ? data.data : b)));
+                  }
+                  if (data.message) message = data.message;
                 }
-                if (data.message) message = data.message;
+                showBanner(message, 5000);
+              } catch (e) {
+                console.error('Failed to update booking:', e);
               }
-              setBannerNotice(message);
-              setTimeout(() => setBannerNotice(null), 5000);
-            } catch (e) {
-              console.error('Failed to update booking:', e);
-            }
-          }}
-        />
+            }}
+          />
+        </Suspense>
       )}
 
       {/* Slot Unavailable Modal (both rotating Zoom accounts got booked first) */}

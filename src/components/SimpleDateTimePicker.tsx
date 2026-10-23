@@ -135,23 +135,26 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
   const [availability, setAvailability] = useState<AvailabilityState>({ status: 'unknown' });
   const requestIdRef = useRef(0);
 
-  // Jump the calendar to whichever end's month is being edited.
-  useEffect(() => {
-    const d = new Date(`${step === 'start' ? startDate : endDate}T12:00:00`);
-    setViewYear(d.getFullYear());
-    setViewMonth(d.getMonth());
-  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Show the month of whichever end is about to be edited.
+  const showMonthOf = (dateStr: string) => {
+    setViewYear(Number(dateStr.slice(0, 4)));
+    setViewMonth(Number(dateStr.slice(5, 7)) - 1);
+  };
 
   // Moving the start never lands in the past (snaps to the earliest open
   // slot instead) and carries the end along so the meeting length is kept.
   const setStart = (next: WallTime) => {
     const clamped = compareWall(next, earliestStart) < 0 ? earliestStart : next;
+    setApplied(false);
     setStartRaw(clamped);
     setEndRaw(addMinutes(clamped, durationMinutes > 0 ? durationMinutes : DEFAULT_DURATION));
   };
   // The end can't be at or before the start.
   const minEnd = addMinutes(start, 5);
-  const setEnd = (next: WallTime) => setEndRaw(compareWall(next, minEnd) < 0 ? minEnd : next);
+  const setEnd = (next: WallTime) => {
+    setApplied(false);
+    setEndRaw(compareWall(next, minEnd) < 0 ? minEnd : next);
+  };
 
   // If the clock (or a timezone change) overtakes the chosen start, move it
   // up to the next open slot rather than leaving a stale past time selected.
@@ -165,7 +168,13 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
   const durationMinutes = Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000);
   const isValidRange = durationMinutes > 0;
 
+  // Tell the parent when the start day changes. Skipped when it already has
+  // this day (e.g. remounting after Back), since the parent's handler also
+  // clears the applied slot.
+  const reportedDateRef = useRef(selectedDate);
   useEffect(() => {
+    if (startDate === reportedDateRef.current) return;
+    reportedDateRef.current = startDate;
     onSelectDate(startDate);
   }, [startDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -207,10 +216,6 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
     return () => clearTimeout(timeout);
   }, [startDate, startHour, startMinute, startAmpm, durationMinutes, isValidRange, isPast, selectedTimezone, meetingTypeId]);
 
-  useEffect(() => {
-    setApplied(false);
-  }, [startDate, startHour, startMinute, startAmpm, endDate, endHour, endMinute, endAmpm]);
-
   // Also hold Apply/Next while the free-slot check is still in flight, so a
   // clashing time can't slip through during the debounce + round trip. A
   // failed check ('unknown') stays bookable - the server re-checks on submit.
@@ -219,8 +224,14 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
   const pickStartDay = (d: string) => setStart({ date: d, minutes: start.minutes });
   const pickEndDay = (d: string) => setEnd({ date: d, minutes: end.minutes });
 
-  const handleNext = () => setStep('end');
-  const handleBack = () => setStep('start');
+  const handleNext = () => {
+    setStep('end');
+    showMonthOf(endDate);
+  };
+  const handleBack = () => {
+    setStep('start');
+    showMonthOf(startDate);
+  };
   const handleCancel = () => setIsOpen(false);
 
   const handleApply = () => {

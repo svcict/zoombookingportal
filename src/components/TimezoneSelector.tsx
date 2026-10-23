@@ -16,7 +16,15 @@ export const TimezoneSelector: React.FC<TimezoneSelectorProps> = ({
   onSelectTimezone,
 }) => {
   const [search, setSearch] = useState('');
-  const allTimezones = useMemo(() => getTimezoneOptions(), []);
+  // Recomputed each time the selector opens, so the "current time" column
+  // is the time now, not the time the app first loaded.
+  const allTimezones = useMemo(() => (isOpen ? getTimezoneOptions() : []), [isOpen]);
+
+  // Closing also clears the search, so the full list shows next time.
+  const handleClose = () => {
+    setSearch('');
+    onClose();
+  };
 
   const filteredTimezones = useMemo(() => {
     if (!search.trim()) return allTimezones;
@@ -48,7 +56,7 @@ export const TimezoneSelector: React.FC<TimezoneSelectorProps> = ({
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-500 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -84,7 +92,7 @@ export const TimezoneSelector: React.FC<TimezoneSelectorProps> = ({
                   key={tz.id}
                   onClick={() => {
                     onSelectTimezone(tz.id);
-                    onClose();
+                    handleClose();
                   }}
                   className={`w-full text-left px-4 py-3 rounded-xl flex items-center justify-between transition-colors ${
                     isSelected
@@ -128,7 +136,7 @@ export const TimezoneSelector: React.FC<TimezoneSelectorProps> = ({
             <span>Timezone conversion handled automatically by backend engine</span>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="font-bold text-[#0433FF] hover:underline"
           >
             Close

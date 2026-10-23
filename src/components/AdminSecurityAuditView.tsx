@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useDeferredValue } from 'react';
 import {
   ShieldAlert,
   RefreshCw,
@@ -74,6 +74,13 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
   const [systemLogsSearch, setSystemLogsSearch] = useState('');
   const [systemLogsCategoryFilter, setSystemLogsCategoryFilter] = useState<'all' | 'zoom' | 'admin' | 'booking' | 'meeting-type' | 'm365' | 'push'>('all');
   const [canceledMeetingsSearch, setCanceledMeetingsSearch] = useState('');
+  // The tables below filter up to ~500 rows per keystroke; deferring the
+  // search terms keeps typing responsive while the filtered list catches up.
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const deferredCreatedMeetingsSearch = useDeferredValue(createdMeetingsSearch);
+  const deferredLoginsSearch = useDeferredValue(loginsSearch);
+  const deferredSystemLogsSearch = useDeferredValue(systemLogsSearch);
+  const deferredCanceledMeetingsSearch = useDeferredValue(canceledMeetingsSearch);
 
   const auditRequestId = useRef(0);
 
@@ -150,8 +157,8 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
   };
 
   const filteredLogs = auditData.failedLogs.filter((log) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
+    if (!deferredSearchQuery.trim()) return true;
+    const q = deferredSearchQuery.toLowerCase();
     return (
       log.emailAttempted?.toLowerCase().includes(q) ||
       log.ip?.toLowerCase().includes(q) ||
@@ -165,8 +172,8 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
 
   const filteredCreatedMeetings = auditData.createdMeetings.filter((m) => {
     if (createdMeetingsStatusFilter !== 'all' && m.status !== createdMeetingsStatusFilter) return false;
-    if (!createdMeetingsSearch.trim()) return true;
-    const q = createdMeetingsSearch.toLowerCase();
+    if (!deferredCreatedMeetingsSearch.trim()) return true;
+    const q = deferredCreatedMeetingsSearch.toLowerCase();
     return (
       m.meetingTitle?.toLowerCase().includes(q) ||
       m.participantName?.toLowerCase().includes(q) ||
@@ -177,8 +184,8 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
 
   const filteredLogins = auditData.successfulLogins.filter((log) => {
     if (loginsProviderFilter !== 'all' && log.provider !== loginsProviderFilter) return false;
-    if (!loginsSearch.trim()) return true;
-    const q = loginsSearch.toLowerCase();
+    if (!deferredLoginsSearch.trim()) return true;
+    const q = deferredLoginsSearch.toLowerCase();
     return (
       log.email?.toLowerCase().includes(q) ||
       log.ip?.toLowerCase().includes(q) ||
@@ -188,8 +195,8 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
 
   const filteredSystemLogs = auditData.systemLogs.filter((log) => {
     if (systemLogsCategoryFilter !== 'all' && log.category !== systemLogsCategoryFilter) return false;
-    if (!systemLogsSearch.trim()) return true;
-    const q = systemLogsSearch.toLowerCase();
+    if (!deferredSystemLogsSearch.trim()) return true;
+    const q = deferredSystemLogsSearch.toLowerCase();
     return (
       log.action?.toLowerCase().includes(q) ||
       log.actor?.toLowerCase().includes(q) ||
@@ -198,8 +205,8 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
   });
 
   const filteredCanceledMeetings = auditData.cancelledMeetings.filter((m) => {
-    if (!canceledMeetingsSearch.trim()) return true;
-    const q = canceledMeetingsSearch.toLowerCase();
+    if (!deferredCanceledMeetingsSearch.trim()) return true;
+    const q = deferredCanceledMeetingsSearch.toLowerCase();
     return (
       m.meetingTitle?.toLowerCase().includes(q) ||
       m.participantName?.toLowerCase().includes(q) ||

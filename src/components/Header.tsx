@@ -67,20 +67,26 @@ export const Header: React.FC<HeaderProps> = ({
         setPushStatus('default');
       }
     })();
+  }, []);
 
+  // Live clock in the selected timezone - its own effect, so changing the
+  // timezone doesn't also re-run the push-subscription check above. The
+  // formatter is built once per timezone, not every second.
+  useEffect(() => {
+    let formatter: Intl.DateTimeFormat | null = null;
+    try {
+      formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: selectedTimezone,
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+    } catch {
+      formatter = null;
+    }
     const updateTime = () => {
-      try {
-        const time = new Intl.DateTimeFormat('en-US', {
-          timeZone: selectedTimezone,
-          hour: 'numeric',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: true
-        }).format(new Date());
-        setCurrentTimeStr(time);
-      } catch (e) {
-        setCurrentTimeStr(new Date().toLocaleTimeString());
-      }
+      setCurrentTimeStr(formatter ? formatter.format(new Date()) : new Date().toLocaleTimeString());
     };
 
     updateTime();

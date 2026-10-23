@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import confetti from 'canvas-confetti';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import {
   CheckCircle2,
   Video,
@@ -26,9 +25,15 @@ import {
 import { Booking, ZoomMeetingConfig } from '../types';
 import { downloadIcsFile, getOutlookWebCalendarUrl, getM365EnterpriseCalendarUrl, getGoogleCalendarUrl } from '../utils/calendar';
 import { enablePushNotifications, disablePushNotifications } from '../utils/pushSubscription';
-import { ZoomMeetingDetailsModal } from './ZoomMeetingDetailsModal';
 import { CancelMeetingDialog } from './CancelMeetingDialog';
 import { AppleIcon, GoogleCalendarIcon, MicrosoftOutlookIcon } from './CalendarProviderIcons';
+import { useResetTimer } from '../utils/useResetTimer';
+
+// Only opened on demand (a meeting's settings), so loaded on first open
+// rather than shipped in the initial bundle.
+const ZoomMeetingDetailsModal = lazy(() =>
+  import('./ZoomMeetingDetailsModal').then((m) => ({ default: m.ZoomMeetingDetailsModal }))
+);
 
 interface BookingConfirmationProps {
   booking: Booking;
@@ -52,6 +57,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
 }) => {
   const [currentBooking, setCurrentBooking] = useState<Booking>(booking);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const scheduleCopiedReset = useResetTimer();
   const [showDialIn, setShowDialIn] = useState(false);
   const [showPasscode, setShowPasscode] = useState(false);
   const [showHostKey, setShowHostKey] = useState(false);
@@ -82,15 +88,12 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
   // not again every time the booking object changes (saving settings,
   // cancelling the meeting).
   useEffect(() => {
-    try {
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 }
+    // Loaded on demand - it's only ever used here, once per booking.
+    import('canvas-confetti')
+      .then(({ default: confetti }) => confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } }))
+      .catch(() => {
+        // ignore - purely decorative
       });
-    } catch (e) {
-      // ignore
-    }
   }, []);
 
   useEffect(() => {
@@ -118,7 +121,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
   const copyToClipboard = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
     setCopiedField(fieldName);
-    setTimeout(() => setCopiedField(null), 2000);
+    scheduleCopiedReset(() => setCopiedField(null), 2000);
   };
 
   const handleSaveConfig = async (updatedConfig: ZoomMeetingConfig, sendHostKey: boolean) => {
@@ -657,12 +660,14 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
       </div>
 
       {isEditModalOpen && (
-        <ZoomMeetingDetailsModal
-          booking={currentBooking}
-          initialConfig={currentBooking.zoomConfig}
-          onClose={() => setIsEditModalOpen(false)}
-          onSave={handleSaveConfig}
-        />
+        <Suspense fallback={null}>
+          <ZoomMeetingDetailsModal
+            booking={currentBooking}
+            initialConfig={currentBooking.zoomConfig}
+            onClose={() => setIsEditModalOpen(false)}
+            onSave={handleSaveConfig}
+          />
+        </Suspense>
       )}
 
       {isCancelDialogOpen && onCancelMeeting && (

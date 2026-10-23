@@ -40,16 +40,9 @@ export default function AdminPortal() {
   // but every admin-gated request with its stale token now fails
   // server-side - without this check, that silently renders every admin
   // panel empty (it looks broken) instead of prompting a fresh sign-in.
+  // The portal always opens on the Admins tab, whose own /api/admin/users
+  // load reports a 401 here (onUnauthorized) - no separate probe request.
   const [sessionInvalid, setSessionInvalid] = useState(false);
-
-  useEffect(() => {
-    if (!isAdmin) return;
-    fetch('/api/admin/users', { headers: authHeaders })
-      .then((r) => {
-        if (r.status === 401) setSessionInvalid(true);
-      })
-      .catch(() => {});
-  }, [isAdmin]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -239,7 +232,7 @@ export default function AdminPortal() {
       </header>
 
       <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {currentView === 'admin-users' && <AdminUsersView adminEmail={authUser.email} authHeaders={authHeaders} />}
+        {currentView === 'admin-users' && <AdminUsersView adminEmail={authUser.email} authHeaders={authHeaders} onUnauthorized={() => setSessionInvalid(true)} />}
         {currentView === 'zoom-api' && <ZoomApiIntegrationView adminEmail={authUser.email} authHeaders={authHeaders} />}
         {currentView === 'm365' && (
           <M365SyncView

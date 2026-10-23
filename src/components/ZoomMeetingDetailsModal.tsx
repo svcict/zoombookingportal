@@ -6,6 +6,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { Booking, ZoomMeetingConfig } from '../types';
+import { useResetTimer } from '../utils/useResetTimer';
 
 interface ZoomMeetingDetailsModalProps {
   booking?: Booking | null;
@@ -123,9 +124,12 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
 
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const scheduleSavedReset = useResetTimer();
   const [showMoreOptionsModal, setShowMoreOptionsModal] = useState(false);
 
-  // Sync state if booking changes
+  // Load the form from the booking when a different booking is opened -
+  // keyed on its id, not the object, so a refreshed copy of the same booking
+  // (the 20s bookings poll, a parent re-render) doesn't wipe unsaved edits.
   useEffect(() => {
     if (booking) {
       setInvitees(booking.guestEmails || []);
@@ -150,7 +154,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
       setAutoRecord(cfg.autoRecord ?? false);
       setAlternativeHosts(cfg.alternativeHosts || '');
     }
-  }, [booking]);
+  }, [booking?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAddInvitee = () => {
     const trimmed = inviteeInput.trim();
@@ -194,7 +198,7 @@ export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = (
         await onSave(updatedConfig, sendHostKey);
       }
       setSavedSuccess(true);
-      setTimeout(() => setSavedSuccess(false), 3000);
+      scheduleSavedReset(() => setSavedSuccess(false), 3000);
     } catch (e) {
       console.error(e);
     } finally {

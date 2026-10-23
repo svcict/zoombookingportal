@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Video,
   Calendar,
@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Booking, MeetingType } from '../types';
 import { CancelMeetingDialog } from './CancelMeetingDialog';
+import { useResetTimer } from '../utils/useResetTimer';
 
 interface HostBookingsViewProps {
   bookings: Booking[];
@@ -265,7 +266,16 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const scheduleCopiedReset = useResetTimer();
   const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
+  // Re-render once a minute so a meeting that just ended moves to "Past
+  // Meetings" (and loses its Join button) without waiting for some other
+  // update - isMeetingPast reads the clock at render time.
+  const [, setMinuteTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setMinuteTick((t) => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
   const [isCancellingAll, setIsCancellingAll] = useState(false);
   const [confirmCancelAll, setConfirmCancelAll] = useState(false);
   const [showCancelledSection, setShowCancelledSection] = useState(false);
@@ -322,7 +332,7 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+    scheduleCopiedReset(() => setCopiedId(null), 2000);
   };
 
   return (

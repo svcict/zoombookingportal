@@ -19,6 +19,7 @@ import {
   Zap
 } from 'lucide-react';
 import { M365SettingsConfig } from '../types';
+import { useResetTimer } from '../utils/useResetTimer';
 
 interface TooltipInfo {
   title: string;
@@ -104,7 +105,9 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
   const [pingResult, setPingResult] = useState<any | null>(null);
   const [showSecret, setShowSecret] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const scheduleCopiedReset = useResetTimer();
   const [lastSavedToast, setLastSavedToast] = useState<string | null>(null);
+  const scheduleToastReset = useResetTimer();
   const [activeHoverField, setActiveHoverField] = useState<string | null>(null);
 
   // Load initial config and perform real live validation against Microsoft servers
@@ -147,7 +150,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
       if (data.success && data.data) {
         setConfig(data.data);
         setLastSavedToast(toastMessage);
-        setTimeout(() => setLastSavedToast(null), 3000);
+        scheduleToastReset(() => setLastSavedToast(null), 3000);
       }
     } catch (err) {
       console.error('Failed to save keys to .env', err);
@@ -206,7 +209,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     setCopiedKey(label);
-    setTimeout(() => setCopiedKey(null), 2000);
+    scheduleCopiedReset(() => setCopiedKey(null), 2000);
   };
 
   return (
