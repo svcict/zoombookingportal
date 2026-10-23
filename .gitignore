@@ -7,7 +7,11 @@ coverage/
 .env*
 !.env.example
 
-# Claude Code local tooling (skills, agent config) - not app code, not shared
-.claude/
+# Claude Code local tooling (skills, agent config) - not app code, not shared,
+# except the skills deliberately committed for every session/teammate below.
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/react-best-practices/
 .agents/
 skills-lock.json
