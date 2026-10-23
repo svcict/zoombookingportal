@@ -19,6 +19,7 @@ import {
   PlayCircle
 } from 'lucide-react';
 import { Booking, MeetingType } from '../types';
+import { CancelMeetingDialog } from './CancelMeetingDialog';
 
 interface HostBookingsViewProps {
   bookings: Booking[];
@@ -41,7 +42,7 @@ interface BookingCardProps {
   onToggleExpand: () => void;
   copiedId: string | null;
   onCopy: (text: string, id: string) => void;
-  onCancelBooking: (id: string) => Promise<void>;
+  onRequestCancel: (booking: Booking) => void;
   getQuestionLabel: (booking: Booking, questionId: string) => string;
 }
 
@@ -56,7 +57,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
   onToggleExpand,
   copiedId,
   onCopy,
-  onCancelBooking,
+  onRequestCancel,
   getQuestionLabel,
 }) => (
   <div
@@ -238,11 +239,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
         {booking.status === 'confirmed' && !isPast && (
           <div className="pt-2 flex justify-end">
             <button
-              onClick={() => {
-                if (confirm('Cancel this meeting and free up the slot in Microsoft 365 calendar?')) {
-                  onCancelBooking(booking.id);
-                }
-              }}
+              onClick={() => onRequestCancel(booking)}
               className="text-xs text-red-600 hover:text-red-700 font-semibold flex items-center gap-1 hover:underline cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -268,6 +265,7 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
   const [isCancellingAll, setIsCancellingAll] = useState(false);
   const [confirmCancelAll, setConfirmCancelAll] = useState(false);
   const [showCancelledSection, setShowCancelledSection] = useState(false);
@@ -422,7 +420,7 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
               onToggleExpand={() => setExpandedBookingId(expandedBookingId === booking.id ? null : booking.id)}
               copiedId={copiedId}
               onCopy={handleCopy}
-              onCancelBooking={onCancelBooking}
+              onRequestCancel={setCancelTarget}
               getQuestionLabel={getQuestionLabel}
             />
           ))}
@@ -463,7 +461,7 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
                   onToggleExpand={() => setExpandedBookingId(expandedBookingId === booking.id ? null : booking.id)}
                   copiedId={copiedId}
                   onCopy={handleCopy}
-                  onCancelBooking={onCancelBooking}
+                  onRequestCancel={setCancelTarget}
                   getQuestionLabel={getQuestionLabel}
                 />
               ))}
@@ -504,13 +502,21 @@ export const HostBookingsView: React.FC<HostBookingsViewProps> = ({
                   onToggleExpand={() => setExpandedBookingId(expandedBookingId === booking.id ? null : booking.id)}
                   copiedId={copiedId}
                   onCopy={handleCopy}
-                  onCancelBooking={onCancelBooking}
+                  onRequestCancel={setCancelTarget}
                   getQuestionLabel={getQuestionLabel}
                 />
               ))}
             </div>
           )}
         </div>
+      )}
+
+      {cancelTarget && (
+        <CancelMeetingDialog
+          booking={cancelTarget}
+          onConfirm={onCancelBooking}
+          onClose={() => setCancelTarget(null)}
+        />
       )}
 
     </div>

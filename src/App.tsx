@@ -331,30 +331,31 @@ export default function App() {
     }
   };
 
-  // Cancel Booking
+  // Cancel Booking - throws on failure so CancelMeetingDialog can show the
+  // error inline and let the user retry, instead of a browser alert().
   const handleCancelBooking = async (bookingId: string) => {
+    let data: any;
     try {
       const res = await fetch(`/api/bookings/${bookingId}/cancel`, {
         method: 'POST',
         headers: authHeaders,
       });
-      const data = await res.json();
-      if (data.success) {
-        setBookings((prev) =>
-          prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' } : b))
-        );
-        if (confirmedBooking?.id === bookingId) {
-          setConfirmedBooking((prev) => (prev ? { ...prev, status: 'cancelled' } : null));
-        }
-        setBannerNotice(data.message || 'Meeting cancelled.');
-        setTimeout(() => setBannerNotice(null), 4000);
-      } else {
-        alert(data.error || data.message || 'Failed to cancel the meeting.');
-      }
+      data = await res.json();
     } catch (e) {
       console.error(e);
-      alert('A connection error occurred while cancelling the meeting.');
+      throw new Error('A connection error occurred while cancelling the meeting. Please try again.');
     }
+    if (!data.success) {
+      throw new Error(data.error || data.message || 'Failed to cancel the meeting.');
+    }
+    setBookings((prev) =>
+      prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' } : b))
+    );
+    if (confirmedBooking?.id === bookingId) {
+      setConfirmedBooking((prev) => (prev ? { ...prev, status: 'cancelled' } : null));
+    }
+    setBannerNotice(data.message || 'Meeting cancelled.');
+    setTimeout(() => setBannerNotice(null), 4000);
   };
 
   // Cancel every one of the caller's own bookings for real (Zoom + Outlook)

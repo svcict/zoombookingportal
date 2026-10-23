@@ -27,13 +27,14 @@ import { Booking, ZoomMeetingConfig } from '../types';
 import { downloadIcsFile, getOutlookWebCalendarUrl, getM365EnterpriseCalendarUrl, getGoogleCalendarUrl } from '../utils/calendar';
 import { enablePushNotifications, disablePushNotifications } from '../utils/pushSubscription';
 import { ZoomMeetingDetailsModal } from './ZoomMeetingDetailsModal';
+import { CancelMeetingDialog } from './CancelMeetingDialog';
 import { AppleIcon, GoogleCalendarIcon, MicrosoftOutlookIcon } from './CalendarProviderIcons';
 
 interface BookingConfirmationProps {
   booking: Booking;
   onBookAnother: () => void;
   onViewMeetings?: () => void;
-  onCancelMeeting?: (bookingId: string) => void;
+  onCancelMeeting?: (bookingId: string) => Promise<void>;
   onUpdateBookingConfig?: (updatedConfig: ZoomMeetingConfig) => Promise<void> | void;
   authHeaders?: Record<string, string>;
 }
@@ -52,6 +53,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
   const [showPasscode, setShowPasscode] = useState(false);
   const [showHostKey, setShowHostKey] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [countdown, setCountdown] = useState<string>('');
   const [pushState, setPushState] = useState<'idle' | 'enabling' | 'enabled' | 'error'>('idle');
   const [pushError, setPushError] = useState<string | null>(null);
@@ -613,7 +615,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
             )}
             {onCancelMeeting && currentBooking.status !== 'cancelled' && (
               <button
-                onClick={() => onCancelMeeting(currentBooking.id)}
+                onClick={() => setIsCancelDialogOpen(true)}
                 className="px-4 py-2.5 bg-white border border-gray-300 hover:bg-red-50 hover:border-red-300 text-red-600 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -651,6 +653,14 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           initialConfig={currentBooking.zoomConfig}
           onClose={() => setIsEditModalOpen(false)}
           onSave={handleSaveConfig}
+        />
+      )}
+
+      {isCancelDialogOpen && onCancelMeeting && (
+        <CancelMeetingDialog
+          booking={currentBooking}
+          onConfirm={onCancelMeeting}
+          onClose={() => setIsCancelDialogOpen(false)}
         />
       )}
 
