@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useFocusTrap } from '../utils/useFocusTrap';
 import { Search, Globe, Check, X, Clock } from 'lucide-react';
 import { getTimezoneOptions } from '../utils/timezone';
 
@@ -38,11 +39,32 @@ export const TimezoneSelector: React.FC<TimezoneSelectorProps> = ({
     );
   }, [allTimezones, search]);
 
+  // Modal behaviour: focus starts in the search box, stays inside the
+  // window while it's open, and Esc closes it.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  useFocusTrap(dialogRef, isOpen);
+  useEffect(() => {
+    if (!isOpen) return;
+    searchRef.current?.focus();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-gray-200">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="timezone-selector-title"
+        className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-gray-200"
+      >
         
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-[#F7F9FA]">
@@ -51,12 +73,13 @@ export const TimezoneSelector: React.FC<TimezoneSelectorProps> = ({
               <Globe className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-gray-900 text-base">Select Time Zone</h3>
+              <h3 id="timezone-selector-title" className="font-bold text-gray-900 text-base">Select Time Zone</h3>
               <p className="text-xs text-gray-500">Slots will automatically convert seamlessly</p>
             </div>
           </div>
           <button
             onClick={handleClose}
+            aria-label="Close"
             className="text-gray-500 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -68,7 +91,9 @@ export const TimezoneSelector: React.FC<TimezoneSelectorProps> = ({
           <div className="relative">
             <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
+              ref={searchRef}
               type="text"
+              aria-label="Search time zones"
               placeholder="Search city, country, or time zone (e.g. London, Tokyo, EST)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}

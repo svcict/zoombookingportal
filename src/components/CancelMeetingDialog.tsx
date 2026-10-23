@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CalendarX2, Clock, Users, Video, CalendarMinus, AlertTriangle, Loader2, X } from 'lucide-react';
 import { Booking } from '../types';
+import { useFocusTrap } from '../utils/useFocusTrap';
 
 interface CancelMeetingDialogProps {
   booking: Booking;
@@ -19,6 +20,8 @@ export const CancelMeetingDialog: React.FC<CancelMeetingDialogProps> = ({ bookin
   const [isCancelling, setIsCancelling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const keepButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef);
 
   useEffect(() => {
     keepButtonRef.current?.focus();
@@ -64,6 +67,7 @@ export const CancelMeetingDialog: React.FC<CancelMeetingDialogProps> = ({ bookin
       onClick={() => !isCancelling && onClose()}
     >
       <div
+        ref={dialogRef}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="cancel-meeting-title"

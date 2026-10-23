@@ -11,6 +11,7 @@ colors:
   body-ink: "#2D2E33"
   slate-text: "#6A7282"
   muted-text: "#99A1AF"
+  placeholder-text: "#5F6775"
   hairline: "#E5E7EB"
   field-border: "#D1D5DC"
   canvas: "#F7F9FA"
@@ -156,7 +157,8 @@ A single saturated blue does the brand work against cool, slightly blue-tinged g
 - **Ink** (`ink`): headings, meeting titles and primary values.
 - **Body Ink** (`body-ink`): the page's default text color. It is also used as a solid surface for the dark header band of the intake form (`intake-header`).
 - **Slate Text** (`slate-text`): secondary text, helper copy, labels and metadata. This is the most used text color in the app.
-- **Muted Text** (`muted-text`): placeholders, disabled and past (greyed-out) times and days.
+- **Muted Text** (`muted-text`): disabled and past (greyed-out) times and days only. It is too light for anything people need to read.
+- **Placeholder Text** (`placeholder-text`): input placeholders, set globally in `src/index.css` to stay at least 4.5:1 on every field background (white, `canvas`, `field-fill-legacy`).
 - **Hairline** (`hairline`): card borders and dividers. **Field Border** (`field-border`): input and secondary-button borders.
 - **Canvas** (`canvas`): page background of the staff app and admin portal. **Canvas Auth** (`canvas-auth`): the sign-in and session screens.
 - **Surface** (`surface`): cards, dialogs and inputs. **Surface Muted** (`surface-muted`): inset panels inside cards, such as expanded meeting details and dialog summaries.
@@ -253,7 +255,7 @@ Confident and compact: bold 12–14px labels, 12px corners, never all-caps (exce
 - **Internal padding:** 20px (24px on larger cards).
 
 ### Inputs / Fields
-- **Standard (decided):** white field, 1px Field Border, 12px corners, 14px text, 10px × 14px padding. Placeholder in Muted Text. Leading 16px icon in Slate Text where helpful (search, invitees, host).
+- **Standard (decided):** white field, 1px Field Border, 12px corners, 14px text, 10px × 14px padding. Placeholder in Placeholder Text (never lighter). Leading 16px icon in Slate Text where helpful (search, invitees, host).
 - **Focus:** a 2px Signal Blue ring, with the border shifting to Signal Blue.
 - **Error:** red helper text under the field and a red border. Disabled: Surface Muted fill, not-allowed cursor.
 - **Legacy:** the booking form's grey-filled, borderless fields (`field-fill-legacy`) predate this decision. Migrate them to the standard when those screens are next touched. Don't create new ones.

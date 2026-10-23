@@ -34,16 +34,29 @@ export const MeetingAgendaQuestions: React.FC<MeetingAgendaQuestionsProps> = ({
       {meetingType.customQuestions.map((q) => {
         const val = answers[q.id] || '';
         const hasError = errors[q.id];
+        const fieldId = `agenda-${q.id}`;
+        const describedBy = [q.helpText ? `${fieldId}-help` : '', hasError ? `${fieldId}-error` : ''].filter(Boolean).join(' ') || undefined;
+        const fieldA11y = {
+          id: fieldId,
+          'aria-required': q.required || undefined,
+          'aria-invalid': Boolean(hasError),
+          'aria-describedby': describedBy,
+        };
 
         return (
           <div key={q.id} className="space-y-1.5">
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">
-              {q.label} {q.required && <span className="text-red-500">*</span>}
+            <label
+              id={`${fieldId}-label`}
+              htmlFor={q.type === 'radio' ? undefined : fieldId}
+              className="block text-xs font-bold uppercase tracking-wider text-gray-600"
+            >
+              {q.label} {q.required && <span className="text-red-600" aria-hidden="true">*</span>}
             </label>
-            {q.helpText && <p className="text-[11px] text-gray-500 mb-1">{q.helpText}</p>}
+            {q.helpText && <p id={`${fieldId}-help`} className="text-[11px] text-gray-500 mb-1">{q.helpText}</p>}
 
             {q.type === 'textarea' && (
               <textarea
+                {...fieldA11y}
                 rows={3}
                 value={val}
                 onChange={(e) => onAnswerChange(q.id, e.target.value)}
@@ -56,6 +69,7 @@ export const MeetingAgendaQuestions: React.FC<MeetingAgendaQuestionsProps> = ({
 
             {(q.type === 'text' || q.type === 'phone') && (
               <input
+                {...fieldA11y}
                 type={q.type}
                 value={val}
                 onChange={(e) => onAnswerChange(q.id, e.target.value)}
@@ -68,6 +82,7 @@ export const MeetingAgendaQuestions: React.FC<MeetingAgendaQuestionsProps> = ({
 
             {q.type === 'select' && (
               <select
+                {...fieldA11y}
                 value={val}
                 onChange={(e) => onAnswerChange(q.id, e.target.value)}
                 className={`w-full px-4 py-3 bg-[#F7F9FA] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0433FF] ${
@@ -84,7 +99,13 @@ export const MeetingAgendaQuestions: React.FC<MeetingAgendaQuestionsProps> = ({
             )}
 
             {q.type === 'radio' && (
-              <div className="space-y-2 mt-1">
+              <div
+                role="radiogroup"
+                aria-labelledby={`${fieldId}-label`}
+                aria-required={q.required || undefined}
+                aria-describedby={describedBy}
+                className="space-y-2 mt-1"
+              >
                 {q.options?.map((opt) => (
                   <label
                     key={opt}
@@ -104,7 +125,7 @@ export const MeetingAgendaQuestions: React.FC<MeetingAgendaQuestionsProps> = ({
               </div>
             )}
 
-            {hasError && <p className="text-red-500 text-xs mt-1">{hasError}</p>}
+            {hasError && <p id={`${fieldId}-error`} className="text-red-600 text-xs mt-1">{hasError}</p>}
           </div>
         );
       })}

@@ -403,6 +403,22 @@
           "#FFB388",
           "#FFEADE"
         ]
+      },
+      "placeholder-text": {
+        "role": "neutral",
+        "displayName": "Placeholder Text",
+        "canonical": "#5F6775",
+        "oklch": "oklch(51.6% 0.026 262.0)",
+        "tonalRamp": [
+          "#0B0F16",
+          "#1E232C",
+          "#323843",
+          "#474E5A",
+          "#5D6573",
+          "#757D8B",
+          "#959CA8",
+          "#E8EBF0"
+        ]
       }
     },
     "typographyMeta": {

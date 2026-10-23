@@ -19,6 +19,21 @@
     min-width: 0;
     overflow-x: hidden;
   }
+
+  /* Keyboard focus uses the brand ring everywhere, instead of each
+     browser's default outline (DESIGN.md: Signal Blue focus ring).
+     Components that draw their own ring still override this. */
+  :focus-visible {
+    outline: 2px solid #0433FF;
+    outline-offset: 2px;
+  }
+
+  /* Placeholders at >= 4.5:1 on every field background the app uses
+     (white, #F7F9FA, #F0F2F4). */
+  ::placeholder {
+    color: #5F6775;
+    opacity: 1;
+  }
 }
 
 /* Utilities for touch scrolling without breaking viewports */
