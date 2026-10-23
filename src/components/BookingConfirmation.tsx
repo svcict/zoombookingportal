@@ -168,7 +168,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
   const handleEnablePush = async () => {
     setPushState('enabling');
     setPushError(null);
-    const result = await enablePushNotifications(currentBooking.participantEmail);
+    const result = await enablePushNotifications(currentBooking.participantEmail, authHeaders);
     if (result.status === 'subscribed') {
       setPushState('enabled');
     } else {
@@ -186,7 +186,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
   };
 
   const handleDisablePush = async () => {
-    await disablePushNotifications();
+    await disablePushNotifications(authHeaders);
     setPushState('idle');
   };
 

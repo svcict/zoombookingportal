@@ -2588,7 +2588,12 @@ app.get('/api/meeting-types/:id', (req, res) => {
   res.json({ success: true, data: item });
 });
 
-app.post('/api/meeting-types', (req, res) => {
+app.post('/api/meeting-types', async (req, res) => {
+  // Creating meeting types is an admin action - it used to need no sign-in
+  // at all.
+  const adminEmail = await requireAdmin(req, res);
+  if (!adminEmail) return;
+
   const newType: SeedMeetingType = {
     id: `mt-${Date.now()}`,
     slug: (req.body.title || 'new-meeting').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
@@ -2612,7 +2617,7 @@ app.post('/api/meeting-types', (req, res) => {
   logSystemActivity(
     'meeting-type',
     'Meeting type created',
-    String(req.headers['x-user-email'] || 'unknown'),
+    adminEmail,
     `Created meeting type "${newType.title}" (${newType.duration} min).`
   );
   res.status(201).json({ success: true, data: newType });
@@ -2922,38 +2927,43 @@ interface RequestIdentity {
   isAdmin: boolean;
 }
 
-// Resolves who is actually making this request. When Supabase is
-// configured, this is a real, server-verified identity: the client sends
-// its Supabase session token, and we ask Supabase to vouch for it - the
-// client's own claim of who it is (or whether it's an admin) is never
-// trusted. Only when Supabase itself isn't configured anywhere in this
-// deployment (pure local/demo mode) do we fall back to trusting a
-// self-asserted X-User-Email header, matching this app's "still works
-// without real credentials" pattern elsewhere — that fallback provides no
-// real security guarantee and is not meant for production use.
+// Resolves who is actually making this request, from a session token the
+// server itself can verify - the client's own claim of who it is (or whether
+// it's an admin) is never trusted. Accepted tokens: our own locally-signed
+// Microsoft Entra ID SSO and demo-account sessions, and - when Supabase is
+// configured - real Supabase sessions. There is deliberately no fallback to
+// a self-asserted email header: that used to apply whenever Supabase wasn't
+// configured, letting anyone act as any user (and as an admin, for any email
+// containing "admin"). M365 SSO sign-in works without Supabase, so nothing
+// needs that fallback.
 async function resolveIdentity(req: express.Request): Promise<RequestIdentity | null> {
-  if (isSupabaseConfigured()) {
-    const authHeader = req.headers['authorization'];
-    const token = typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')
-      ? authHeader.slice(7).trim()
-      : null;
-    if (!token) return null;
+  const authHeader = req.headers['authorization'];
+  const token = typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')
+    ? authHeader.slice(7).trim()
+    : null;
+  if (!token) return null;
 
-    // Our own signed tokens - demo-account sessions (see
-    // issueDemoSessionToken) for allowlisted demo profiles without a real
-    // Supabase Auth password, and Microsoft Entra ID SSO sessions (see
-    // issueM365SsoSessionToken) - are recognised by prefix and verified
-    // locally, so check them first: otherwise every request carrying one
-    // first waits on two Supabase round trips that can only fail. Anything
-    // else is a real Supabase session.
-    return verifyDemoSessionToken(token) || verifyM365SsoSessionToken(token) || (await verifySessionToken(token));
+  // Our own signed tokens - demo-account sessions (see
+  // issueDemoSessionToken) for allowlisted demo profiles without a real
+  // Supabase Auth password, and Microsoft Entra ID SSO sessions (see
+  // issueM365SsoSessionToken) - are recognised by prefix and verified
+  // locally, so check them first: otherwise every request carrying one
+  // first waits on two Supabase round trips that can only fail. Anything
+  // else can only be a real Supabase session.
+  const localIdentity = verifyDemoSessionToken(token) || verifyM365SsoSessionToken(token);
+  if (localIdentity) return localIdentity;
+  return isSupabaseConfigured() ? verifySessionToken(token) : null;
+}
+
+// Like requireAdmin, for endpoints any signed-in user may call. Sends the
+// 401 itself and returns null when there's no verified session.
+async function requireIdentity(req: express.Request, res: express.Response): Promise<RequestIdentity | null> {
+  const identity = await resolveIdentity(req);
+  if (!identity) {
+    res.status(401).json({ success: false, message: 'Not authenticated' });
+    return null;
   }
-
-  const raw = req.headers['x-user-email'];
-  const value = Array.isArray(raw) ? raw[0] : raw;
-  const email = value ? value.toString().toLowerCase().trim() : '';
-  if (!email) return null;
-  return { email, isAdmin: email.includes('admin') || email === 'sarah.jenkins@zoompartner.com' };
+  return identity;
 }
 
 function canAccessBooking(booking: any, email: string): boolean {
@@ -3002,6 +3012,12 @@ app.get('/api/bookings/:id', async (req, res) => {
 });
 
 app.post('/api/bookings', async (req, res) => {
+  // Booking creates a real Zoom meeting and sends email from the rotating
+  // accounts' mailboxes, so it needs a verified sign-in - it used to need
+  // none at all.
+  const identity = await requireIdentity(req, res);
+  if (!identity) return;
+
   try {
     const {
       meetingTypeId,
@@ -3027,6 +3043,14 @@ app.post('/api/bookings', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'Missing required booking information (name, email, date, timeSlot)'
+      });
+    }
+    // The booker is the signed-in user (the intake form always sends their
+    // own email) - nobody but an admin may book under someone else's name.
+    if (String(participantEmail).trim().toLowerCase() !== identity.email && !identity.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: 'You can only book meetings under your own account.'
       });
     }
 
@@ -3936,10 +3960,18 @@ app.get('/api/push/vapid-public-key', (req, res) => {
 });
 
 app.post('/api/push/subscribe', async (req, res) => {
+  const identity = await requireIdentity(req, res);
+  if (!identity) return;
+
   const { email, subscription } = req.body;
   const normalizedEmail = (email || '').trim().toLowerCase();
   if (!normalizedEmail || !subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
     return res.status(400).json({ success: false, error: 'email and a valid push subscription are required' });
+  }
+  // Notifications carry meeting titles and times, so a browser may only
+  // subscribe to the signed-in user's own notifications.
+  if (normalizedEmail !== identity.email && !identity.isAdmin) {
+    return res.status(403).json({ success: false, error: 'You can only enable notifications for your own account.' });
   }
 
   // Re-subscribing with the same endpoint (e.g. browser refreshed keys)
@@ -3960,12 +3992,18 @@ app.post('/api/push/subscribe', async (req, res) => {
 });
 
 app.post('/api/push/unsubscribe', async (req, res) => {
+  const identity = await requireIdentity(req, res);
+  if (!identity) return;
+
   const { endpoint } = req.body;
   if (!endpoint) {
     return res.status(400).json({ success: false, error: 'endpoint is required' });
   }
-  const toRemove = pushSubscriptions.filter((s) => s.endpoint === endpoint);
-  pushSubscriptions = pushSubscriptions.filter((s) => s.endpoint !== endpoint);
+  // Only the signed-in user's own subscriptions (or any, for an admin).
+  const toRemove = pushSubscriptions.filter(
+    (s) => s.endpoint === endpoint && (identity.isAdmin || s.email === identity.email)
+  );
+  pushSubscriptions = pushSubscriptions.filter((s) => !toRemove.includes(s));
   for (const sub of toRemove) {
     await deleteRow('push_subscriptions', sub.id).catch(() => {});
     logSystemActivity('push', 'Push subscription disabled', sub.email, 'Removed a browser push subscription.');

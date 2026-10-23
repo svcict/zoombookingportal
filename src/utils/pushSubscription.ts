@@ -16,7 +16,12 @@ export type PushSetupResult =
   | { status: 'not_configured' }
   | { status: 'error'; message: string };
 
-export async function enablePushNotifications(email: string): Promise<PushSetupResult> {
+// authHeaders: the signed-in user's session (buildAuthHeaders) - the server
+// only lets a browser subscribe to, or remove, that user's own notifications.
+export async function enablePushNotifications(
+  email: string,
+  authHeaders: Record<string, string> = {}
+): Promise<PushSetupResult> {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     return { status: 'unsupported' };
   }
@@ -45,11 +50,15 @@ export async function enablePushNotifications(email: string): Promise<PushSetupR
     }
 
     const subJson = subscription.toJSON();
-    await fetch('/api/push/subscribe', {
+    const subscribeRes = await fetch('/api/push/subscribe', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({ email, subscription: subJson }),
     });
+    if (!subscribeRes.ok) {
+      const data = await subscribeRes.json().catch(() => null);
+      return { status: 'error', message: data?.error || data?.message || 'The server rejected the push subscription.' };
+    }
 
     return { status: 'subscribed' };
   } catch (err: any) {
@@ -57,7 +66,7 @@ export async function enablePushNotifications(email: string): Promise<PushSetupR
   }
 }
 
-export async function disablePushNotifications(): Promise<void> {
+export async function disablePushNotifications(authHeaders: Record<string, string> = {}): Promise<void> {
   if (!('serviceWorker' in navigator)) return;
   try {
     const registration = await navigator.serviceWorker.getRegistration('/sw.js');
@@ -65,7 +74,7 @@ export async function disablePushNotifications(): Promise<void> {
     if (subscription) {
       await fetch('/api/push/unsubscribe', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({ endpoint: subscription.endpoint }),
       });
       await subscription.unsubscribe();

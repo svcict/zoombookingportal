@@ -39,8 +39,7 @@ export default function App() {
   const isAdmin = useMemo(() => Boolean(authUser?.isAdmin), [authUser]);
 
   // Identity headers sent with every API request - Authorization carries the
-  // Supabase session token the server actually verifies; X-User-Email is
-  // only a fallback the server uses when it has no Supabase configured.
+  // session token (Supabase, M365 SSO or demo) the server verifies itself.
   const authHeaders = useMemo(() => buildAuthHeaders(authUser), [authUser]);
 
   // Navigation View State - Defaults to Office365 Dashboard when user logs in.
@@ -276,7 +275,7 @@ export default function App() {
 
       const res = await fetch('/api/bookings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify(payload),
       });
 

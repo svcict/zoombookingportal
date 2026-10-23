@@ -12,6 +12,7 @@ import {
 import { M365User } from '../types';
 import { playZoomNotificationSound } from '../utils/notifications';
 import { enablePushNotifications } from '../utils/pushSubscription';
+import { buildAuthHeaders } from '../utils/auth';
 import { AyalaFoundationLogo } from './AyalaFoundationLogo';
 
 interface HeaderProps {
@@ -96,7 +97,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const handleEnablePush = async () => {
     if (!authUser?.email) return;
-    const result = await enablePushNotifications(authUser.email);
+    const result = await enablePushNotifications(authUser.email, buildAuthHeaders(authUser));
     if (result.status === 'subscribed') {
       setPushStatus('granted');
       playZoomNotificationSound('join');
