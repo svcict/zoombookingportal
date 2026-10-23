@@ -14,13 +14,15 @@ import { INITIAL_MEETING_TYPES, INITIAL_M365_STATE } from './data/initialData';
 import { getDetectedTimezone, formatDateInTimezone } from './utils/timezone';
 import { playZoomNotificationSound, sendBrowserPushNotification } from './utils/notifications';
 import { buildAuthHeaders } from './utils/auth';
-import { Video, Sparkles } from 'lucide-react';
+import { Video, Sparkles, AlertCircle, Info, CheckCircle2, X } from 'lucide-react';
 
 // Only opened on demand (a meeting's settings), so loaded on first open
 // rather than shipped in the initial bundle.
 const ZoomMeetingDetailsModal = lazy(() =>
   import('./components/ZoomMeetingDetailsModal').then((m) => ({ default: m.ZoomMeetingDetailsModal }))
 );
+
+type BannerTone = 'success' | 'neutral' | 'error';
 
 export default function App() {
   // 1. M365 Authentication State
@@ -85,13 +87,17 @@ export default function App() {
   const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
   const [isSlotUnavailableModalOpen, setIsSlotUnavailableModalOpen] = useState(false);
-  const [bannerNotice, setBannerNotice] = useState<string | null>(null);
+  const [bannerNotice, setBannerNotice] = useState<{ message: string; tone: BannerTone } | null>(null);
+  // Why the last booking submit failed, shown inline on the intake form.
+  const [bookingError, setBookingError] = useState<string | null>(null);
   // One shared hide-timer, reset on each new notice - otherwise an earlier
   // notice's timer hides a newer one early.
   const bannerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const showBanner = (message: string, durationMs = 4000) => {
+  // tone: 'success' for completed actions, 'neutral' for outcomes that
+  // aren't a celebration (a cancellation), 'error' for failures.
+  const showBanner = (message: string, durationMs = 4000, tone: BannerTone = 'success') => {
     if (bannerTimeoutRef.current) clearTimeout(bannerTimeoutRef.current);
-    setBannerNotice(message);
+    setBannerNotice({ message, tone });
     bannerTimeoutRef.current = setTimeout(() => setBannerNotice(null), durationMs);
   };
   useEffect(() => () => {
@@ -257,6 +263,7 @@ export default function App() {
   }) => {
     if (!selectedMeetingType || !selectedSlot) return;
     setIsSubmittingBooking(true);
+    setBookingError(null);
 
     try {
       const assignedHostId = selectedSlot.assignedHost?.id || (selectedAccountId !== 'all' ? selectedAccountId : 'host-1');
@@ -297,11 +304,11 @@ export default function App() {
         // browser alert() with the server's internal wording.
         setIsSlotUnavailableModalOpen(true);
       } else {
-        alert(data.error || 'Failed to schedule booking');
+        setBookingError(data.error || data.message || 'The server rejected the booking.');
       }
     } catch (err) {
       console.error('Error submitting booking', err);
-      alert('An error occurred while scheduling your Zoom session.');
+      setBookingError("We couldn't reach the server. Check your connection.");
     } finally {
       setIsSubmittingBooking(false);
     }
@@ -330,7 +337,7 @@ export default function App() {
     if (confirmedBooking?.id === bookingId) {
       setConfirmedBooking((prev) => (prev ? { ...prev, status: 'cancelled' } : null));
     }
-    showBanner(data.message || 'Meeting cancelled.');
+    showBanner(data.message || 'Meeting cancelled.', 4000, 'neutral');
   };
 
   // Cancel every one of the caller's own bookings for real (Zoom + Outlook)
@@ -346,13 +353,13 @@ export default function App() {
         setBookings((prev) =>
           prev.map((b) => (cancelledIds.has(b.id) ? { ...b, status: 'cancelled' } : b))
         );
-        showBanner(data.message);
+        showBanner(data.message, 4000, 'neutral');
       } else {
-        alert(data.error || data.message || 'Failed to cancel bookings.');
+        showBanner(data.error || data.message || "Your meetings couldn't be cancelled. Please try again.", 6000, 'error');
       }
     } catch (e) {
       console.error(e);
-      alert('A connection error occurred while cancelling bookings.');
+      showBanner("Your meetings couldn't be cancelled because the server couldn't be reached. Please try again.", 6000, 'error');
     }
   };
 
@@ -394,9 +401,18 @@ export default function App() {
 
       {/* Floating System Notice Toast */}
       {bannerNotice && (
-        <div className="fixed top-20 right-6 z-50 bg-gray-900 text-white px-4 py-3 rounded-2xl shadow-xl border border-gray-700 text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
-          <Sparkles className="w-4 h-4 text-green-400" />
-          <span>{bannerNotice}</span>
+        <div
+          role={bannerNotice.tone === 'error' ? 'alert' : 'status'}
+          className="fixed top-20 right-6 z-50 bg-gray-900 text-white px-4 py-3 rounded-2xl shadow-xl border border-gray-700 text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-2"
+        >
+          {bannerNotice.tone === 'error' ? (
+            <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+          ) : bannerNotice.tone === 'neutral' ? (
+            <Info className="w-4 h-4 text-gray-300 shrink-0" />
+          ) : (
+            <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0" />
+          )}
+          <span>{bannerNotice.message}</span>
         </div>
       )}
 
@@ -475,7 +491,7 @@ export default function App() {
                       <div className="flex items-center justify-between">
                         <label htmlFor="meeting-topic-input" className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-2">
                           <Video className="w-4 h-4 text-[#0433FF]" />
-                          <span>Topic <span className="text-red-500">*</span></span>
+                          <span>Topic <span className="text-red-600" aria-hidden="true">*</span></span>
                         </label>
                       </div>
 
@@ -489,7 +505,10 @@ export default function App() {
                             if (e.target.value.trim()) setTopicError(false);
                           }}
                           placeholder="e.g. Ayala Foundation Operations Strategy & Partner Sync"
-                          className={`w-full px-4 py-3.5 bg-[#F7F9FA] hover:bg-gray-100/70 focus:bg-white border rounded-xl text-base font-semibold text-gray-900 placeholder:text-gray-400 placeholder:font-normal focus:outline-none focus:ring-4 transition-all shadow-2xs ${
+                          aria-required="true"
+                          aria-invalid={topicError}
+                          aria-describedby={topicError ? 'meeting-topic-error' : undefined}
+                          className={`w-full px-4 py-3.5 bg-[#F7F9FA] hover:bg-gray-100/70 focus:bg-white border rounded-xl text-base font-semibold text-gray-900 placeholder:font-normal focus:outline-none focus:ring-4 transition-all shadow-2xs ${
                             topicError
                               ? 'border-red-400 focus:border-red-400 focus:ring-red-400/10'
                               : 'border-gray-200 focus:border-[#0433FF] focus:ring-[#0433FF]/10'
@@ -499,15 +518,16 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => setMeetingTopic('')}
-                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-600 px-1.5 py-0.5 text-xs font-bold bg-gray-200 hover:bg-gray-300 rounded-md transition-colors"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors"
                             title="Clear topic"
+                            aria-label="Clear topic"
                           >
-                            ✕
+                            <X className="w-4 h-4" />
                           </button>
                         )}
                       </div>
                       {topicError && (
-                        <p className="text-xs text-red-500 font-medium">Topic is required.</p>
+                        <p id="meeting-topic-error" role="alert" className="text-xs text-red-600 font-medium">Enter a topic for the meeting.</p>
                       )}
                     </div>
                   </div>
@@ -557,9 +577,13 @@ export default function App() {
                 selectedTimezone={selectedTimezone}
                 authUser={authUser}
                 answers={meetingAnswers}
-                onBack={() => setBookingStep('slots')}
+                onBack={() => {
+                  setBookingError(null);
+                  setBookingStep('slots');
+                }}
                 onSubmit={handleSubmitBooking}
                 isSubmitting={isSubmittingBooking}
+                submitError={bookingError}
               />
             )}
 

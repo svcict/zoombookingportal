@@ -20,7 +20,10 @@ import {
   Trash2,
   Bell,
   BellOff,
-  PlayCircle
+  PlayCircle,
+  CalendarX2,
+  XCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { Booking, ZoomMeetingConfig } from '../types';
 import { downloadIcsFile, getOutlookWebCalendarUrl, getM365EnterpriseCalendarUrl, getGoogleCalendarUrl } from '../utils/calendar';
@@ -207,11 +210,43 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
     copyToClipboard(lines.join('\n'), 'invitation');
   };
 
+  const isCancelled = currentBooking.status === 'cancelled';
+  const emailFailed = !currentBooking.reminders?.emailSent;
+  const outlookFailed = currentBooking.m365SyncStatus === 'failed';
+  // The raw reasons, once each - the two confirmation emails often fail for
+  // the same reason, and the Outlook event usually shares it too.
+  const failureDetails = Array.from(
+    new Set(
+      [emailFailed ? currentBooking.reminders?.emailError : undefined, outlookFailed ? currentBooking.m365SyncError : undefined]
+        .flatMap((msg) => (msg ? msg.split(/(?<=\.)\s+/) : []))
+        .map((msg) => msg.trim())
+        .filter(Boolean)
+    )
+  ).join(' ');
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       
-      {/* Top Success Banner */}
+      {/* Top Banner - success, or the cancelled state once the meeting is gone */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xs p-6 sm:p-8 text-center relative overflow-hidden">
+        {isCancelled ? (
+          <>
+            <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-4 border border-red-200">
+              <CalendarX2 className="w-8 h-8" />
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full text-xs font-bold mb-2">
+              <XCircle className="w-3.5 h-3.5" />
+              <span>Cancelled</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+              Meeting cancelled
+            </h1>
+            <p className="text-sm text-gray-600 mt-2 max-w-lg mx-auto">
+              The Zoom meeting was deleted, so its join link no longer works. Book a new meeting if you still need one.
+            </p>
+          </>
+        ) : (
+          <>
         <div className="w-14 h-14 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center mx-auto mb-4 border border-green-200">
           <CheckCircle2 className="w-8 h-8" />
         </div>
@@ -225,24 +260,66 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           Zoom Meeting Confirmed
         </h1>
 
-        <p className="text-sm text-gray-600 mt-2 max-w-lg mx-auto">
-          {currentBooking.reminders?.emailSent ? (
-            <>
-              A confirmation email with your join link, meeting ID, and passcode has been sent to{' '}
-              <strong className="text-gray-900">{booking.participantEmail}</strong>.
-            </>
-          ) : (
-            <span className="text-amber-700">
-              The confirmation email to <strong>{booking.participantEmail}</strong> could not be sent
-              {currentBooking.reminders?.emailError ? `: ${currentBooking.reminders.emailError}` : '.'} Please share the join details below directly.
-            </span>
-          )}
-        </p>
-
-        {currentBooking.m365SyncStatus === 'failed' && (
-          <p className="text-xs text-amber-700 mt-1.5">
-            The Outlook calendar invite could not be created{currentBooking.m365SyncError ? `: ${currentBooking.m365SyncError}` : '.'}
+        {currentBooking.reminders?.emailSent && (
+          <p className="text-sm text-gray-600 mt-2 max-w-lg mx-auto">
+            A confirmation email with your join link, meeting ID, and passcode has been sent to{' '}
+            <strong className="text-gray-900">{booking.participantEmail}</strong>.
           </p>
+        )}
+
+        {/* What didn't go out, each with its own way to recover - the Zoom
+            meeting itself exists either way. */}
+        {(emailFailed || outlookFailed) && (
+          <div role="status" className="mt-4 max-w-lg mx-auto text-left rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <div className="flex items-center gap-2 text-sm font-bold text-amber-800">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>
+                {emailFailed && outlookFailed
+                  ? "Your meeting is booked, but nobody has been notified yet"
+                  : emailFailed
+                    ? "Your meeting is booked, but the confirmation email wasn't sent"
+                    : "Your meeting is booked, but the Outlook invite wasn't created"}
+              </span>
+            </div>
+            <ul className="mt-3 space-y-3">
+              {emailFailed && (
+                <li className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="text-xs text-gray-700">
+                    <strong className="text-gray-900">Confirmation email not sent.</strong> Copy the invitation and send it to your invitees yourself.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={copyInvitation}
+                    className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                  >
+                    {copiedField === 'invitation' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedField === 'invitation' ? 'Copied' : 'Copy invitation'}</span>
+                  </button>
+                </li>
+              )}
+              {outlookFailed && (
+                <li className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="text-xs text-gray-700">
+                    <strong className="text-gray-900">Outlook invite not created.</strong> It isn't on your calendar or your invitees' yet. Add it to Outlook and invite them from there.
+                  </span>
+                  <a
+                    href={outlookCalendarUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                  >
+                    <CalendarPlus className="w-3.5 h-3.5" />
+                    <span>Add to Outlook</span>
+                  </a>
+                </li>
+              )}
+            </ul>
+            {failureDetails && (
+              <p className="mt-3 pt-3 border-t border-amber-200 text-[11px] text-gray-500">
+                Details for ICT: {failureDetails}
+              </p>
+            )}
+          </div>
         )}
 
         {currentBooking.zoomConfig?.alternativeHosts === currentBooking.participantEmail && (
@@ -305,26 +382,29 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
             <p className="text-xs text-red-500 mt-1.5">{pushError}</p>
           )}
         </div>
+          </>
+        )}
       </div>
 
       {/* Main Zoom Join & Credentials Hub */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
         
         {/* Zoom Blue Ribbon */}
-        <div className="bg-[#0433FF] text-white px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className={`${isCancelled ? 'bg-gray-500' : 'bg-[#0433FF]'} text-white px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
               <Video className="w-5 h-5 text-white" />
             </div>
             <div>
               <h2 className="text-base font-bold text-white">{currentBooking.meetingTitle}</h2>
-              <p className="text-xs text-blue-100">
-                Hosted by {currentBooking.hostName} • {currentBooking.duration} Minutes
+              <p className={`text-xs ${isCancelled ? 'text-gray-100' : 'text-blue-100'}`}>
+                {isCancelled ? 'Cancelled' : `Hosted by ${currentBooking.hostName}`} • {currentBooking.duration} Minutes
               </p>
             </div>
           </div>
 
           {/* Quick Launch Zoom Action */}
+          {!isCancelled && (
           <div className="flex items-center gap-2">
             <a
               href={currentBooking.zoomDetails.joinUrl}
@@ -337,6 +417,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>
+          )}
         </div>
 
         {/* Read-only Manage Meeting summary - matches Zoom's own post-schedule view */}
@@ -444,6 +525,8 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
             </span>
           </div>
 
+          {!isCancelled && (
+          <>
           <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
             <span className="text-gray-500 font-medium">Invite Link</span>
             <div className="flex items-center gap-2 min-w-0">
@@ -523,6 +606,8 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               )}
             </div>
           </div>
+          </>
+          )}
 
           <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
             <span className="text-gray-500 font-medium">Encryption</span>
@@ -597,18 +682,12 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           </div>
         </div>
 
-        {/* Bottom Actions Bar - matches Zoom's Start / Copy Invitation / Edit / Delete */}
+        {/* Bottom Actions Bar. Joining lives in the ribbon above (there's no
+            separate "Start": non-hosts can't start a meeting, and it opened
+            the same join link), so these are the booker's management actions. */}
         <div className="p-6 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center justify-center gap-2.5">
-            <a
-              href={currentBooking.zoomDetails.joinUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="px-5 py-2.5 bg-[#0433FF] hover:bg-[#0320AF] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
-            >
-              <Video className="w-3.5 h-3.5" />
-              <span>Start</span>
-            </a>
+          {!isCancelled && (
+          <div className="flex flex-wrap sm:flex-nowrap items-center justify-center gap-2.5">
             <button
               onClick={copyInvitation}
               className="px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -616,42 +695,49 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               {copiedField === 'invitation' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copiedField === 'invitation' ? 'Copied' : 'Copy Invitation'}</span>
             </button>
-            {currentBooking.status !== 'cancelled' && (
-              <button
-                onClick={() => setIsEditModalOpen(true)}
-                className="px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-                <span>Edit</span>
-              </button>
-            )}
-            {onCancelMeeting && currentBooking.status !== 'cancelled' && (
+            <button
+              onClick={() => setIsEditModalOpen(true)}
+              className="px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              <span>Edit</span>
+            </button>
+            {onCancelMeeting && (
               <button
                 onClick={() => setIsCancelDialogOpen(true)}
                 className="px-4 py-2.5 bg-white border border-gray-300 hover:bg-red-50 hover:border-red-300 text-red-600 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>Delete</span>
+                <span>Cancel meeting</span>
               </button>
             )}
           </div>
+          )}
 
           <div className="flex flex-wrap items-center justify-center gap-2.5">
             <button
               onClick={onBookAnother}
-              className="px-5 py-2.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              className={`px-5 py-2.5 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer ${
+                isCancelled
+                  ? 'bg-[#0433FF] hover:bg-[#0320AF] text-white shadow-xs'
+                  : 'bg-white border border-gray-300 hover:bg-gray-100 text-gray-800'
+              }`}
             >
-              <RotateCcw className="w-3.5 h-3.5 text-gray-600" />
-              <span>Schedule Another Meeting</span>
+              <RotateCcw className={`w-3.5 h-3.5 ${isCancelled ? 'text-white' : 'text-gray-600'}`} />
+              <span>Book another meeting</span>
             </button>
 
             {onViewMeetings && (
               <button
                 onClick={onViewMeetings}
-                className="px-5 py-2.5 bg-[#0433FF] hover:bg-[#0320AF] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer"
+                className={`px-5 py-2.5 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  isCancelled
+                    ? 'bg-white border border-gray-300 hover:bg-gray-100 text-gray-800'
+                    : 'bg-[#0433FF] hover:bg-[#0320AF] text-white shadow-xs'
+                }`}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>View My Scheduled Meetings</span>
+                <span>View my meetings</span>
               </button>
             )}
           </div>

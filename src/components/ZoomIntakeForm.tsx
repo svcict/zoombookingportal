@@ -12,6 +12,7 @@ import {
   X,
   ArrowLeft,
   KeyRound,
+  AlertCircle,
 } from 'lucide-react';
 import { MeetingType, TimeSlot, M365User, ZoomMeetingConfig } from '../types';
 
@@ -66,6 +67,9 @@ interface ZoomIntakeFormProps {
     zoomConfig: IntakeZoomConfig;
   }) => Promise<void>;
   isSubmitting?: boolean;
+  // Why the last submit failed (shown inline above the buttons, in place of
+  // a browser alert), so the form and everything typed into it stay put.
+  submitError?: string | null;
 }
 
 export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
@@ -79,6 +83,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   onBack,
   onSubmit,
   isSubmitting = false,
+  submitError = null,
 }) => {
   const topic = meetingTopic || meetingType.title || 'Zoom Video Meeting';
   const fullName = authUser?.name || '';
@@ -295,7 +300,8 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
             <button
               onClick={onBack}
               className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors"
-              title="Back to slot picker"
+              title="Back to date and time"
+              aria-label="Back to date and time"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -350,46 +356,54 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Full Name - read-only, from the signed-in account */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">
-                Full Name <span className="text-red-500">*</span>
+              <label htmlFor="intake-full-name" className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">
+                Full Name <span className="text-red-600" aria-hidden="true">*</span>
               </label>
               <input
+                id="intake-full-name"
                 type="text"
                 value={fullName}
                 readOnly
+                aria-required="true"
+                aria-invalid={Boolean(errors.fullName)}
+                aria-describedby={errors.fullName ? 'intake-full-name-error' : undefined}
                 placeholder="e.g. Alex Morgan"
                 className="w-full px-4 py-3 bg-gray-100 border-none rounded-xl text-sm text-gray-600 cursor-not-allowed"
               />
-              {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>}
+              {errors.fullName && <p id="intake-full-name-error" className="text-red-600 text-xs mt-1">{errors.fullName}</p>}
             </div>
 
             {/* Email - read-only, from the signed-in account */}
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">
-                Work Email Address <span className="text-red-500">*</span>
+              <label htmlFor="intake-email" className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">
+                Work Email Address <span className="text-red-600" aria-hidden="true">*</span>
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
+                  id="intake-email"
                   type="email"
                   value={email}
                   readOnly
+                  aria-required="true"
+                  aria-invalid={Boolean(errors.email)}
+                  aria-describedby={`intake-email-help${errors.email ? ' intake-email-error' : ''}`}
                   placeholder="alex.morgan@company.com"
                   className="w-full pl-10 pr-4 py-3 bg-gray-100 border-none rounded-xl text-sm text-gray-600 cursor-not-allowed"
                 />
               </div>
-              <p className="text-[11px] text-gray-500 mt-1 font-medium">Matches your signed-in account. Your Zoom join link, meeting ID, and passcode will be emailed here.</p>
-              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+              <p id="intake-email-help" className="text-[11px] text-gray-500 mt-1 font-medium">Matches your signed-in account. Your Zoom join link, meeting ID, and passcode will be emailed here.</p>
+              {errors.email && <p id="intake-email-error" className="text-red-600 text-xs mt-1">{errors.email}</p>}
             </div>
           </div>
         </div>
 
         {/* Section: Add Guests / Multi-Participant */}
         <div className="pt-4 border-t border-gray-100">
-          <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
-            Invitees <span className="text-red-500">*</span>
+          <label htmlFor="intake-invitees" className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
+            Invitees <span className="text-red-600" aria-hidden="true">*</span>
           </label>
-          <p className="text-xs text-gray-500 mb-2">
+          <p id="intake-invitees-help" className="text-xs text-gray-500 mb-2">
             At least one invitee is required. They&apos;ll receive an email with the Zoom join link, meeting ID, and passcode.
           </p>
 
@@ -397,8 +411,12 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
             <div className="relative flex-1">
               <Users className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
+                id="intake-invitees"
                 type="email"
                 value={guestEmailInput}
+                aria-required="true"
+                aria-invalid={Boolean(errors.guestEmails)}
+                aria-describedby={`intake-invitees-help${errors.guestEmails ? ' intake-invitees-error' : ''}`}
                 onChange={(e) => {
                   setGuestEmailInput(e.target.value);
                   // Picking a directory match hides the dropdown but keeps focus
@@ -475,7 +493,8 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                   <button
                     type="button"
                     onClick={() => handleRemoveGuest(g)}
-                    className="hover:text-red-500 p-0.5"
+                    aria-label={`Remove ${g}`}
+                    className="hover:text-red-600 p-0.5"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -483,7 +502,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
               ))}
             </div>
           )}
-          {errors.guestEmails && <p className="text-red-500 text-xs mt-2">{errors.guestEmails}</p>}
+          {errors.guestEmails && <p id="intake-invitees-error" role="alert" className="text-red-600 text-xs mt-2">{errors.guestEmails}</p>}
         </div>
 
         {/* Section: Send Host Key, and (once enabled) booking on someone
@@ -500,6 +519,8 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
               type="button"
               role="switch"
               aria-checked={sendHostKey}
+              aria-labelledby="intake-host-key-label"
+              aria-describedby="intake-host-key-help"
               onClick={() =>
                 setSendHostKey((v) => {
                   const next = !v;
@@ -520,10 +541,10 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
               />
             </button>
             <div>
-              <p className="text-sm font-bold text-[#0320AF]">Send Host Key</p>
-              <p className="text-xs text-gray-700 mt-0.5">
-                Tap this button to enable sending the Host Key. The Host Key is used to claim host
-                privileges such as recording the meeting.
+              <p id="intake-host-key-label" className="text-sm font-bold text-[#0320AF]">Send Host Key</p>
+              <p id="intake-host-key-help" className="text-xs text-gray-700 mt-0.5">
+                Turn on to send the Host Key, which lets the host claim host privileges such as
+                recording the meeting.
               </p>
               <p className="text-xs text-gray-700 mt-1">
                 Note: The Host Key will be included in your confirmation email and shown here
@@ -534,7 +555,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
 
           {sendHostKey && (
             <div className="mt-4">
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
+              <label htmlFor="intake-meeting-host" className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
                 Meeting Host <span className="text-gray-500 normal-case font-normal">(optional)</span>
               </label>
               <p className="text-xs text-gray-500 mb-2">
@@ -544,8 +565,11 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
               <div className="relative">
                 <User className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
+                  id="intake-meeting-host"
                   type="email"
                   value={hostOnBehalfEmail}
+                  aria-invalid={Boolean(errors.hostOnBehalfEmail)}
+                  aria-describedby={errors.hostOnBehalfEmail ? 'intake-meeting-host-error' : undefined}
                   onChange={(e) => {
                     setHostOnBehalfEmail(e.target.value);
                     setShowHostDirectoryResults(true); // same reason as the Invitees input above
@@ -598,7 +622,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                   </div>
                 )}
               </div>
-              {errors.hostOnBehalfEmail && <p className="text-red-500 text-xs mt-2">{errors.hostOnBehalfEmail}</p>}
+              {errors.hostOnBehalfEmail && <p id="intake-meeting-host-error" role="alert" className="text-red-600 text-xs mt-2">{errors.hostOnBehalfEmail}</p>}
             </div>
           )}
         </div>
@@ -645,6 +669,9 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                 <span className="text-sm text-gray-800">Host:</span>
                 <button
                   type="button"
+                  role="switch"
+                  aria-checked={hostVideo}
+                  aria-label="Host video"
                   onClick={() => setHostVideo(!hostVideo)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
                     hostVideo ? 'bg-[#0433FF]' : 'bg-gray-300'
@@ -662,6 +689,9 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                 <span className="text-sm text-gray-800">Participant:</span>
                 <button
                   type="button"
+                  role="switch"
+                  aria-checked={participantVideo}
+                  aria-label="Participant video"
                   onClick={() => setParticipantVideo(!participantVideo)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
                     participantVideo ? 'bg-[#0433FF]' : 'bg-gray-300'
@@ -738,6 +768,15 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
             </label>
           </div>
         </div>
+
+        {submitError && !isSubmitting && (
+          <div role="alert" className="flex items-start gap-2 p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700">
+            <AlertCircle className="w-4 h-4 mt-px shrink-0" />
+            <span>
+              <strong className="font-bold">The meeting wasn't booked.</strong> {submitError} Your details are still here, so you can try again.
+            </span>
+          </div>
+        )}
 
         {/* Submit Actions */}
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
