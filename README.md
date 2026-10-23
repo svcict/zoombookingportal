@@ -60,23 +60,24 @@ or ask me to scaffold the actual `deploy.yml` when you're ready.
 
 ## Identity & Session Auth
 
-The API server resolves "who is making this request" one of two ways, depending on whether
-Supabase is configured (`SUPABASE_URL` + `SUPABASE_ANON_KEY` in `.env`):
+Every protected endpoint requires an `Authorization: Bearer <token>` header carrying a session
+token the server verifies itself. Nothing the client claims about who it is (or whether it's an
+admin) is trusted. Accepted tokens:
 
-- **Supabase configured (production mode):** every protected endpoint requires an
-  `Authorization: Bearer <token>` header carrying the Supabase session token issued at login.
-  The server verifies it directly against Supabase (`auth.getUser`) and resolves admin status
-  from the verified user's metadata / `profiles.is_admin` — never from anything the client
-  claims about itself. An `X-User-Email` header alone is ignored entirely in this mode.
-- **Supabase not configured (local/demo mode):** since there's no real identity provider to
-  verify against, the server falls back to trusting a self-asserted `X-User-Email` header sent
-  by the logged-in frontend, and derives admin status from an email-substring heuristic. This
-  keeps the app usable for local development without a Supabase project, but provides **no
-  real security guarantee** — anyone can set that header to anything. Don't run this mode
-  against real user data.
+- **Microsoft 365 / Entra ID SSO sessions** - issued at `/auth/callback` and signed with
+  `DEMO_TOKEN_SECRET`. These work whether or not Supabase is configured.
+- **Supabase sessions** (when `SUPABASE_URL` + `SUPABASE_ANON_KEY` are set) - verified against
+  Supabase (`auth.getUser`), with admin status from the verified user's metadata /
+  `profiles.is_admin`.
+- **Demo-account sessions** - only for emails explicitly allowlisted in `DEMO_LOGIN_EMAILS`.
 
-The frontend always sends both headers (see `src/utils/auth.ts`); which one the server actually
-honors depends entirely on its own Supabase configuration, not anything the client requests.
+There is no fallback to a self-asserted `X-User-Email` header (an older local/demo mode trusted
+one, which let anyone act as any user). Set `DEMO_TOKEN_SECRET` in every deployed environment:
+without it the signing secret is random per process, so every server restart signs everyone out.
+
+Booking creation, push subscriptions and meeting-type creation all require a verified session;
+non-admins can only book under, and subscribe to notifications for, their own account. The
+frontend builds the header in `src/utils/auth.ts`.
 
 ### Admin Access
 
