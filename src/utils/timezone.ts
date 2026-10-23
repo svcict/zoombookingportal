@@ -135,3 +135,36 @@ export function zonedTimeToUtc(dateStr: string, hour: number, minute: number, ti
   );
   return new Date(guessMs + (guessMs - asIfLocalMs));
 }
+
+/**
+ * The current wall-clock date (YYYY-MM-DD) and minutes since midnight as
+ * they read in `timeZone` - what "now" means for the booking picker, which
+ * works in the user's selected timezone rather than the browser's.
+ */
+export function getNowInTimezone(timeZone: string): { dateStr: string; minutes: number } {
+  const now = new Date();
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).formatToParts(now);
+  } catch {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return {
+      dateStr: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+      minutes: now.getHours() * 60 + now.getMinutes()
+    };
+  }
+  const map: Record<string, string> = {};
+  for (const p of parts) map[p.type] = p.value;
+  return {
+    dateStr: `${map.year}-${map.month}-${map.day}`,
+    minutes: Number(map.hour) * 60 + Number(map.minute)
+  };
+}

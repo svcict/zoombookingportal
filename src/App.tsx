@@ -70,10 +70,11 @@ export default function App() {
   const [selectedTimezone, setSelectedTimezone] = useState<string>(getDetectedTimezone());
   const [isTimezoneModalOpen, setIsTimezoneModalOpen] = useState(false);
 
-  // Initialize selected date
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const initialDateStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+  // Initialize selected date to today - SimpleDateTimePicker then suggests
+  // the next open half-hour from the current time (rolling over to tomorrow
+  // late at night) instead of a fixed time on a fixed day.
+  const today = new Date();
+  const initialDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   
   const [selectedDate, setSelectedDate] = useState<string>(initialDateStr);
 
