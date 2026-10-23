@@ -1,0 +1,619 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-23T14:17:09+00:00",
+  "title": "Design System: Zoom Booking Portal",
+  "extensions": {
+    "colorMeta": {
+      "signal-blue": {
+        "role": "primary",
+        "displayName": "Signal Blue",
+        "canonical": "#0433FF",
+        "oklch": "oklch(48.5% 0.291 264.3)",
+        "tonalRamp": [
+          "#000036",
+          "#010079",
+          "#0200C3",
+          "#0330FD",
+          "#366FFF",
+          "#6C9AFF",
+          "#ACC7FF",
+          "#E7EFFF"
+        ]
+      },
+      "signal-blue-hover": {
+        "role": "primary",
+        "displayName": "Deep Signal Blue",
+        "canonical": "#0320AF",
+        "oklch": "oklch(36.7% 0.219 264.5)",
+        "tonalRamp": [
+          "#000036",
+          "#010079",
+          "#0321B0",
+          "#1B4BD6",
+          "#396FFD",
+          "#6D9AFF",
+          "#ACC7FF",
+          "#E7EFFF"
+        ]
+      },
+      "signal-blue-pressed": {
+        "role": "primary",
+        "displayName": "Midnight Signal",
+        "canonical": "#021B7A",
+        "oklch": "oklch(29.4% 0.160 264.2)",
+        "tonalRamp": [
+          "#000036",
+          "#000E6F",
+          "#113492",
+          "#2D56B6",
+          "#4B77DB",
+          "#6C9AFF",
+          "#ACC7FF",
+          "#E7EFFF"
+        ]
+      },
+      "blue-wash": {
+        "role": "primary",
+        "displayName": "Blue Wash",
+        "canonical": "#EFF6FF",
+        "oklch": "oklch(97.0% 0.014 254.6)",
+        "tonalRamp": [
+          "#070B11",
+          "#1F242B",
+          "#3B4047",
+          "#585E66",
+          "#787E86",
+          "#999FA7",
+          "#C1C8D0",
+          "#E8EFF8"
+        ]
+      },
+      "blue-tint": {
+        "role": "primary",
+        "displayName": "Blue Tint",
+        "canonical": "#DBEAFE",
+        "oklch": "oklch(93.2% 0.032 255.6)",
+        "tonalRamp": [
+          "#030B18",
+          "#1A2533",
+          "#354151",
+          "#525F70",
+          "#717E91",
+          "#92A0B3",
+          "#BAC9DC",
+          "#E4F0FF"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#101828",
+        "oklch": "oklch(21.0% 0.034 263.4)",
+        "tonalRamp": [
+          "#050B19",
+          "#1B2435",
+          "#364052",
+          "#545E71",
+          "#737E92",
+          "#949FB4",
+          "#BCC8DE",
+          "#E6EFFF"
+        ]
+      },
+      "body-ink": {
+        "role": "neutral",
+        "displayName": "Body Ink",
+        "canonical": "#2D2E33",
+        "oklch": "oklch(30.2% 0.009 276.8)",
+        "tonalRamp": [
+          "#0A0B0F",
+          "#232428",
+          "#3E3F45",
+          "#5C5D63",
+          "#7C7D83",
+          "#9D9EA4",
+          "#C6C7CD",
+          "#EDEEF5"
+        ]
+      },
+      "slate-text": {
+        "role": "neutral",
+        "displayName": "Slate Text",
+        "canonical": "#6A7282",
+        "oklch": "oklch(55.1% 0.027 264.3)",
+        "tonalRamp": [
+          "#060B17",
+          "#1D2431",
+          "#39404E",
+          "#565E6D",
+          "#757D8E",
+          "#969FB0",
+          "#BFC8DA",
+          "#E7EFFF"
+        ]
+      },
+      "muted-text": {
+        "role": "neutral",
+        "displayName": "Muted Text",
+        "canonical": "#99A1AF",
+        "oklch": "oklch(70.7% 0.022 261.7)",
+        "tonalRamp": [
+          "#060B14",
+          "#1E242F",
+          "#39404C",
+          "#575E6A",
+          "#767E8B",
+          "#979FAD",
+          "#C0C8D6",
+          "#E6EFFE"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#E5E7EB",
+        "oklch": "oklch(92.8% 0.006 264.5)",
+        "tonalRamp": [
+          "#0A0B0E",
+          "#232427",
+          "#3E4043",
+          "#5C5E61",
+          "#7B7D81",
+          "#9C9EA2",
+          "#C5C7CB",
+          "#ECEEF3"
+        ]
+      },
+      "field-border": {
+        "role": "neutral",
+        "displayName": "Field Border",
+        "canonical": "#D1D5DC",
+        "oklch": "oklch(87.2% 0.011 261.8)",
+        "tonalRamp": [
+          "#090B10",
+          "#212429",
+          "#3D4046",
+          "#5A5E64",
+          "#7A7D84",
+          "#9B9FA5",
+          "#C3C7CF",
+          "#EAEFF6"
+        ]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Canvas",
+        "canonical": "#F7F9FA",
+        "oklch": "oklch(98.1% 0.003 228.8)",
+        "tonalRamp": [
+          "#0A0B0C",
+          "#232425",
+          "#3E4041",
+          "#5C5E5F",
+          "#7B7E7F",
+          "#9C9FA0",
+          "#C5C8C9",
+          "#ECEFF0"
+        ]
+      },
+      "canvas-auth": {
+        "role": "neutral",
+        "displayName": "Canvas Auth",
+        "canonical": "#F0F2F5",
+        "oklch": "oklch(96.0% 0.005 258.3)",
+        "tonalRamp": [
+          "#0A0B0D",
+          "#232426",
+          "#3E4042",
+          "#5C5E60",
+          "#7B7D80",
+          "#9C9EA1",
+          "#C5C7CB",
+          "#ECEFF2"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface",
+        "canonical": "#FFFFFF",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#242424",
+          "#404040",
+          "#5D5D5D",
+          "#7D7D7D",
+          "#9E9E9E",
+          "#C7C7C7",
+          "#EEEEEE"
+        ]
+      },
+      "surface-muted": {
+        "role": "neutral",
+        "displayName": "Surface Muted",
+        "canonical": "#F9FAFB",
+        "oklch": "oklch(98.5% 0.002 247.8)",
+        "tonalRamp": [
+          "#0A0B0C",
+          "#232425",
+          "#3F4041",
+          "#5D5E5F",
+          "#7C7D7E",
+          "#9D9E9F",
+          "#C6C7C8",
+          "#EDEEF0"
+        ]
+      },
+      "field-fill-legacy": {
+        "role": "neutral",
+        "displayName": "Legacy Field Fill",
+        "canonical": "#F0F2F4",
+        "oklch": "oklch(96.0% 0.003 247.9)",
+        "tonalRamp": [
+          "#0A0B0C",
+          "#232425",
+          "#3E4041",
+          "#5C5E5F",
+          "#7C7D7F",
+          "#9D9EA0",
+          "#C6C7C9",
+          "#EDEFF0"
+        ]
+      },
+      "intake-header": {
+        "role": "neutral",
+        "displayName": "Intake Header",
+        "canonical": "#2D2E33",
+        "oklch": "oklch(30.2% 0.009 276.8)",
+        "tonalRamp": [
+          "#0A0B0F",
+          "#232428",
+          "#3E3F45",
+          "#5C5D63",
+          "#7C7D83",
+          "#9D9EA4",
+          "#C6C7CD",
+          "#EDEEF5"
+        ]
+      },
+      "success": {
+        "role": "semantic",
+        "displayName": "Success",
+        "canonical": "#008236",
+        "oklch": "oklch(53.0% 0.149 149.0)",
+        "tonalRamp": [
+          "#001003",
+          "#002D0E",
+          "#004E1D",
+          "#00712E",
+          "#279548",
+          "#50B769",
+          "#7BE291",
+          "#C8FFD0"
+        ]
+      },
+      "success-wash": {
+        "role": "semantic",
+        "displayName": "Success Wash",
+        "canonical": "#F0FDF4",
+        "oklch": "oklch(98.2% 0.018 155.8)",
+        "tonalRamp": [
+          "#050D08",
+          "#1D2720",
+          "#38433C",
+          "#566159",
+          "#758179",
+          "#96A29A",
+          "#BFCBC2",
+          "#E5F2E9"
+        ]
+      },
+      "danger": {
+        "role": "semantic",
+        "displayName": "Danger",
+        "canonical": "#E7000B",
+        "oklch": "oklch(58.3% 0.239 28.5)",
+        "tonalRamp": [
+          "#1F0000",
+          "#4B0001",
+          "#7D0003",
+          "#B20006",
+          "#EA080F",
+          "#FF6555",
+          "#FFB0A5",
+          "#FFE9E5"
+        ]
+      },
+      "danger-strong": {
+        "role": "semantic",
+        "displayName": "Danger Strong",
+        "canonical": "#C10007",
+        "oklch": "oklch(50.9% 0.209 28.5)",
+        "tonalRamp": [
+          "#1F0000",
+          "#4B0001",
+          "#7D0003",
+          "#B20006",
+          "#DE3229",
+          "#FF6555",
+          "#FFB0A5",
+          "#FFE9E5"
+        ]
+      },
+      "danger-wash": {
+        "role": "semantic",
+        "displayName": "Danger Wash",
+        "canonical": "#FEF2F2",
+        "oklch": "oklch(97.1% 0.013 17.4)",
+        "tonalRamp": [
+          "#100909",
+          "#2A2222",
+          "#463D3D",
+          "#655B5B",
+          "#857A7A",
+          "#A69B9B",
+          "#D0C4C4",
+          "#F7EBEB"
+        ]
+      },
+      "warning": {
+        "role": "semantic",
+        "displayName": "Warning",
+        "canonical": "#BB4D00",
+        "oklch": "oklch(55.7% 0.158 45.4)",
+        "tonalRamp": [
+          "#190400",
+          "#401500",
+          "#6B2800",
+          "#993E00",
+          "#C65716",
+          "#EC7A40",
+          "#FFB390",
+          "#FFE9E0"
+        ]
+      },
+      "warning-wash": {
+        "role": "semantic",
+        "displayName": "Warning Wash",
+        "canonical": "#FFFBEB",
+        "oklch": "oklch(98.7% 0.021 95.3)",
+        "tonalRamp": [
+          "#0E0B03",
+          "#272418",
+          "#434033",
+          "#615E50",
+          "#817D6F",
+          "#A29F90",
+          "#CBC7B8",
+          "#F3EFDF"
+        ]
+      },
+      "host-key-orange": {
+        "role": "semantic",
+        "displayName": "Host Key Orange",
+        "canonical": "#FF7B00",
+        "oklch": "oklch(72.4% 0.189 50.9)",
+        "tonalRamp": [
+          "#180500",
+          "#3D1800",
+          "#662D00",
+          "#934400",
+          "#C25C00",
+          "#F47500",
+          "#FFB388",
+          "#FFEADE"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page and dialog headings, big numbers."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card, section, meeting and dialog titles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Form values and readable copy."
+      },
+      "body-small": {
+        "displayName": "Body Small",
+        "purpose": "The workhorse: metadata, button labels, list rows."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Uppercase micro-labels above fields and sections."
+      },
+      "badge": {
+        "displayName": "Badge",
+        "purpose": "Status pills."
+      }
+    },
+    "shadows": [
+      {
+        "name": "resting-card",
+        "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+        "purpose": "Every card and resting button."
+      },
+      {
+        "name": "hairline-lift",
+        "value": "0 1px rgb(0 0 0 / 0.05)",
+        "purpose": "Inputs and small controls."
+      },
+      {
+        "name": "floating-panel",
+        "value": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+        "purpose": "Popovers, the open date-time picker, dropdowns."
+      },
+      {
+        "name": "modal",
+        "value": "0 25px 50px -12px rgb(0 0 0 / 0.25)",
+        "purpose": "Dialogs only, over a black/50 lightly blurred backdrop."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-transition",
+        "value": "150ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Hover and focus color changes (Tailwind transition-colors default)."
+      },
+      {
+        "name": "dialog-enter",
+        "value": "fade-in + zoom-in-95, 150ms",
+        "purpose": "Modal dialogs opening."
+      },
+      {
+        "name": "live-pulse",
+        "value": "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "purpose": "The LIVE badge only."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one main action per card or step: Schedule Meeting, Apply, Next.",
+      "html": "<button class=\"ds-btn-primary\">Schedule Meeting</button>",
+      "css": ".ds-btn-primary { font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: #0433FF; color: #fff; font-size: 12px; font-weight: 700; padding: 10px 16px; border: none; border-radius: 12px; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); cursor: pointer; transition: background-color 150ms; } .ds-btn-primary:hover { background: #0320AF; } .ds-btn-primary:active { background: #021B7A; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px rgb(4 51 255 / 0.4); } .ds-btn-primary:disabled { background: #D1D5DC; cursor: not-allowed; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Alternative or safe actions beside a primary: Edit, Keep meeting, Book another.",
+      "html": "<button class=\"ds-btn-secondary\">Keep meeting</button>",
+      "css": ".ds-btn-secondary { font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: #fff; color: #101828; font-size: 12px; font-weight: 700; padding: 10px 16px; border: 1px solid #D1D5DC; border-radius: 12px; cursor: pointer; transition: background-color 150ms; } .ds-btn-secondary:hover { background: #F3F4F6; } .ds-btn-secondary:focus-visible { outline: none; box-shadow: 0 0 0 2px rgb(4 51 255 / 0.4); }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Confirms a destructive action inside a dialog, e.g. Cancel meeting.",
+      "html": "<button class=\"ds-btn-danger\">Cancel meeting</button>",
+      "css": ".ds-btn-danger { font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: #E7000B; color: #fff; font-size: 14px; font-weight: 700; padding: 10px 16px; border: none; border-radius: 12px; cursor: pointer; transition: background-color 150ms; } .ds-btn-danger:hover { background: #C10007; } .ds-btn-danger:focus-visible { outline: none; box-shadow: 0 0 0 2px rgb(231 0 11 / 0.35); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "The standard field: white, bordered, blue focus ring. Use for all new inputs.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Invitees</span><span class=\"ds-input-wrap\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/></svg><input class=\"ds-input\" placeholder=\"colleague@company.com or search by name\"></span></label>",
+      "css": ".ds-field { font-family: Inter, ui-sans-serif, system-ui, sans-serif; display: flex; flex-direction: column; gap: 8px; width: 320px; } .ds-field-label { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #6A7282; } .ds-input-wrap { position: relative; display: flex; align-items: center; color: #6A7282; } .ds-input-wrap svg { position: absolute; left: 14px; } .ds-input { font-family: Inter, ui-sans-serif, system-ui, sans-serif; width: 100%; font-size: 14px; color: #101828; background: #fff; border: 1px solid #D1D5DC; border-radius: 12px; padding: 10px 14px 10px 40px; box-shadow: 0 1px rgb(0 0 0 / 0.05); transition: border-color 150ms, box-shadow 150ms; } .ds-input::placeholder { color: #99A1AF; } .ds-input:focus { outline: none; border-color: #0433FF; box-shadow: 0 0 0 2px rgb(4 51 255 / 0.25); }"
+    },
+    {
+      "name": "Header Navigation",
+      "kind": "nav",
+      "refersTo": "nav-tab-active",
+      "description": "Top header tabs; active tab is Blue Wash with Signal Blue text.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-tab is-active\" href=\"#\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M8 2v4\"/><path d=\"M16 2v4\"/><rect width=\"18\" height=\"18\" x=\"3\" y=\"4\" rx=\"2\"/><path d=\"M3 10h18\"/></svg>Dashboard</a><a class=\"ds-nav-tab\" href=\"#\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M8 2v4\"/><path d=\"M16 2v4\"/><rect width=\"18\" height=\"18\" x=\"3\" y=\"4\" rx=\"2\"/><path d=\"M3 10h18\"/></svg>Schedule</a></nav>",
+      "css": ".ds-nav { font-family: Inter, ui-sans-serif, system-ui, sans-serif; display: flex; gap: 4px; padding: 12px 16px; background: #fff; border-bottom: 1px solid #E5E7EB; } .ds-nav-tab { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; color: #6A7282; text-decoration: none; transition: background-color 150ms, color 150ms; } .ds-nav-tab:hover { background: #F3F4F6; color: #101828; } .ds-nav-tab.is-active { background: #EFF6FF; color: #0433FF; font-weight: 600; } .ds-nav-tab:focus-visible { outline: none; box-shadow: 0 0 0 2px rgb(4 51 255 / 0.4); }"
+    },
+    {
+      "name": "Status Badges",
+      "kind": "chip",
+      "refersTo": "badge-confirmed",
+      "description": "Fixed vocabulary for booking state: Confirmed, Cancelled, Completed, LIVE.",
+      "html": "<div class=\"ds-badges\"><span class=\"ds-badge ds-badge-ok\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21.801 10A10 10 0 1 1 17 3.335\"/><path d=\"m9 11 3 3L22 4\"/></svg>Confirmed</span><span class=\"ds-badge ds-badge-bad\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m15 9-6 6\"/><path d=\"m9 9 6 6\"/></svg>Cancelled</span><span class=\"ds-badge ds-badge-done\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21.801 10A10 10 0 1 1 17 3.335\"/><path d=\"m9 11 3 3L22 4\"/></svg>Completed</span><span class=\"ds-badge ds-badge-live\"><i></i>LIVE</span></div>",
+      "css": ".ds-badges { font-family: Inter, ui-sans-serif, system-ui, sans-serif; display: flex; gap: 8px; flex-wrap: wrap; } .ds-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid transparent; } .ds-badge-ok { background: #F0FDF4; color: #008236; border-color: #B9F8CF; } .ds-badge-bad { background: #FEF2F2; color: #C10007; border-color: #FFC9C9; } .ds-badge-done { background: #F3F4F6; color: #4A5565; border-color: #E5E7EB; } .ds-badge-live { background: #E7000B; color: #fff; gap: 6px; animation: ds-pulse 2s ease-in-out infinite; } .ds-badge-live i { width: 6px; height: 6px; border-radius: 9999px; background: #fff; } @keyframes ds-pulse { 50% { opacity: .6; } } @media (prefers-reduced-motion: reduce) { .ds-badge-live { animation: none; } }"
+    },
+    {
+      "name": "Meeting Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A booking in My Meetings: date tile, title, status, time and host, actions.",
+      "html": "<article class=\"ds-card\"><div class=\"ds-date\"><b>OCT</b><strong>27</strong></div><div class=\"ds-card-body\"><div class=\"ds-card-head\"><h3>Q4 Program Review</h3><span class=\"ds-badge-ok-sm\">Confirmed</span><span class=\"ds-meta\">\u2022 60 mins</span></div><p class=\"ds-time\">3:00 PM (Manila)</p><div class=\"ds-actions\"><button class=\"ds-join\">Join Zoom Meeting</button><button class=\"ds-copy\">Copy Link</button></div></div></article>",
+      "css": ".ds-card { font-family: Inter, ui-sans-serif, system-ui, sans-serif; display: flex; gap: 16px; width: 420px; padding: 20px; background: #fff; border: 1px solid #E5E7EB; border-radius: 16px; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); transition: border-color 150ms; } .ds-card:hover { border-color: rgb(4 51 255 / 0.4); } .ds-date { width: 48px; height: 48px; flex-shrink: 0; border-radius: 12px; background: #EFF6FF; border: 1px solid #DBEAFE; display: flex; flex-direction: column; align-items: center; justify-content: center; } .ds-date b { font-size: 10px; color: #0433FF; } .ds-date strong { font-size: 16px; font-weight: 800; color: #101828; line-height: 1; } .ds-card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; } .ds-card-head h3 { margin: 0; font-size: 16px; font-weight: 700; color: #101828; } .ds-badge-ok-sm { padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; background: #F0FDF4; color: #008236; border: 1px solid #B9F8CF; } .ds-meta { font-size: 12px; color: #6A7282; } .ds-time { margin: 6px 0 12px; font-size: 12px; font-weight: 600; color: #0433FF; } .ds-actions { display: flex; gap: 8px; } .ds-join { font-family: Inter, ui-sans-serif, system-ui, sans-serif; padding: 8px 16px; border: none; border-radius: 12px; background: #0433FF; color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; } .ds-join:hover { background: #0320AF; } .ds-copy { font-family: Inter, ui-sans-serif, system-ui, sans-serif; padding: 8px 14px; border: 1px solid #E5E7EB; border-radius: 12px; background: #fff; color: #364153; font-size: 12px; font-weight: 600; cursor: pointer; } .ds-copy:hover { background: #F9FAFB; } .ds-join:focus-visible, .ds-copy:focus-visible { outline: none; box-shadow: 0 0 0 2px rgb(4 51 255 / 0.4); }"
+    },
+    {
+      "name": "Time Column",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Signature date-time picker column: 12-hour order, past values greyed out, selected value as a solid blue chip.",
+      "html": "<div class=\"ds-timecol\"><button disabled>12</button><button disabled>01</button><button>02</button><button class=\"is-selected\">03</button><button>04</button><button>05</button></div>",
+      "css": ".ds-timecol { font-family: Inter, ui-sans-serif, system-ui, sans-serif; display: flex; flex-direction: column; gap: 2px; width: 64px; padding: 4px; } .ds-timecol button { font-family: Inter, ui-sans-serif, system-ui, sans-serif; height: 36px; border: none; border-radius: 6px; background: transparent; color: #1E2939; font-size: 14px; cursor: pointer; transition: background-color 150ms; } .ds-timecol button:hover:not(:disabled):not(.is-selected) { background: #F3F4F6; } .ds-timecol button:disabled { color: #D1D5DC; cursor: not-allowed; } .ds-timecol button.is-selected { background: #0433FF; color: #fff; font-weight: 700; } .ds-timecol button:focus-visible { outline: none; box-shadow: 0 0 0 2px rgb(4 51 255 / 0.4); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Front Desk",
+    "overview": "The portal is the Ayala Foundation's reception desk for Zoom. A staff member walks up, says what they need, and leaves a minute later with a join link, an Outlook invite and, if they need it, the Host Key. The interface acts like a good receptionist: calm, quick, never showy, always clear about what happens next. Most of the screen is quiet cool white and grey. One electric blue says \"this is where you act\", and it also appears as a soft accent so the desk feels like the Foundation's own, not a generic form.\n\nDensity is that of a working tool: compact type (mostly 11\u201314px), tight but breathable spacing, and information grouped into rounded white cards on a pale canvas. Status is never left to guesswork. Confirmed, cancelled, completed, live, available and busy each have a fixed color and wording. Flourishes are rare and earned: confetti once when a booking succeeds, a pulsing LIVE badge, a gentle zoom-in on dialogs.",
+    "keyCharacteristics": [
+      "One brand blue for actions, selection and accents, on a cool near-white canvas.",
+      "Inter throughout. Hierarchy comes from weight (bold and extrabold) more than size.",
+      "White cards with thin hairline borders and the faintest shadow. Depth is a hint, not a feature.",
+      "Generous rounding (12\u201316px), with fully round pills for status and chips.",
+      "Uppercase, letter-spaced micro-labels above fields and sections.",
+      "Green, red and amber reserved for meaning (success, failure or destructive, caution). Never decoration."
+    ],
+    "rules": [
+      {
+        "name": "The Meaning-Only Rule",
+        "body": "Green, red and amber always mean something: success, failure or destructive, caution. Never use them to decorate or to tell categories apart.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Blue Rule",
+        "body": "There is exactly one brand blue and its two darker states. Don't introduce other blues (such as Zoom's own `#0B5CFF` or Microsoft's `#0078D4`) except inside a third-party logo.",
+        "section": "colors"
+      },
+      {
+        "name": "The Weight-Not-Size Rule",
+        "body": "Build hierarchy with weight and color before reaching for a bigger size. Most of the UI lives between 11px and 16px. Above 24px is reserved for rare numeric emphasis.",
+        "section": "typography"
+      },
+      {
+        "name": "The Label Rule",
+        "body": "Field and section labels are 11px, bold, uppercase, letter-spaced, in Slate Text. Values under them are sentence case in Ink.",
+        "section": "typography"
+      },
+      {
+        "name": "The Card-Per-Job Rule",
+        "body": "Each distinct job (pick a time, add invitees, review settings) gets its own card. Don't merge unrelated controls into one card, and don't nest cards more than one level deep. Use Surface Muted for an inset panel instead.",
+        "section": "layout"
+      },
+      {
+        "name": "The Border-First Rule",
+        "body": "Separate surfaces with a 1px hairline before adding shadow. A shadow heavier than \"resting card\" means the element floats above the page, so it must actually be a popover or modal.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** use Signal Blue for every primary action and for the selected state. Blue Wash or Blue Tint for accent tiles and highlights is fine.",
+      "**Do** label fields and sections with the 11px bold uppercase letter-spaced label in Slate Text.",
+      "**Do** put each job in its own white 16px card with a Hairline border on the Canvas background.",
+      "**Do** show every booking state with the fixed badge vocabulary (Confirmed, Cancelled, Completed, LIVE) and the fixed availability wording (\"This time is available\", \"This time has already passed\").",
+      "**Do** gray out and disable anything in the past instead of letting people pick it and showing an error afterwards.",
+      "**Do** use the standard white bordered input for all new fields.",
+      "**Do** confirm destructive actions in a dialog that names the meeting and says what will happen."
+    ],
+    "donts": [
+      "**Don't** use browser `alert()` or `confirm()`. Use an inline message or a dialog.",
+      "**Don't** introduce a second brand blue, or use green, red or amber decoratively.",
+      "**Don't** add shadows heavier than \"resting card\" to anything that doesn't float above the page.",
+      "**Don't** create new grey-filled borderless inputs.",
+      "**Don't** use type larger than 24px except for rare numeric emphasis, or lighter than 400.",
+      "**Don't** let sticky page elements paint over a modal. Render modals on `document.body`."
+    ]
+  }
+}
