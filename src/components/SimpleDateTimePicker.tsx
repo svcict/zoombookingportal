@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Calendar as CalendarIcon, Globe, CheckCircle2, XCircle, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { zonedTimeToUtc, getNowInTimezone } from '../utils/timezone';
+import { zonedTimeToUtc, getNowInTimezone, getWallTimeInTimezone } from '../utils/timezone';
 import { TimeSlot } from '../types';
 
 interface SimpleDateTimePickerProps {
@@ -12,6 +12,10 @@ interface SimpleDateTimePickerProps {
   meetingTypeId?: string;
   onDurationChange: (minutes: number) => void;
   onSelectTime: (slot: TimeSlot) => void;
+  // The slot applied before (e.g. coming Back from the intake form, which
+  // remounts this picker) - restored instead of a fresh suggestion.
+  appliedSlot?: TimeSlot | null;
+  appliedDurationMinutes?: number;
 }
 
 type AvailabilityState =
@@ -87,6 +91,8 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
   meetingTypeId,
   onDurationChange,
   onSelectTime,
+  appliedSlot,
+  appliedDurationMinutes,
 }) => {
   // "Now" in the selected timezone, refreshed every 30s so options gray out
   // as time passes while the picker sits open.
@@ -104,14 +110,20 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
   const [step, setStep] = useState<Step>('start');
   const [applied, setApplied] = useState(false);
 
-  // Auto-suggest the next open half-hour from the current time, unless a
-  // later day was already picked (e.g. coming back to this step).
+  // Restore a previously applied slot; otherwise auto-suggest the next open
+  // half-hour from the current time, unless a later day was already picked.
   const [start, setStartRaw] = useState<WallTime>(() => {
+    if (appliedSlot?.isoString) {
+      const wall = getWallTimeInTimezone(new Date(appliedSlot.isoString), selectedTimezone);
+      return { date: wall.dateStr, minutes: wall.minutes };
+    }
     const nowWall = getNowInTimezone(selectedTimezone);
     if (selectedDate && selectedDate > nowWall.dateStr) return { date: selectedDate, minutes: 9 * 60 };
     return addMinutes({ date: nowWall.dateStr, minutes: 0 }, Math.floor(nowWall.minutes / 30) * 30 + 30);
   });
-  const [end, setEndRaw] = useState<WallTime>(() => addMinutes(start, DEFAULT_DURATION));
+  const [end, setEndRaw] = useState<WallTime>(() =>
+    addMinutes(start, appliedSlot && appliedDurationMinutes && appliedDurationMinutes > 0 ? appliedDurationMinutes : DEFAULT_DURATION)
+  );
 
   const startDate = start.date;
   const endDate = end.date;
@@ -199,7 +211,10 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
     setApplied(false);
   }, [startDate, startHour, startMinute, startAmpm, endDate, endHour, endMinute, endAmpm]);
 
-  const isBlocked = isPast || !isValidRange || availability.status === 'blocked';
+  // Also hold Apply/Next while the free-slot check is still in flight, so a
+  // clashing time can't slip through during the debounce + round trip. A
+  // failed check ('unknown') stays bookable - the server re-checks on submit.
+  const isBlocked = isPast || !isValidRange || availability.status === 'blocked' || availability.status === 'checking';
 
   const pickStartDay = (d: string) => setStart({ date: d, minutes: start.minutes });
   const pickEndDay = (d: string) => setEnd({ date: d, minutes: end.minutes });

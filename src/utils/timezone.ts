@@ -142,7 +142,14 @@ export function zonedTimeToUtc(dateStr: string, hour: number, minute: number, ti
  * works in the user's selected timezone rather than the browser's.
  */
 export function getNowInTimezone(timeZone: string): { dateStr: string; minutes: number } {
-  const now = new Date();
+  return getWallTimeInTimezone(new Date(), timeZone);
+}
+
+/**
+ * The wall-clock date (YYYY-MM-DD) and minutes since midnight that the
+ * instant `now` reads as in `timeZone` - the inverse of zonedTimeToUtc.
+ */
+export function getWallTimeInTimezone(now: Date, timeZone: string): { dateStr: string; minutes: number } {
   let parts: Intl.DateTimeFormatPart[];
   try {
     parts = new Intl.DateTimeFormat('en-US', {

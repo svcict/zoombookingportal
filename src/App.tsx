@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Header } from './components/Header';
 import { M365AuthGate } from './components/M365AuthGate';
 import { SimpleDateTimePicker } from './components/SimpleDateTimePicker';
@@ -10,9 +10,8 @@ import { TimezoneSelector } from './components/TimezoneSelector';
 import { Office365CalendarDashboard, DashboardWelcomeCard } from './components/Office365CalendarDashboard';
 import { ZoomMeetingDetailsModal } from './components/ZoomMeetingDetailsModal';
 import { SlotUnavailableModal } from './components/SlotUnavailableModal';
-import { MeetingType, TimeSlot, Booking, M365CalendarState, M365User, HostAccount } from './types';
-import { INITIAL_MEETING_TYPES, INITIAL_HOST_ACCOUNTS, INITIAL_M365_STATE } from './data/initialData';
-import { generateLocalAvailabilitySlots } from './utils/availability';
+import { MeetingType, TimeSlot, Booking, M365CalendarState, M365User } from './types';
+import { INITIAL_MEETING_TYPES, INITIAL_M365_STATE } from './data/initialData';
 import { getDetectedTimezone, formatDateInTimezone } from './utils/timezone';
 import { playZoomNotificationSound, sendBrowserPushNotification } from './utils/notifications';
 import { buildAuthHeaders } from './utils/auth';
@@ -61,7 +60,6 @@ export default function App() {
   const [topicError, setTopicError] = useState(false);
   const [meetingAnswers, setMeetingAnswers] = useState<Record<string, any>>({});
   const [answerErrors, setAnswerErrors] = useState<Record<string, string>>({});
-  const [hostAccounts, setHostAccounts] = useState<HostAccount[]>(INITIAL_HOST_ACCOUNTS);
   const [selectedAccountId, setSelectedAccountId] = useState<string>('all');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [m365State, setM365State] = useState<M365CalendarState>(INITIAL_M365_STATE);
@@ -93,7 +91,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [bookingStep, currentView]);
 
-  // Initial Load: Fetch Meeting Types, Bookings, M365 status, Hosts gracefully
+  // Initial Load: Fetch Meeting Types, Bookings, M365 status gracefully
   useEffect(() => {
     let isMounted = true;
     async function loadInitialData() {
@@ -106,12 +104,11 @@ export default function App() {
               )
             : Promise.resolve(null),
           fetch('/api/m365/status').then((r) => (r.ok ? r.json() : null)),
-          fetch('/api/auth/m365/accounts').then((r) => (r.ok ? r.json() : null)),
         ]);
 
         if (!isMounted) return;
 
-        const [typesResult, bookingsResult, m365Result, accountsResult] = results;
+        const [typesResult, bookingsResult, m365Result] = results;
 
         // 1. Meeting Types
         if (typesResult.status === 'fulfilled' && typesResult.value?.success && typesResult.value.data?.length > 0) {
@@ -132,11 +129,6 @@ export default function App() {
         // 3. M365 State
         if (m365Result.status === 'fulfilled' && m365Result.value?.success && m365Result.value.data) {
           setM365State(m365Result.value.data);
-        }
-
-        // 4. Host Accounts
-        if (accountsResult.status === 'fulfilled' && accountsResult.value?.success && Array.isArray(accountsResult.value.data)) {
-          setHostAccounts(accountsResult.value.data);
         }
       } catch (err) {
         // Fallback already initialized in state
@@ -187,43 +179,6 @@ export default function App() {
     });
   }, [bookings, isAdmin, authUser]);
 
-  // Refresh the rotating host-account summary for the selected meeting type/date.
-  // The fixed-slot availability grid this used to also populate is gone now
-  // that time entry is free-form (see SimpleDateTimePicker) - real conflicts are still
-  // caught server-side at submit (the existing 409 "both accounts booked" path).
-  const fetchAvailability = useCallback(async () => {
-    if (!selectedMeetingType || !selectedDate) return;
-
-    const localResult = generateLocalAvailabilitySlots({
-      meetingType: selectedMeetingType,
-      date: selectedDate,
-      selectedAccountId,
-      bookings,
-      timezone: selectedTimezone
-    });
-
-    try {
-      const accountParam = selectedAccountId && selectedAccountId !== 'all' ? `&accountId=${selectedAccountId}` : '';
-      const durationParam = customDurationMinutes ? `&duration=${customDurationMinutes}` : '';
-      const res = await fetch(
-        `/api/availability?meetingTypeId=${selectedMeetingType.id}&date=${selectedDate}&timezone=${encodeURIComponent(selectedTimezone)}${accountParam}${durationParam}`
-      );
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.hostAccountsSummary) {
-          setHostAccounts(data.hostAccountsSummary);
-          return;
-        }
-      }
-      setHostAccounts(localResult.hostAccountsSummary);
-    } catch {
-      setHostAccounts(localResult.hostAccountsSummary);
-    }
-  }, [selectedMeetingType, selectedDate, selectedTimezone, selectedAccountId, bookings, m365State.syncEnabled, customDurationMinutes]);
-
-  useEffect(() => {
-    fetchAvailability();
-  }, [fetchAvailability, m365State.lastCheckedAt]);
 
   // Handle Sign Out
   const handleSignOut = () => {
@@ -562,6 +517,8 @@ export default function App() {
                     meetingTypeId={selectedMeetingType?.id}
                     onDurationChange={setCustomDurationMinutes}
                     onSelectTime={handleSelectSlot}
+                    appliedSlot={selectedSlot}
+                    appliedDurationMinutes={customDurationMinutes}
                   />
                 </div>
 
@@ -596,11 +553,11 @@ export default function App() {
                 }}
                 onViewMeetings={() => setCurrentView('dashboard')}
                 onCancelMeeting={handleCancelBooking}
-                onUpdateBookingConfig={async (updatedConfig) => {
+                onUpdateBookingConfig={async (updatedConfig, savedBooking) => {
                   setBookings((prev) =>
-                    prev.map((b) => (b.id === confirmedBooking.id ? { ...b, zoomConfig: updatedConfig } : b))
+                    prev.map((b) => (b.id === confirmedBooking.id ? savedBooking ?? { ...b, zoomConfig: updatedConfig } : b))
                   );
-                  setConfirmedBooking((prev) => (prev ? { ...prev, zoomConfig: updatedConfig } : null));
+                  setConfirmedBooking((prev) => (prev ? savedBooking ?? { ...prev, zoomConfig: updatedConfig } : null));
                   setBannerNotice('Zoom meeting details updated and synced to Office 365 Exchange.');
                   setTimeout(() => setBannerNotice(null), 4000);
                 }}
@@ -657,7 +614,6 @@ export default function App() {
             setIsSlotUnavailableModalOpen(false);
             setSelectedSlot(null);
             setBookingStep('slots');
-            fetchAvailability();
           }}
         />
       )}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ShieldAlert,
   RefreshCw,
@@ -75,27 +75,34 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
   const [systemLogsCategoryFilter, setSystemLogsCategoryFilter] = useState<'all' | 'zoom' | 'admin' | 'booking' | 'meeting-type' | 'm365' | 'push'>('all');
   const [canceledMeetingsSearch, setCanceledMeetingsSearch] = useState('');
 
-  const fetchAuditData = async () => {
+  const auditRequestId = useRef(0);
+
+  // `background` is the 8s auto-refresh: it doesn't spin/disable the Refresh
+  // button, and skips entirely while the tab is hidden. Only the newest
+  // request's response is applied, so a slow one can't overwrite fresher data.
+  const fetchAuditData = async ({ background = false }: { background?: boolean } = {}) => {
     if (!adminEmail) return;
-    setIsLoading(true);
+    if (background && document.hidden) return;
+    const thisRequestId = ++auditRequestId.current;
+    if (!background) setIsLoading(true);
     try {
       const res = await fetch('/api/admin/failed-logins', { headers: authHeaders });
       if (res.ok) {
         const json = await res.json();
-        if (json.success && json.data) {
+        if (thisRequestId === auditRequestId.current && json.success && json.data) {
           setAuditData(json.data);
         }
       }
     } catch (err) {
       console.warn('Failed to load security audit data:', err);
     } finally {
-      setIsLoading(false);
+      if (!background) setIsLoading(false);
     }
   };
 
   useEffect(() => {
     fetchAuditData();
-    const interval = setInterval(fetchAuditData, 8000);
+    const interval = setInterval(() => fetchAuditData({ background: true }), 8000);
     return () => clearInterval(interval);
   }, [adminEmail]);
 
@@ -223,7 +230,7 @@ export const AdminSecurityAuditView: React.FC<AdminSecurityAuditViewProps> = ({ 
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <button type="button" onClick={fetchAuditData} disabled={isLoading} className={BUTTON_OUTLINE}>
+          <button type="button" onClick={() => fetchAuditData()} disabled={isLoading} className={BUTTON_OUTLINE}>
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#0433FF]' : ''}`} />
             <span>Refresh Audits</span>
           </button>

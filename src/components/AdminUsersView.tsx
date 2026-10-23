@@ -241,7 +241,9 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({ adminEmail, auth
             <p className="text-xs text-gray-500">Anyone listed here signs in with full admin access</p>
           </div>
           <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
-            {data.grantedAdmins.length + data.bootstrapAdmins.length} Admins
+            {/* Distinct emails - someone can be both a bootstrap and a granted admin,
+                and the list below shows them once. */}
+            {new Set([...data.bootstrapAdmins, ...data.grantedAdmins]).size} Admins
           </span>
         </div>
 

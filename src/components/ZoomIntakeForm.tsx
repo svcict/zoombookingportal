@@ -103,6 +103,9 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   useEffect(() => {
     const query = guestEmailInput.trim();
     if (query.length < 2) {
+      // Invalidate any search still in flight, or its late response would
+      // repopulate the dropdown under the now-cleared input.
+      directoryRequestId.current++;
       setDirectoryResults([]);
       return;
     }
@@ -144,6 +147,9 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   useEffect(() => {
     const query = hostOnBehalfEmail.trim();
     if (query.length < 2) {
+      // Invalidate any search still in flight, or its late response would
+      // repopulate the dropdown under the now-cleared input.
+      hostDirectoryRequestId.current++;
       setHostDirectoryResults([]);
       return;
     }

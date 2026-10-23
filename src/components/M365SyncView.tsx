@@ -32,7 +32,26 @@ export const M365SyncView: React.FC<M365SyncViewProps> = ({
   adminEmail,
   authHeaders,
 }) => {
-  const [checkDate, setCheckDate] = useState(new Date().toISOString().slice(0, 10));
+  // Today in the browser's local time - toISOString() is the UTC date, which
+  // is still yesterday in Manila until 8 AM.
+  const [checkDate, setCheckDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  // The server flips sync on every call, so a double-click would flip it
+  // twice - block repeat clicks until the first one comes back.
+  const [isToggling, setIsToggling] = useState(false);
+  const handleToggleSync = async () => {
+    if (isToggling) return;
+    setIsToggling(true);
+    try {
+      await onToggleSync();
+    } catch (err) {
+      console.error('Failed to toggle M365 sync:', err);
+    } finally {
+      setIsToggling(false);
+    }
+  };
   const [isChecking, setIsChecking] = useState(false);
   const [checkResults, setCheckResults] = useState<CheckNowResult[] | null>(null);
   const [checkMessage, setCheckMessage] = useState<string | null>(null);
@@ -90,14 +109,15 @@ export const M365SyncView: React.FC<M365SyncViewProps> = ({
 
           <div className="flex items-center gap-3">
             <button
-              onClick={onToggleSync}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-xs ${
+              onClick={handleToggleSync}
+              disabled={isToggling}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-xs disabled:opacity-70 disabled:cursor-wait ${
                 m365State.syncEnabled
                   ? 'bg-green-600 hover:bg-green-700 text-white'
                   : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
               }`}
             >
-              <RefreshCw className="w-3.5 h-3.5" />
+              <RefreshCw className={`w-3.5 h-3.5 ${isToggling ? 'animate-spin' : ''}`} />
               <span>{m365State.syncEnabled ? 'Sync Active' : 'Sync Paused'}</span>
             </button>
           </div>

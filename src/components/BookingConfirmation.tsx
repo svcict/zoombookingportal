@@ -35,7 +35,10 @@ interface BookingConfirmationProps {
   onBookAnother: () => void;
   onViewMeetings?: () => void;
   onCancelMeeting?: (bookingId: string) => Promise<void>;
-  onUpdateBookingConfig?: (updatedConfig: ZoomMeetingConfig) => Promise<void> | void;
+  // savedBooking is the server's full copy after the PATCH (invitees, host
+  // key etc. included), so the parent can store it instead of re-patching only
+  // zoomConfig onto its stale copy - which this component would then sync back.
+  onUpdateBookingConfig?: (updatedConfig: ZoomMeetingConfig, savedBooking?: Booking) => Promise<void> | void;
   authHeaders?: Record<string, string>;
 }
 
@@ -75,8 +78,10 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
     setCurrentBooking(booking);
   }, [booking]);
 
+  // Fire celebration confetti once, when the confirmation first appears -
+  // not again every time the booking object changes (saving settings,
+  // cancelling the meeting).
   useEffect(() => {
-    // Fire celebration confetti on initial render
     try {
       confetti({
         particleCount: 80,
@@ -86,7 +91,9 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
     } catch (e) {
       // ignore
     }
+  }, []);
 
+  useEffect(() => {
     // Countdown calculation
     const calcCountdown = () => {
       const start = new Date(booking.startTimeIso).getTime();
@@ -106,7 +113,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
     calcCountdown();
     const interval = setInterval(calcCountdown, 30000);
     return () => clearInterval(interval);
-  }, [booking]);
+  }, [booking.startTimeIso]);
 
   const copyToClipboard = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
@@ -128,14 +135,16 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           sendHostKey,
         }),
       });
+      let savedBooking: Booking | undefined;
       if (res.ok) {
         const data = await res.json();
         if (data.data) {
+          savedBooking = data.data;
           setCurrentBooking(data.data);
         }
       }
       if (onUpdateBookingConfig) {
-        await onUpdateBookingConfig(updatedConfig);
+        await onUpdateBookingConfig(updatedConfig, savedBooking);
       }
       setIsEditModalOpen(false);
     } catch (e) {
