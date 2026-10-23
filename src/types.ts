@@ -314,7 +314,8 @@ export interface LoginSecurityAudit {
 export interface M365SettingsConfig {
   tenantId: string;
   clientId: string;
-  clientSecret: string;
+  clientSecret: string; // write-only: always '' from the server
+  hasClientSecret?: boolean;
   redirectUri: string;
   scopes: string;
   orgDomain: string;

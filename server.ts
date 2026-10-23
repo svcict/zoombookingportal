@@ -1373,7 +1373,10 @@ app.get('/api/admin/m365/config', async (req, res) => {
     data: {
       tenantId,
       clientId,
-      clientSecret,
+      // Write-only, like the Zoom client secrets: never sent back to the
+      // browser, only whether one is saved.
+      clientSecret: '',
+      hasClientSecret: Boolean(clientSecret),
       redirectUri,
       scopes,
       orgDomain,
@@ -1413,6 +1416,9 @@ app.post('/api/admin/m365/config', async (req, res) => {
   const filteredKeys: Record<string, string> = {};
   for (const [k, v] of Object.entries(keys)) {
     if (M365_CONFIG_KEYS.has(k)) {
+      // The UI never has the saved client secret (it's write-only), so a
+      // blank one means "keep the existing secret", not "erase it".
+      if (k === 'MICROSOFT_CLIENT_SECRET' && !String(v ?? '').trim()) continue;
       filteredKeys[k] = String(v);
     }
   }
@@ -1441,7 +1447,10 @@ app.post('/api/admin/m365/config', async (req, res) => {
     data: {
       tenantId,
       clientId,
-      clientSecret,
+      // Write-only, like the Zoom client secrets: never sent back to the
+      // browser, only whether one is saved.
+      clientSecret: '',
+      hasClientSecret: Boolean(clientSecret),
       redirectUri,
       scopes,
       orgDomain,

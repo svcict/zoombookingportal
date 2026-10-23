@@ -544,7 +544,7 @@ export const M365LoginSettingsConfig: React.FC<M365LoginSettingsConfigProps> = (
                   type={showSecret ? 'text' : 'password'}
                   value={config.clientSecret}
                   onChange={(e) => handleFieldChange('clientSecret', e.target.value)}
-                  placeholder="Enter your Azure client secret"
+                  placeholder={config.hasClientSecret ? 'Saved - leave blank to keep the existing secret' : 'Enter your Azure client secret'}
                   className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:ring-2 focus:ring-[#0433FF] focus:border-[#0433FF] transition-all shadow-2xs"
                 />
               </div>
