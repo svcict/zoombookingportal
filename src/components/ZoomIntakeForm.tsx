@@ -393,7 +393,13 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
               <input
                 type="email"
                 value={guestEmailInput}
-                onChange={(e) => setGuestEmailInput(e.target.value)}
+                onChange={(e) => {
+                  setGuestEmailInput(e.target.value);
+                  // Picking a directory match hides the dropdown but keeps focus
+                  // in this input, so onFocus won't fire again for the next
+                  // invitee - reopen it as soon as they start typing instead.
+                  setShowDirectoryResults(true);
+                }}
                 onFocus={() => {
                   if (guestBlurTimeoutRef.current) {
                     clearTimeout(guestBlurTimeoutRef.current);
@@ -536,6 +542,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                   value={hostOnBehalfEmail}
                   onChange={(e) => {
                     setHostOnBehalfEmail(e.target.value);
+                    setShowHostDirectoryResults(true); // same reason as the Invitees input above
                     if (errors.hostOnBehalfEmail) {
                       setErrors((prev) => {
                         const next = { ...prev };
