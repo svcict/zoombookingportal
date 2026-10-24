@@ -70,6 +70,10 @@ interface ZoomIntakeFormProps {
   // Why the last submit failed (shown inline above the buttons, in place of
   // a browser alert), so the form and everything typed into it stay put.
   submitError?: string | null;
+  // True while this step is on screen. The form stays mounted (hidden) while
+  // the booker changes the time, so this - not mounting - is when keyboard
+  // and screen-reader focus should move to the form's heading.
+  isActive?: boolean;
 }
 
 // Error key -> the field to send focus to when that check fails.
@@ -92,8 +96,13 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   onSubmit,
   isSubmitting = false,
   submitError = null,
+  isActive = true,
 }) => {
   const topic = meetingTopic || meetingType.title || 'Zoom Video Meeting';
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (isActive) headingRef.current?.focus({ preventScroll: true });
+  }, [isActive]);
   // "2:00 – 3:00 PM": the end comes from the picked start plus the length.
   const timeRangeLabel = (() => {
     try {
@@ -355,7 +364,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                   Agenda
                 </span>
               </div>
-              <h2 className="text-xl sm:text-2xl font-bold mt-1 text-white tracking-tight">
+              <h2 ref={headingRef} tabIndex={-1} className="text-xl sm:text-2xl font-bold mt-1 text-white tracking-tight outline-none">
                 {topic || meetingType.title}
               </h2>
             </div>
@@ -408,6 +417,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                 type="text"
                 value={fullName}
                 readOnly
+                tabIndex={-1}
                 aria-required="true"
                 aria-invalid={Boolean(errors.fullName)}
                 aria-describedby={errors.fullName ? 'intake-full-name-error' : undefined}
@@ -429,6 +439,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                   type="email"
                   value={email}
                   readOnly
+                  tabIndex={-1}
                   aria-required="true"
                   aria-invalid={Boolean(errors.email)}
                   aria-describedby={`intake-email-help${errors.email ? ' intake-email-error' : ''}`}

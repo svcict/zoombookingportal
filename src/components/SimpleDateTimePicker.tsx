@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Calendar as CalendarIcon, Globe, CheckCircle2, XCircle, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, Globe, CheckCircle2, XCircle, Loader2, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import { zonedTimeToUtc, getNowInTimezone, getWallTimeInTimezone } from '../utils/timezone';
 import { isBookableStart, isBookableEnd, isWeekendDate, BOOKING_END_HOUR, BOOKING_HOURS_LABEL } from '../utils/bookingHours';
 import { TimeSlot } from '../types';
@@ -17,6 +17,8 @@ interface SimpleDateTimePickerProps {
   // remounts this picker) - restored instead of a fresh suggestion.
   appliedSlot?: TimeSlot | null;
   appliedDurationMinutes?: number;
+  // Focus the date-time field on mount (coming Back from the intake form).
+  autoFocusField?: boolean;
 }
 
 type AvailabilityState =
@@ -101,6 +103,42 @@ const nearestAllowedOnDate = (t: WallTime, allowed: (w: WallTime) => boolean): W
   return null;
 };
 
+// Allowed time nearest to `t` within the same hour (only the minute moves) -
+// used when the booker just picked that hour.
+const nearestInSameHour = (t: WallTime, allowed: (w: WallTime) => boolean): WallTime | null => {
+  const hour = Math.floor(t.minutes / 60);
+  for (let offset = 0; offset < 60; offset += 5) {
+    for (const minutes of [t.minutes + offset, t.minutes - offset]) {
+      if (Math.floor(minutes / 60) !== hour) continue;
+      const candidate = { date: t.date, minutes };
+      if (allowed(candidate)) return candidate;
+    }
+  }
+  return null;
+};
+
+// Allowed time nearest to `t` with the same minute (only the hour moves) -
+// used when the booker switched AM/PM and their minute should survive.
+const nearestKeepingMinute = (t: WallTime, allowed: (w: WallTime) => boolean): WallTime | null => {
+  for (let offset = 0; offset < 1440; offset += 60) {
+    for (const minutes of [t.minutes - offset, t.minutes + offset]) {
+      if (minutes < 0 || minutes >= 1440) continue;
+      const candidate = { date: t.date, minutes };
+      if (allowed(candidate)) return candidate;
+    }
+  }
+  return null;
+};
+
+// What the booker most wants kept when their pick has to move: the hour
+// they just clicked, or the minute when they switched AM/PM.
+type Keep = 'hour' | 'minute' | undefined;
+
+const wallLabel = (t: WallTime) => {
+  const { hour12, minute, ampm } = splitWall(t);
+  return formatTimeLabel(hour12, minute, ampm);
+};
+
 const formatDateLabel = (dateStr: string) =>
   new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
@@ -121,6 +159,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
   onSelectTime,
   appliedSlot,
   appliedDurationMinutes,
+  autoFocusField = false,
 }) => {
   // "Now" in the selected timezone, refreshed every 30s so options gray out
   // as time passes while the picker sits open.
@@ -179,28 +218,61 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
   // Moving the start never lands on a time that can't be booked: it snaps
   // to the nearest allowed time that day (or the next bookable slot), and
   // carries the end along so the meeting length is kept, within booking hours.
-  const setStart = (next: WallTime) => {
+  // Why a picked time couldn't be used as-is, for the adjustment note.
+  const whyNotBookable = (t: WallTime, isEnd: boolean) => {
+    if (isWeekendDate(t.date)) return 'weekends can\'t be booked';
+    if (isEnd) return compareWall(t, minEnd) < 0 ? 'the end must be after the start' : `meetings must end by ${wallLabel({ date: t.date, minutes: BOOKING_END_HOUR * 60 })}`;
+    if (compareWall(t, earliestStart) < 0) return 'that time has already passed';
+    if (t.minutes === 12 * 60) return '12:00 noon is reserved';
+    return `it's outside booking hours (${BOOKING_HOURS_LABEL})`;
+  };
+  // Shown in the status line whenever a pick had to be moved, so nothing
+  // changes silently.
+  const [adjustNote, setAdjustNote] = useState<string | null>(null);
+
+  const setStart = (next: WallTime, keep?: Keep) => {
     const length = durationMinutes > 0 ? durationMinutes : DEFAULT_DURATION;
-    // When the pick itself isn't allowed, prefer a nearby start that still
-    // fits the whole meeting before 8 PM, so the length survives the snap.
+    // When the pick itself isn't allowed, prefer a nearby start that keeps
+    // what the booker just chose (the hour, or the minute) and still fits
+    // the whole meeting before 8 PM.
     const fitsWholeMeeting = (t: WallTime) => {
       const e = addMinutes(t, length);
       return isStartAllowed(t) && isBookableEnd(e.date, e.minutes);
     };
+    const preferred = (allowed: (w: WallTime) => boolean) =>
+      keep === 'hour' ? nearestInSameHour(next, allowed) : keep === 'minute' ? nearestKeepingMinute(next, allowed) : null;
     const snapped = isStartAllowed(next)
       ? next
-      : nearestAllowedOnDate(next, fitsWholeMeeting) ?? nearestAllowedOnDate(next, isStartAllowed) ?? nextBookableStart(next, earliestStart);
+      : preferred(fitsWholeMeeting) ?? preferred(isStartAllowed) ??
+        nearestAllowedOnDate(next, fitsWholeMeeting) ?? nearestAllowedOnDate(next, isStartAllowed) ?? nextBookableStart(next, earliestStart);
     const wantedEnd = addMinutes(snapped, length);
+    const endFits = isBookableEnd(wantedEnd.date, wantedEnd.minutes);
+    const newEnd = endFits ? wantedEnd : { date: snapped.date, minutes: BOOKING_END_HOUR * 60 };
     setApplied(false);
     setStartRaw(snapped);
-    setEndRaw(isBookableEnd(wantedEnd.date, wantedEnd.minutes) ? wantedEnd : { date: snapped.date, minutes: BOOKING_END_HOUR * 60 });
+    setEndRaw(newEnd);
+    if (compareWall(snapped, next) !== 0) {
+      setAdjustNote(`Start moved to ${snapped.date !== next.date ? `${formatDateLabel(snapped.date)} ` : ''}${wallLabel(snapped)}: ${wallLabel(next)} can't be booked because ${whyNotBookable(next, false)}.`);
+    } else if (!endFits) {
+      setAdjustNote(`End moved to ${wallLabel(newEnd)}, the latest a meeting can run.`);
+    } else {
+      setAdjustNote(null);
+    }
   };
   // The end can't be at or before the start, or outside booking hours.
   const minEnd = addMinutes(start, 5);
   const isEndAllowed = (t: WallTime) => compareWall(t, minEnd) >= 0 && isBookableEnd(t.date, t.minutes);
-  const setEnd = (next: WallTime) => {
+  const setEnd = (next: WallTime, keep?: Keep) => {
+    const preferred =
+      keep === 'hour' ? nearestInSameHour(next, isEndAllowed) : keep === 'minute' ? nearestKeepingMinute(next, isEndAllowed) : null;
+    const snapped = isEndAllowed(next) ? next : preferred ?? nearestAllowedOnDate(next, isEndAllowed) ?? minEnd;
     setApplied(false);
-    setEndRaw(isEndAllowed(next) ? next : nearestAllowedOnDate(next, isEndAllowed) ?? minEnd);
+    setEndRaw(snapped);
+    setAdjustNote(
+      compareWall(snapped, next) !== 0
+        ? `End moved to ${wallLabel(snapped)}: ${wallLabel(next)} can't be used because ${whyNotBookable(next, true)}.`
+        : null
+    );
   };
 
   // If the clock (or a timezone change) overtakes the chosen start, move it
@@ -286,6 +358,37 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
     requestAnimationFrame(() => triggerRef.current?.focus({ preventScroll: true }));
   };
   const handleCancel = closePicker;
+
+  useEffect(() => {
+    if (autoFocusField) triggerRef.current?.focus();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Opening the panel, or switching between Start and End, puts keyboard
+  // focus on the selected day, so arrow keys work straight away.
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const focusActiveDay = () =>
+    requestAnimationFrame(() => calendarRef.current?.querySelector<HTMLElement>('button[tabindex="0"]')?.focus());
+  useEffect(() => {
+    if (isOpen) focusActiveDay();
+  }, [isOpen, step]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Arrow keys move the selected day (left/right one day, up/down one week),
+  // skipping days that can't be picked and following into the next month.
+  const handleCalendarKeyDown = (e: React.KeyboardEvent) => {
+    const delta = ({ ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 } as Record<string, number>)[e.key];
+    if (!delta) return;
+    e.preventDefault();
+    const [y, m, d] = activeDateStr.split('-').map(Number);
+    for (let i = 1; i <= 60; i++) {
+      const candidate = new Date(Date.UTC(y, m - 1, d + delta * i));
+      const dateStr = toDateStr(candidate.getUTCFullYear(), candidate.getUTCMonth(), candidate.getUTCDate());
+      if (dayDisabledFn(dateStr)) continue;
+      showMonthOf(dateStr);
+      onPickDay(dateStr);
+      focusActiveDay();
+      return;
+    }
+  };
   // Esc closes the open picker wherever keyboard focus is (usually still on
   // the field that opened it).
   useEffect(() => {
@@ -338,15 +441,24 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
   const minuteDisabled = (m: number) => !isAllowed(at(to24Hour(activeHour, activeAmpm) * 60 + m));
   const hourDisabled = (h12: number) => !MINUTES.some((m) => isAllowed(at(to24Hour(h12, activeAmpm) * 60 + m)));
   const ampmDisabled = (ap: Ampm) => !HOURS.some((h12) => MINUTES.some((m) => isAllowed(at(to24Hour(h12, ap) * 60 + m))));
-  const dayDisabled = (dateStr: string) => {
+  const dayDisabledFn = (dateStr: string) => {
     if (step === 'end') return dateStr < start.date || isWeekendDate(dateStr);
     if (dateStr < earliestStart.date || isWeekendDate(dateStr)) return true;
     // e.g. today after the last bookable start has passed
     return dateStr === earliestStart.date && nearestAllowedOnDate({ date: dateStr, minutes: 0 }, isStartAllowed) === null;
   };
+  const viewDates = Array.from({ length: daysInMonth }, (_, k) => toDateStr(viewYear, viewMonth, k + 1));
+  const activeInView = viewDates.includes(activeDateStr);
+  const firstEnabledInView = viewDates.find((d) => !dayDisabledFn(d));
 
   const availabilityReadout = (
     <div role="status" aria-live="polite" className="flex flex-col items-center gap-2">
+      {adjustNote && (
+        <span className="flex items-start gap-1.5 max-w-sm text-xs text-amber-800 text-center">
+          <Info className="w-3.5 h-3.5 mt-px shrink-0" />
+          <span>{adjustNote}</span>
+        </span>
+      )}
       <span className="text-xs text-gray-500 font-medium">{durationLabel}</span>
       {!isValidRange ? (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full text-xs font-semibold text-center">
@@ -473,11 +585,13 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
                   ))}
                 </div>
 
-                <div className="grid grid-cols-7 gap-0.5">
+                <div ref={calendarRef} className="grid grid-cols-7 gap-0.5" onKeyDown={handleCalendarKeyDown}>
                   {Array.from({ length: firstDow }).map((_, i) => (
                     <div key={`e-${i}`} />
                   ))}
                   {Array.from({ length: daysInMonth }).map((_, i) => {
+                    // (one Tab stop for the whole grid: the selected day, or
+                    // the first pickable day when it's in another month)
                     const day = i + 1;
                     const dateStr = toDateStr(viewYear, viewMonth, day);
                     const isStart = dateStr === startDate;
@@ -485,7 +599,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
                     const isEdge = isStart || isEnd;
                     const isInRange = startDate < dateStr && dateStr < endDate;
                     const isActive = dateStr === activeDateStr;
-                    const isDisabled = dayDisabled(dateStr);
+                    const isDisabled = dayDisabledFn(dateStr);
                     return (
                       <button
                         key={day}
@@ -494,6 +608,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
                         disabled={isDisabled}
                         aria-label={formatDateLabel(dateStr)}
                         aria-pressed={isActive}
+                        tabIndex={isActive || (!activeInView && !isDisabled && dateStr === firstEnabledInView) ? 0 : -1}
                         className={`aspect-square text-sm rounded ${
                           isDisabled
                             ? 'text-gray-300 cursor-not-allowed'
@@ -519,7 +634,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
                   active={activeHour}
                   format={(v) => pad2(v)}
                   isDisabled={hourDisabled}
-                  onSelect={(h) => setActive(at(to24Hour(h, activeAmpm) * 60 + activeMinute))}
+                  onSelect={(h) => setActive(at(to24Hour(h, activeAmpm) * 60 + activeMinute), 'hour')}
                 />
                 <ScrollColumn
                   label="Minute"
@@ -527,7 +642,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
                   active={activeMinute}
                   format={(v) => pad2(v)}
                   isDisabled={minuteDisabled}
-                  onSelect={(m) => setActive(at(to24Hour(activeHour, activeAmpm) * 60 + m))}
+                  onSelect={(m) => setActive(at(to24Hour(activeHour, activeAmpm) * 60 + m), 'hour')}
                 />
                 <ScrollColumn
                   label="AM/PM"
@@ -535,7 +650,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
                   active={activeAmpm}
                   format={(v) => v}
                   isDisabled={ampmDisabled}
-                  onSelect={(ap) => setActive(at(to24Hour(activeHour, ap) * 60 + activeMinute))}
+                  onSelect={(ap) => setActive(at(to24Hour(activeHour, ap) * 60 + activeMinute), 'minute')}
                 />
               </div>
             </div>
@@ -611,6 +726,22 @@ function ScrollColumn<T extends string | number>({
   const containerRef = useRef<HTMLDivElement>(null);
   const hasScrolledRef = useRef(false);
 
+  // One Tab stop per column (the selected value); Up/Down arrows move to the
+  // previous/next pickable value. Focus follows whatever value ends up
+  // selected, since the picker may adjust it.
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    const dir = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+    if (!dir) return;
+    e.preventDefault();
+    const from = values.indexOf(active);
+    for (let i = from + dir; i >= 0 && i < values.length; i += dir) {
+      if (isDisabled?.(values[i])) continue;
+      onSelect(values[i]);
+      requestAnimationFrame(() => containerRef.current?.querySelector<HTMLElement>('[data-active="true"]')?.focus());
+      return;
+    }
+  };
+
   // Keep the selected value centred in view - on open and whenever it
   // changes (including when the picker snaps it forward past a gray slot).
   useEffect(() => {
@@ -629,7 +760,7 @@ function ScrollColumn<T extends string | number>({
     <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500 text-center pb-1.5" aria-hidden="true">
       {label === 'Minute' ? 'Min' : label}
     </div>
-    <div ref={containerRef} role="group" aria-label={label} className="relative max-h-[232px] overflow-y-auto no-scrollbar px-1 space-y-0.5">
+    <div ref={containerRef} role="group" aria-label={label} onKeyDown={handleKeyDown} className="relative max-h-[232px] overflow-y-auto no-scrollbar px-1 space-y-0.5">
       {values.map((v) => {
         const disabled = isDisabled?.(v) ?? false;
         const selected = v === active;
@@ -641,6 +772,7 @@ function ScrollColumn<T extends string | number>({
             onClick={() => onSelect(v)}
             disabled={disabled}
             aria-pressed={selected}
+            tabIndex={selected ? 0 : -1}
             aria-label={`${label === 'AM/PM' ? '' : `${label} `}${format(v)}`}
             className={`w-full h-9 text-center text-sm rounded-md transition-colors ${
               selected

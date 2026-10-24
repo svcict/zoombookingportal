@@ -88,6 +88,9 @@ export default function App() {
   // invitees, Host Key choice and settings survive; clearing this starts a
   // genuinely new booking with an empty form.
   const [intakeSlot, setIntakeSlot] = useState<TimeSlot | null>(null);
+  // Set when the booker comes Back from the intake form, so the time picker
+  // takes keyboard focus instead of leaving it on the page body.
+  const [focusPickerOnReturn, setFocusPickerOnReturn] = useState(false);
   const [bookingStep, setBookingStep] = useState<'slots' | 'intake' | 'confirmed'>('slots');
   const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
@@ -251,6 +254,7 @@ export default function App() {
 
     setSelectedSlot(slot);
     setIntakeSlot(slot);
+    setFocusPickerOnReturn(false);
     setBookingStep('intake');
   };
 
@@ -573,6 +577,7 @@ export default function App() {
                     onSelectTime={handleSelectSlot}
                     appliedSlot={selectedSlot}
                     appliedDurationMinutes={customDurationMinutes}
+                    autoFocusField={focusPickerOnReturn}
                   />
                 </div>
 
@@ -592,11 +597,13 @@ export default function App() {
                 answers={meetingAnswers}
                 onBack={() => {
                   setBookingError(null);
+                  setFocusPickerOnReturn(true);
                   setBookingStep('slots');
                 }}
                 onSubmit={handleSubmitBooking}
                 isSubmitting={isSubmittingBooking}
                 submitError={bookingError}
+                isActive={bookingStep === 'intake'}
               />
               </div>
             )}
