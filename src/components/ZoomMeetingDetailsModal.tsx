@@ -1,873 +1,340 @@
-import React, { useState, useEffect } from 'react';
-import {
-  X,
-  Info,
-  ChevronDown,
-  CheckCircle2
-} from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { X, Mail, Plus, KeyRound, Lock, AlertCircle, Loader2 } from 'lucide-react';
 import { Booking, ZoomMeetingConfig } from '../types';
-import { useResetTimer } from '../utils/useResetTimer';
+import { useFocusTrap } from '../utils/useFocusTrap';
+import { Switch } from './Switch';
+import { ZoomSettingsFields, ZoomSettingsValue, zoomSettingsFrom } from './ZoomSettingsFields';
 
 interface ZoomMeetingDetailsModalProps {
   booking?: Booking | null;
   initialConfig?: Partial<ZoomMeetingConfig>;
-  isOpen?: boolean;
-  isInlineCard?: boolean;
   onClose?: () => void;
+  // Rejects with an Error (its message shown in the window) when the save
+  // fails; the window then stays open with every edit intact. Resolves once
+  // the server has actually saved, and the window closes itself.
   onSave?: (updatedConfig: ZoomMeetingConfig, sendHostKey: boolean) => Promise<void> | void;
-  readOnly?: boolean;
 }
 
+const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+
+// Edit a booked meeting: the same choices as the booking form (invitees,
+// agenda, Host Key / Meeting Host and the shared Zoom settings) and nothing
+// that doesn't save. The passcode is shown but, as on the booking form, not
+// booker-configurable.
 export const ZoomMeetingDetailsModal: React.FC<ZoomMeetingDetailsModalProps> = ({
   booking,
   initialConfig,
-  isOpen = true,
-  isInlineCard = false,
   onClose,
   onSave,
-  readOnly = false,
 }) => {
-  // Fallback only used when a booking has no real zoomDetails yet (e.g. this
-  // modal rendered before Zoom provisioning completed) - generated fresh
-  // rather than a fixed literal, so it's never the same predictable value
-  // reused across every booking that happens to hit this fallback.
-  const [defaultPasscode] = useState<string>(() => {
-    if (booking?.zoomDetails?.passcode) return booking.zoomDetails.passcode;
-    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz';
-    let out = '';
-    for (let i = 0; i < 10; i++) out += chars.charAt(Math.floor(Math.random() * chars.length));
-    return out;
-  });
-  const defaultPmi = 'Not assigned';
+  const cfg = booking?.zoomConfig ?? initialConfig;
 
-  // Invitees is a real Zoom API concern for calendar/access purposes only
-  // via the booking's own guestEmails - Zoom's meeting API has no separate
-  // "invitees" setting, so this list IS booking.guestEmails, not a second
-  // copy of it living only in zoomConfig.
-  const [inviteeInput, setInviteeInput] = useState('');
   const [invitees, setInvitees] = useState<string[]>(booking?.guestEmails || []);
-
-  const [meetingIdType, setMeetingIdType] = useState<'auto' | 'pmi'>(
-    initialConfig?.meetingIdType || 'auto'
-  );
-  const [pmiNumber] = useState<string>(initialConfig?.pmiNumber || defaultPmi);
-
-  const [showAgendaInput, setShowAgendaInput] = useState<boolean>(
-    Boolean(initialConfig?.hasAgenda || initialConfig?.agenda)
-  );
-  // Zoom's real agenda field - deliberately not pre-filled from the intake
-  // form's custom questions (those vary per meeting type and aren't
-  // reliably "the agenda"), so there's exactly one place this comes from.
-  const [agenda, setAgenda] = useState<string>(initialConfig?.agenda || '');
-
-  // Security
-  const [passcodeEnabled, setPasscodeEnabled] = useState<boolean>(
-    initialConfig?.passcodeEnabled ?? true
-  );
-  const [passcode, setPasscode] = useState<string>(
-    initialConfig?.passcode || defaultPasscode
-  );
-  const [waitingRoom, setWaitingRoom] = useState<boolean>(
-    initialConfig?.waitingRoom ?? false
-  );
-  const [requireAuth, setRequireAuth] = useState<boolean>(
-    initialConfig?.requireAuth ?? false
-  );
-
-  // My Notes
-  const [allowMyNotesTranscript, setAllowMyNotesTranscript] = useState<boolean>(
-    initialConfig?.allowMyNotesTranscript ?? true
-  );
-
-  // Meeting Chat
-  const [enableContinuousChat, setEnableContinuousChat] = useState<boolean>(
-    initialConfig?.enableContinuousChat ?? true
-  );
-
-  // Video
-  const [hostVideo, setHostVideo] = useState<boolean>(
-    initialConfig?.hostVideo ?? true
-  );
-  const [participantVideo, setParticipantVideo] = useState<boolean>(
-    initialConfig?.participantVideo ?? true
-  );
-
-  // Audio
-  const [audioOption, setAudioOption] = useState<'telephone' | 'computer' | 'both' | 'third_party'>(
-    initialConfig?.audioOption || 'both'
-  );
-
-  // Calendar
-  const [calendarType, setCalendarType] = useState<'outlook' | 'google' | 'other'>(
-    initialConfig?.calendarType || 'outlook'
-  );
-
-  // Advanced section
-  const [isAdvancedOpen, setIsAdvancedOpen] = useState<boolean>(true);
-  const [joinAnytime, setJoinAnytime] = useState<boolean>(
-    initialConfig?.joinAnytime ?? false
-  );
-  const [muteOnEntry, setMuteOnEntry] = useState<boolean>(
-    initialConfig?.muteOnEntry ?? true
-  );
-  const [autoRecord, setAutoRecord] = useState<boolean>(
-    initialConfig?.autoRecord ?? false
-  );
-  const [alternativeHosts, setAlternativeHosts] = useState<string>(
-    initialConfig?.alternativeHosts || ''
-  );
-  // Off by default, same as the intake form - saving with this on resends
-  // the real Host Key via a new email; it never fires just from editing
-  // other settings. Not part of ZoomMeetingConfig since it's a one-time
-  // action flag, not a persisted setting.
+  const [inviteeInput, setInviteeInput] = useState('');
+  const [inviteeError, setInviteeError] = useState<string | null>(null);
+  const [agenda, setAgenda] = useState<string>(cfg?.agenda || '');
+  const [settings, setSettings] = useState<ZoomSettingsValue>(() => zoomSettingsFrom(cfg));
+  // Off by default, same as the booking form: turning it on emails the
+  // Host Key on save; editing anything else never sends it.
   const [sendHostKey, setSendHostKey] = useState(false);
+  const [meetingHost, setMeetingHost] = useState<string>(cfg?.alternativeHosts || '');
+  const [meetingHostError, setMeetingHostError] = useState<string | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
-  const [savedSuccess, setSavedSuccess] = useState(false);
-  const scheduleSavedReset = useResetTimer();
-  const [showMoreOptionsModal, setShowMoreOptionsModal] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Load the form from the booking when a different booking is opened -
-  // keyed on its id, not the object, so a refreshed copy of the same booking
-  // (the 20s bookings poll, a parent re-render) doesn't wipe unsaved edits.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useFocusTrap(dialogRef);
   useEffect(() => {
-    if (booking) {
-      setInvitees(booking.guestEmails || []);
-    }
-    if (booking?.zoomConfig) {
-      const cfg = booking.zoomConfig;
-      setMeetingIdType(cfg.meetingIdType || 'auto');
-      setAgenda(cfg.agenda || '');
-      setShowAgendaInput(Boolean(cfg.agenda));
-      setPasscodeEnabled(cfg.passcodeEnabled ?? true);
-      setPasscode(cfg.passcode || booking.zoomDetails?.passcode || defaultPasscode);
-      setWaitingRoom(cfg.waitingRoom ?? false);
-      setRequireAuth(cfg.requireAuth ?? false);
-      setAllowMyNotesTranscript(cfg.allowMyNotesTranscript ?? true);
-      setEnableContinuousChat(cfg.enableContinuousChat ?? true);
-      setHostVideo(cfg.hostVideo ?? true);
-      setParticipantVideo(cfg.participantVideo ?? true);
-      setAudioOption(cfg.audioOption || 'both');
-      setCalendarType(cfg.calendarType || 'outlook');
-      setJoinAnytime(cfg.joinAnytime ?? false);
-      setMuteOnEntry(cfg.muteOnEntry ?? true);
-      setAutoRecord(cfg.autoRecord ?? false);
-      setAlternativeHosts(cfg.alternativeHosts || '');
-    }
-  }, [booking?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    headingRef.current?.focus();
+  }, []);
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isSaving) onClose?.();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isSaving, onClose]);
 
-  const handleAddInvitee = () => {
-    const trimmed = inviteeInput.trim();
-    if (!trimmed) return;
-    if (!invitees.includes(trimmed)) {
-      setInvitees([...invitees, trimmed]);
+  const addInvitee = () => {
+    const email = inviteeInput.trim();
+    if (!email) return;
+    if (!isEmail(email)) {
+      setInviteeError('Enter a full email address, like name@example.org.');
+      return;
     }
+    if (!invitees.some((i) => i.toLowerCase() === email.toLowerCase())) setInvitees([...invitees, email]);
     setInviteeInput('');
-  };
-
-  const handleRemoveInvitee = (indexToRemove: number) => {
-    setInvitees(invitees.filter((_, idx) => idx !== indexToRemove));
+    setInviteeError(null);
   };
 
   const handleSave = async () => {
-    setIsSaving(true);
+    // A typed-but-not-added email counts, same as on the booking form.
+    let finalInvitees = invitees;
+    const pending = inviteeInput.trim();
+    if (pending) {
+      if (!isEmail(pending)) {
+        setInviteeError('Enter a full email address, like name@example.org.');
+        document.getElementById('edit-invitees')?.focus();
+        return;
+      }
+      if (!invitees.some((i) => i.toLowerCase() === pending.toLowerCase())) finalInvitees = [...invitees, pending];
+      setInvitees(finalInvitees);
+      setInviteeInput('');
+    }
+    if (finalInvitees.length === 0) {
+      setInviteeError('Add at least one invitee.');
+      document.getElementById('edit-invitees')?.focus();
+      return;
+    }
+    if (sendHostKey && meetingHost.trim() && !isEmail(meetingHost)) {
+      setMeetingHostError('Enter a full email address, like name@example.org.');
+      document.getElementById('edit-meeting-host')?.focus();
+      return;
+    }
+
     const updatedConfig: ZoomMeetingConfig = {
-      invitees,
-      meetingIdType,
-      pmiNumber,
+      // Carry through anything this window doesn't show, unchanged.
+      ...(cfg as ZoomMeetingConfig),
+      ...settings,
+      invitees: finalInvitees,
       hasAgenda: Boolean(agenda.trim()),
       agenda: agenda.trim(),
-      passcodeEnabled,
-      passcode,
-      waitingRoom,
-      requireAuth,
-      allowMyNotesTranscript,
-      enableContinuousChat,
-      hostVideo,
-      participantVideo,
-      audioOption,
-      calendarType,
-      joinAnytime,
-      muteOnEntry,
-      autoRecord,
-      alternativeHosts,
+      passcodeEnabled: cfg?.passcodeEnabled ?? true,
+      passcode: cfg?.passcode || booking?.zoomDetails?.passcode || '',
+      meetingIdType: cfg?.meetingIdType || 'auto',
+      alternativeHosts: sendHostKey ? meetingHost.trim() : cfg?.alternativeHosts || '',
     };
 
+    setIsSaving(true);
+    setSaveError(null);
     try {
-      if (onSave) {
-        await onSave(updatedConfig, sendHostKey);
-      }
-      setSavedSuccess(true);
-      scheduleSavedReset(() => setSavedSuccess(false), 3000);
-    } catch (e) {
-      console.error(e);
+      await onSave?.(updatedConfig, sendHostKey);
+      onClose?.();
+    } catch (err: any) {
+      setSaveError(err?.message || 'Your changes could not be saved.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  if (!isOpen && !isInlineCard) return null;
+  const label = 'block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5';
+  const input =
+    'w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-[#0433FF] focus:ring-2 focus:ring-[#0433FF]/25';
 
-  const content = (
-    <div className="bg-white rounded-xl shadow-xs border border-gray-200 text-[#1a1a1a] font-sans overflow-hidden">
-      {/* Top Title Bar (if standalone modal) */}
-      {!isInlineCard && (
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-white sticky top-0 z-20">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-[#0433FF]">Zoom Meeting Settings</span>
-              <span className="text-gray-500">•</span>
-              <span className="text-xs text-gray-500 font-mono">
-                {booking?.zoomDetails?.formattedMeetingId || 'ID: 869-563-2911'}
-              </span>
-            </div>
-            <h2 className="text-lg font-bold text-gray-900 mt-0.5">
-              {booking?.meetingTitle || 'Meeting Details'}
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center sm:p-4 animate-in fade-in"
+      onClick={() => !isSaving && onClose?.()}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-meeting-title"
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white w-full sm:max-w-xl max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-2xl sm:rounded-2xl border border-gray-200 shadow-2xl animate-in zoom-in-95 duration-150"
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-gray-100">
+          <div className="min-w-0">
+            <h2 id="edit-meeting-title" ref={headingRef} tabIndex={-1} className="text-base font-bold text-gray-900 truncate outline-none">
+              Edit meeting
             </h2>
+            <p className="text-xs text-gray-500 mt-0.5 truncate">
+              {booking?.meetingTitle}
+              {booking?.zoomDetails?.formattedMeetingId ? ` · ID ${booking.zoomDetails.formattedMeetingId}` : ''}
+            </p>
           </div>
-
-          {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
-              title="Close"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSaving}
+            aria-label="Close"
+            className="w-10 h-10 -mr-2 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors cursor-pointer disabled:opacity-50"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
-      )}
 
-      {/* Main Settings Body - Replicating Image 1, 2, 3, 4 */}
-      <div className="p-6 sm:p-8 space-y-7 max-w-2xl text-[14px] leading-relaxed">
-
-        {/* 1. Invitees (Image 1) */}
-        <div className="space-y-2">
-          <label className="block font-semibold text-gray-900">
-            Invitees
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={inviteeInput}
-              onChange={(e) => setInviteeInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ',') {
-                  e.preventDefault();
-                  handleAddInvitee();
-                }
-              }}
-              placeholder="Add invitees"
-              disabled={readOnly}
-              className="flex-1 px-3.5 py-2 bg-[#f0f2f5]/60 hover:bg-[#f0f2f5] focus:bg-white border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#0433FF] focus:ring-1 focus:ring-[#0433FF] transition-all"
-            />
-            {inviteeInput.trim() && (
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+          {/* Invitees */}
+          <div>
+            <label htmlFor="edit-invitees" className={label}>Invitees</label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Mail className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  id="edit-invitees"
+                  type="text"
+                  inputMode="email"
+                  value={inviteeInput}
+                  onChange={(e) => {
+                    setInviteeInput(e.target.value);
+                    if (inviteeError) setInviteeError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ',') {
+                      e.preventDefault();
+                      addInvitee();
+                    }
+                  }}
+                  placeholder="name@example.org"
+                  aria-invalid={Boolean(inviteeError)}
+                  aria-describedby={inviteeError ? 'edit-invitees-error' : undefined}
+                  className={`${input} pl-10`}
+                />
+              </div>
               <button
                 type="button"
-                onClick={handleAddInvitee}
-                className="px-3 py-2 bg-[#0433FF] text-white rounded-lg text-xs font-semibold hover:bg-[#0320AF] cursor-pointer"
+                onClick={addInvitee}
+                className="px-4 min-h-11 rounded-xl bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
+                <Plus className="w-4 h-4" />
                 Add
               </button>
+            </div>
+            {inviteeError && (
+              <p id="edit-invitees-error" role="alert" className="text-xs text-red-600 mt-1.5">{inviteeError}</p>
+            )}
+            {invitees.length > 0 && (
+              <ul className="flex flex-wrap gap-2 mt-2.5" aria-label="Invitees">
+                {invitees.map((email) => (
+                  <li
+                    key={email}
+                    className="inline-flex items-center gap-1 pl-3 pr-1 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs text-[#0433FF] font-medium"
+                  >
+                    {email}
+                    <button
+                      type="button"
+                      onClick={() => setInvitees(invitees.filter((i) => i !== email))}
+                      aria-label={`Remove ${email}`}
+                      className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-blue-100 hover:text-red-600 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
 
-          {/* Invitee Chips */}
-          {invitees.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              {invitees.map((email, idx) => (
-                <span
-                  key={idx}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-[#0433FF] text-xs font-medium"
-                >
-                  <span>{email}</span>
-                  {!readOnly && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveInvitee(idx)}
-                      className="hover:text-red-600 cursor-pointer ml-0.5"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* 2. Meeting ID (Image 1) */}
-        <div className="space-y-2.5">
-          <label className="block font-semibold text-gray-900">
-            Meeting ID
-          </label>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
-            <label className="flex items-center gap-2.5 cursor-pointer text-gray-800 select-none">
-              <input
-                type="radio"
-                name="meetingIdOption"
-                checked={meetingIdType === 'auto'}
-                onChange={() => setMeetingIdType('auto')}
-                disabled={readOnly}
-                className="w-4 h-4 text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-              />
-              <span>Generate Automatically</span>
-            </label>
-
-            <label className="flex items-center gap-2.5 cursor-pointer text-gray-800 select-none">
-              <input
-                type="radio"
-                name="meetingIdOption"
-                checked={meetingIdType === 'pmi'}
-                onChange={() => setMeetingIdType('pmi')}
-                disabled={readOnly}
-                className="w-4 h-4 text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-              />
-              <span>Personal Meeting ID{pmiNumber !== defaultPmi ? ` ${pmiNumber}` : ' (not assigned on this account)'}</span>
-            </label>
-          </div>
-        </div>
-
-        {/* 3. Meeting agenda (Image 1) */}
-        <div className="space-y-2">
-          <label className="block font-semibold text-gray-900">
-            Meeting agenda
-          </label>
-          
-          {!showAgendaInput && !agenda ? (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowAgendaInput(true)}
-                className="text-[#0433FF] hover:text-[#0320AF] font-medium text-sm hover:underline flex items-center gap-1.5 cursor-pointer"
-              >
-                <span>Create agenda</span>
-                <span className="px-1.5 py-0.2 rounded-md bg-blue-50 border border-blue-200 text-[#0433FF] text-[10px] font-bold">
-                  NEW
-                </span>
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              <textarea
-                value={agenda}
-                onChange={(e) => setAgenda(e.target.value)}
-                placeholder="Enter meeting agenda items, discussion topics, and target outcomes..."
-                rows={3}
-                disabled={readOnly}
-                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:border-[#0433FF] focus:ring-1 focus:ring-[#0433FF]"
-              />
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span className="flex items-center gap-1 text-[#0433FF] font-medium">
-                  <span className="px-1.5 py-0.2 rounded-md bg-blue-50 text-[10px] font-bold">NEW</span>
-                  Agenda shared with all attendees in Zoom invite
-                </span>
-                {!readOnly && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAgenda('');
-                      setShowAgendaInput(false);
-                    }}
-                    className="text-gray-500 hover:text-gray-600"
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-
-        {/* 5. Meeting Security (Image 2) */}
-        <div className="pt-2 space-y-4">
-          <h3 className="font-bold text-base text-gray-900">
-            Meeting Security
-          </h3>
-
-          {/* Passcode */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={passcodeEnabled}
-                  onChange={(e) => setPasscodeEnabled(e.target.checked)}
-                  disabled={readOnly}
-                  className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-                />
-                <span className="font-semibold text-gray-900">Passcode</span>
-              </label>
-
-              <input
-                type="text"
-                value={passcode}
-                onChange={(e) => setPasscode(e.target.value)}
-                disabled={!passcodeEnabled || readOnly}
-                maxLength={10}
-                className="w-32 px-3 py-1 bg-white border border-gray-300 rounded-md text-sm font-mono text-gray-800 focus:outline-none focus:border-[#0433FF] focus:ring-1 focus:ring-[#0433FF] disabled:opacity-50"
-              />
-
-              <div className="group relative">
-                <Info className="w-3.5 h-3.5 text-gray-500 cursor-pointer" />
-                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-gray-900 text-white text-[11px] rounded shadow-lg z-30">
-                  Up to 10 characters. Some Zoom accounts enforce a minimum length (up to 10) - if Zoom rejects a save, try a longer passcode.
-                </div>
-              </div>
-            </div>
-            <p className="text-xs text-gray-500 pl-6">
-              Only users who have the invite link or passcode can join the meeting
-            </p>
-          </div>
-
-          {/* Waiting Room */}
-          <div className="space-y-1">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={waitingRoom}
-                onChange={(e) => setWaitingRoom(e.target.checked)}
-                disabled={readOnly}
-                className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-              />
-              <span className="font-semibold text-gray-900">Waiting Room</span>
-            </label>
-            <p className="text-xs text-gray-500 pl-6">
-              Only users admitted by the host can join the meeting. This doesn't affect whether they
-              can join before the host - see &quot;Allow participants to join anytime&quot; below for that.
-            </p>
-          </div>
-
-          {/* Only authenticated users can join */}
+          {/* Agenda */}
           <div>
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={requireAuth}
-                onChange={(e) => setRequireAuth(e.target.checked)}
-                disabled={readOnly}
-                className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-              />
-              <span className="text-gray-800">
-                Only authenticated users can join: Sign in to Zoom
-              </span>
-            </label>
-          </div>
-        </div>
-
-        {/* 6. My Notes (Image 3) */}
-        <div className="pt-2 space-y-2">
-          <h3 className="font-bold text-gray-900">
-            My Notes
-          </h3>
-          <label className="flex items-center gap-2.5 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={allowMyNotesTranscript}
-              onChange={(e) => setAllowMyNotesTranscript(e.target.checked)}
-              disabled={readOnly}
-              className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
+            <label htmlFor="edit-agenda" className={label}>Agenda <span className="normal-case font-normal">(optional)</span></label>
+            <textarea
+              id="edit-agenda"
+              rows={3}
+              value={agenda}
+              onChange={(e) => setAgenda(e.target.value)}
+              placeholder="What the meeting is for, shown to participants in Zoom"
+              className={`${input} resize-y`}
             />
-            <span className="text-gray-800">
-              Allow everyone to use the meeting transcript with My Notes
-            </span>
-          </label>
-        </div>
-
-        {/* 7. Meeting chat (Image 3) */}
-        <div className="pt-2 space-y-1.5">
-          <h3 className="font-bold text-gray-900">
-            Meeting chat
-          </h3>
-          <div className="flex items-center gap-1.5">
-            <label className="flex items-center gap-2.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={enableContinuousChat}
-                onChange={(e) => setEnableContinuousChat(e.target.checked)}
-                disabled={readOnly}
-                className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-              />
-              <span className="text-gray-800">
-                Enable Continuous Meeting Chat
-              </span>
-            </label>
-            <div className="group relative">
-              <Info className="w-3.5 h-3.5 text-gray-500 cursor-pointer" />
-              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:block w-56 p-2 bg-gray-900 text-white text-[11px] rounded shadow-lg z-30">
-                Chat persists before, during, and after the meeting in Zoom Team Chat
-              </div>
-            </div>
           </div>
-          <p className="text-xs text-gray-500 pl-6">
-            Added invitees will have access to the Meeting Group Chat before and after the meeting.
-          </p>
-        </div>
 
-        {/* 8. Video (Image 3) */}
-        <div className="pt-2 space-y-2.5">
-          <h3 className="font-bold text-gray-900">
-            Video
-          </h3>
-          <div className="flex items-center gap-12">
-            {/* Host Toggle */}
-            <div className="flex items-center gap-3">
-              <span className="text-gray-800">Host:</span>
-              <button
-                type="button"
-                onClick={() => !readOnly && setHostVideo(!hostVideo)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                  hostVideo ? 'bg-[#0433FF]' : 'bg-gray-300'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    hostVideo ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-              <span className="text-xs font-semibold text-gray-600">
-                {hostVideo ? 'On' : 'Off'}
-              </span>
-            </div>
-
-            {/* Participant Toggle */}
-            <div className="flex items-center gap-3">
-              <span className="text-gray-800">Participant:</span>
-              <button
-                type="button"
-                onClick={() => !readOnly && setParticipantVideo(!participantVideo)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                  participantVideo ? 'bg-[#0433FF]' : 'bg-gray-300'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    participantVideo ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-              <span className="text-xs font-semibold text-gray-600">
-                {participantVideo ? 'On' : 'Off'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* 9. Audio (Image 3) */}
-        <div className="pt-2 space-y-2.5">
-          <h3 className="font-bold text-gray-900">
-            Audio
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <label className="flex items-center gap-2 cursor-pointer select-none text-gray-800">
-              <input
-                type="radio"
-                name="audioOption"
-                checked={audioOption === 'telephone'}
-                onChange={() => setAudioOption('telephone')}
-                disabled={readOnly}
-                className="w-4 h-4 text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-              />
-              <span>Telephone</span>
-            </label>
-
-            <label className="flex items-center gap-2 cursor-pointer select-none text-gray-800">
-              <input
-                type="radio"
-                name="audioOption"
-                checked={audioOption === 'computer'}
-                onChange={() => setAudioOption('computer')}
-                disabled={readOnly}
-                className="w-4 h-4 text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-              />
-              <span>Computer Audio</span>
-            </label>
-
-            <label className="flex items-center gap-2 cursor-pointer select-none text-gray-800">
-              <input
-                type="radio"
-                name="audioOption"
-                checked={audioOption === 'both'}
-                onChange={() => setAudioOption('both')}
-                disabled={readOnly}
-                className="w-4 h-4 text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-              />
-              <span>Telephone and Computer Audio</span>
-            </label>
-
-            <label className="flex items-center gap-2 cursor-pointer select-none text-gray-800">
-              <input
-                type="radio"
-                name="audioOption"
-                checked={audioOption === 'third_party'}
-                onChange={() => setAudioOption('third_party')}
-                disabled={readOnly}
-                className="w-4 h-4 text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-              />
-              <span>3rd Party Audio</span>
-            </label>
-          </div>
-          <p className="text-xs text-gray-500">
-            No dial-in countries/regions available
-          </p>
-        </div>
-
-        {/* 10. Calendar (Image 3 & 4) */}
-        <div className="pt-2 space-y-2.5">
-          <h3 className="font-bold text-gray-900">
-            Calendar
-          </h3>
-          <div className="flex flex-wrap items-center gap-6 sm:gap-10">
-            <label className="flex items-center gap-2 cursor-pointer select-none text-gray-800">
-              <input
-                type="radio"
-                name="calendarOption"
-                checked={calendarType === 'outlook'}
-                onChange={() => setCalendarType('outlook')}
-                disabled={readOnly}
-                className="w-4 h-4 text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-              />
-              <span className="font-semibold text-gray-900">Outlook</span>
-            </label>
-
-            <label className="flex items-center gap-2 cursor-pointer select-none text-gray-800">
-              <input
-                type="radio"
-                name="calendarOption"
-                checked={calendarType === 'google'}
-                onChange={() => setCalendarType('google')}
-                disabled={readOnly}
-                className="w-4 h-4 text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-              />
-              <span>Google Calendar</span>
-            </label>
-
-            <label className="flex items-center gap-2 cursor-pointer select-none text-gray-800">
-              <input
-                type="radio"
-                name="calendarOption"
-                checked={calendarType === 'other'}
-                onChange={() => setCalendarType('other')}
-                disabled={readOnly}
-                className="w-4 h-4 text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-              />
-              <span>Other Calendars</span>
-            </label>
-          </div>
-        </div>
-
-        {/* 11. Advanced (Image 4) */}
-        <div className="pt-2 border-t border-gray-200">
-          <button
-            type="button"
-            onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
-            className="flex items-center gap-2 font-bold text-gray-900 hover:text-[#0433FF] transition-colors py-1 cursor-pointer w-full text-left"
-          >
-            <ChevronDown className={`w-4 h-4 transition-transform ${isAdvancedOpen ? '' : '-rotate-90'}`} />
-            <span>Advanced</span>
-          </button>
-
-          {isAdvancedOpen && (
-            <div className="pt-3 pl-6 space-y-3">
-              {/* Allow participants to join anytime */}
-              <label className="flex items-center gap-2.5 cursor-pointer select-none text-gray-800">
-                <input
-                  type="checkbox"
-                  checked={joinAnytime}
-                  onChange={(e) => setJoinAnytime(e.target.checked)}
-                  disabled={readOnly}
-                  className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-                />
-                <span>Allow participants to join anytime</span>
-              </label>
-              <p className="text-xs text-gray-500 pl-6">
-                Leave this unchecked and participants will see &quot;waiting for host to start&quot;
-                regardless of the Waiting Room setting above - this is the toggle that actually controls that.
-              </p>
-
-              {/* Mute participants upon entry */}
-              <label className="flex items-center gap-2.5 cursor-pointer select-none text-gray-800">
-                <input
-                  type="checkbox"
-                  checked={muteOnEntry}
-                  onChange={(e) => setMuteOnEntry(e.target.checked)}
-                  disabled={readOnly}
-                  className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-                />
-                <span>Mute participants upon entry</span>
-              </label>
-
-              {/* Automatically record meeting */}
-              <label className="flex items-center gap-2.5 cursor-pointer select-none text-gray-800">
-                <input
-                  type="checkbox"
-                  checked={autoRecord}
-                  onChange={(e) => setAutoRecord(e.target.checked)}
-                  disabled={readOnly}
-                  className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-                />
-                <span>Automatically record meeting to the cloud</span>
-              </label>
-
-              {/* Send Host Key + designated host (matches the booking-creation
-                  intake form's flow - see ZoomIntakeForm.tsx). Host Key is
-                  this app's real mechanism for handing host privileges to a
-                  nominee regardless of Zoom license; Alternative Host (the
-                  raw Zoom field, still set from the email below) is the
-                  secondary, license-dependent benefit when it applies. */}
-              <div className="pt-2 space-y-3">
-                <div className="flex items-start gap-3 p-3.5 bg-[#F7F9FA] rounded-xl">
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={sendHostKey}
-                    onClick={() => !readOnly && setSendHostKey((v) => !v)}
-                    disabled={readOnly}
-                    className={`relative shrink-0 w-10 h-6 rounded-full transition-colors cursor-pointer mt-0.5 ${
-                      sendHostKey ? 'bg-[#0433FF]' : 'bg-gray-300'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${
-                        sendHostKey ? 'translate-x-4' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                  <div>
-                    <p className="text-xs font-bold text-gray-700">Send Host Key</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Saving with this on emails the real Host Key to the booker (and the designated
-                      host below, if set) - it works regardless of Zoom license, unlike Alternative Host.
-                    </p>
+          {/* Host Key / Meeting Host */}
+          <div className="rounded-xl border border-gray-200 p-4 space-y-3">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-2.5">
+                <KeyRound className="w-4 h-4 text-[#FF7B00] mt-0.5 shrink-0" />
+                <div>
+                  <div id="edit-host-key" className="text-sm font-medium text-gray-900">Send the Host Key</div>
+                  <div id="edit-host-key-help" className="text-xs text-gray-500 mt-0.5">
+                    Emails the Host Key when you save, so the host can record and manage the meeting.
                   </div>
                 </div>
-
-                {sendHostKey && (
-                  <div className="space-y-2">
-                    <label className="block text-gray-800">
-                      Meeting Host <span className="text-gray-500 font-normal">(optional)</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={alternativeHosts}
-                      onChange={(e) => setAlternativeHosts(e.target.value)}
-                      placeholder="john@company.com"
-                      disabled={readOnly}
-                      className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#0433FF] focus:ring-1 focus:ring-[#0433FF]"
-                    />
-                    <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                      <span>
-                        Booking on someone else&apos;s behalf? Enter their email and they&apos;ll be set as the
-                        designated host and included in the Host Key email. Defaults to the booker if left blank.
-                        Also sets Zoom&apos;s real Alternative Host field - only takes effect if that person is a
-                        Licensed user on this Zoom account, otherwise Zoom silently ignores it.
-                      </span>
-                      <div className="group relative">
-                        <Info className="w-3 h-3 text-gray-500 cursor-pointer shrink-0" />
-                        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-gray-900 text-white text-[11px] rounded shadow-lg z-30">
-                          Alternative hosts have full permissions to host, record, and moderate
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+              </div>
+              <Switch
+                checked={sendHostKey}
+                onChange={setSendHostKey}
+                labelledBy="edit-host-key"
+                describedBy="edit-host-key-help"
+              />
+            </div>
+            {sendHostKey && (
+              <div>
+                <label htmlFor="edit-meeting-host" className={label}>
+                  Meeting host <span className="normal-case font-normal">(optional, if it isn&apos;t you)</span>
+                </label>
+                <input
+                  id="edit-meeting-host"
+                  type="text"
+                  inputMode="email"
+                  value={meetingHost}
+                  onChange={(e) => {
+                    setMeetingHost(e.target.value);
+                    if (meetingHostError) setMeetingHostError(null);
+                  }}
+                  placeholder="name@ayalafoundation.org"
+                  aria-invalid={Boolean(meetingHostError)}
+                  aria-describedby={meetingHostError ? 'edit-meeting-host-error' : undefined}
+                  className={input}
+                />
+                {meetingHostError && (
+                  <p id="edit-meeting-host-error" role="alert" className="text-xs text-red-600 mt-1.5">{meetingHostError}</p>
                 )}
               </div>
+            )}
+          </div>
 
-            </div>
-          )}
-        </div>
+          {/* Zoom settings - the same block as the booking form */}
+          <div>
+            <h3 className={label}>Zoom meeting settings</h3>
+            <ZoomSettingsFields value={settings} onChange={setSettings} idPrefix="edit" />
+          </div>
 
-      </div>
-
-      {/* Footer matching Image 4 */}
-      <div className="px-6 sm:px-8 py-4 bg-white border-t border-gray-200 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => setShowMoreOptionsModal(true)}
-          className="text-[#0433FF] hover:text-[#0320AF] font-medium text-sm hover:underline cursor-pointer"
-        >
-          More Options
-        </button>
-
-        <div className="flex items-center gap-3">
-          {savedSuccess && (
-            <span className="text-xs font-bold text-green-600 flex items-center gap-1 animate-in fade-in">
-              <CheckCircle2 className="w-4 h-4 text-green-500" />
-              Settings Synced to Exchange!
+          {/* Passcode - shown, not editable (same as the booking form) */}
+          <div className="flex items-center gap-2.5 text-xs text-gray-500">
+            <Lock className="w-3.5 h-3.5 shrink-0" />
+            <span>
+              {cfg?.passcodeEnabled === false ? 'This meeting has no passcode.' : 'This meeting is passcode-protected.'} The passcode is set automatically and can&apos;t be changed here.
             </span>
-          )}
-
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isSaving || readOnly}
-            className="px-6 py-2 bg-[#0433FF] hover:bg-[#0320AF] active:bg-[#021B7A] text-white font-semibold rounded-lg text-sm transition-colors cursor-pointer shadow-xs disabled:opacity-50"
-          >
-            {isSaving ? 'Saving...' : 'Save'}
-          </button>
+          </div>
         </div>
-      </div>
 
-      {/* More Options Modal Dialog */}
-      {showMoreOptionsModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-base text-gray-900">Additional Zoom Features</h3>
-              <button
-                type="button"
-                onClick={() => setShowMoreOptionsModal(false)}
-                className="p-1 rounded-md text-gray-500 hover:text-gray-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
+        {/* Footer - always visible, even on a phone */}
+        <div className="border-t border-gray-100 px-6 py-4 space-y-3">
+          {saveError && (
+            <div role="alert" className="flex items-start gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700">
+              <AlertCircle className="w-4 h-4 mt-px shrink-0" />
+              <span>
+                <strong className="font-bold">Your changes weren&apos;t saved.</strong> {saveError.replace(/\.?$/, '.')} Nothing you entered was lost, so you can try again.
+              </span>
             </div>
-            <p className="text-xs text-gray-600">
-              Advanced policy controls configured for this Microsoft 365 Exchange tenant:
-            </p>
-            <div className="space-y-2 text-xs">
-              <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
-                <div className="font-bold text-gray-800">Microsoft Teams Interop</div>
-                <div className="text-gray-500">Allow joining from Teams SIP room systems via One-Touch Join.</div>
-              </div>
-              <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
-                <div className="font-bold text-gray-800">Automatic Live Transcription</div>
-                <div className="text-gray-500">Live AI audio-to-text enabled in English, Tagalog, and Spanish.</div>
-              </div>
-              <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
-                <div className="font-bold text-gray-800">Watermark Timestamp Overlay</div>
-                <div className="text-gray-500">Viewer email watermarked onto shared screen to prevent leaks.</div>
-              </div>
-            </div>
+          )}
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5">
             <button
               type="button"
-              onClick={() => setShowMoreOptionsModal(false)}
-              className="w-full py-2 bg-[#0433FF] text-white font-bold rounded-xl text-xs"
+              onClick={onClose}
+              disabled={isSaving}
+              className="min-h-11 px-5 rounded-xl bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 text-sm font-bold transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Done
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isSaving}
+              className="min-h-11 px-5 rounded-xl bg-[#0433FF] hover:bg-[#0320AF] text-white text-sm font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-80 disabled:cursor-wait"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving&hellip;
+                </>
+              ) : saveError ? (
+                'Try again'
+              ) : (
+                'Save changes'
+              )}
             </button>
           </div>
         </div>
-      )}
-
-    </div>
-  );
-
-  if (isInlineCard) {
-    return content;
-  }
-
-  // Render as popup / modal
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-in fade-in">
-      <div className="relative w-full max-w-3xl max-h-[92vh] flex flex-col bg-white rounded-2xl shadow-2xl overflow-hidden">
-        <div className="overflow-y-auto">
-          {content}
-        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

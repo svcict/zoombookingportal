@@ -31,6 +31,7 @@ import { enablePushNotifications, disablePushNotifications } from '../utils/push
 import { CancelMeetingDialog } from './CancelMeetingDialog';
 import { AppleIcon, GoogleCalendarIcon, MicrosoftOutlookIcon } from './CalendarProviderIcons';
 import { useResetTimer } from '../utils/useResetTimer';
+import { saveBookingEdit } from '../utils/saveBookingEdit';
 
 // Only opened on demand (a meeting's settings), so loaded on first open
 // rather than shipped in the initial bundle.
@@ -46,7 +47,7 @@ interface BookingConfirmationProps {
   // savedBooking is the server's full copy after the PATCH (invitees, host
   // key etc. included), so the parent can store it instead of re-patching only
   // zoomConfig onto its stale copy - which this component would then sync back.
-  onUpdateBookingConfig?: (updatedConfig: ZoomMeetingConfig, savedBooking?: Booking) => Promise<void> | void;
+  onUpdateBookingConfig?: (updatedConfig: ZoomMeetingConfig, savedBooking?: Booking, message?: string) => Promise<void> | void;
   authHeaders?: Record<string, string>;
 }
 
@@ -131,34 +132,13 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
     scheduleCopiedReset(() => setCopiedField(null), 2000);
   };
 
+  // Throws on failure (the Edit window shows the error and stays open); only
+  // a save the server confirmed updates this page and the parent.
   const handleSaveConfig = async (updatedConfig: ZoomMeetingConfig, sendHostKey: boolean) => {
-    try {
-      const res = await fetch(`/api/bookings/${currentBooking.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeaders,
-        },
-        body: JSON.stringify({
-          zoomConfig: updatedConfig,
-          guestEmails: updatedConfig.invitees,
-          sendHostKey,
-        }),
-      });
-      let savedBooking: Booking | undefined;
-      if (res.ok) {
-        const data = await res.json();
-        if (data.data) {
-          savedBooking = data.data;
-          setCurrentBooking(data.data);
-        }
-      }
-      if (onUpdateBookingConfig) {
-        await onUpdateBookingConfig(updatedConfig, savedBooking);
-      }
-      setIsEditModalOpen(false);
-    } catch (e) {
-      console.error('Failed to update booking config:', e);
+    const { booking: savedBooking, message } = await saveBookingEdit(currentBooking.id, updatedConfig, sendHostKey, authHeaders);
+    setCurrentBooking(savedBooking);
+    if (onUpdateBookingConfig) {
+      await onUpdateBookingConfig(updatedConfig, savedBooking, message);
     }
   };
 
@@ -520,6 +500,8 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
             </div>
           )}
 
+          {/* Passcode and dial-in are no use once the meeting is deleted */}
+          {!isCancelled && (
           <div className="px-6 sm:px-8 py-4 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-4 text-sm">
             <span className="text-gray-500 font-medium">Security</span>
             <div className="space-y-1.5">
@@ -547,11 +529,12 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               {currentBooking.zoomConfig?.requireAuth && (
                 <div className="flex items-center gap-2 text-gray-900">
                   <Check className="w-3.5 h-3.5 text-green-600 shrink-0" />
-                  <span>Only authenticated users can join: Sign in to Zoom</span>
+                  <span>Guests must sign in to a Zoom account to join</span>
                 </div>
               )}
             </div>
           </div>
+          )}
 
           {currentBooking.zoomConfig?.alternativeHosts &&
             currentBooking.zoomConfig.alternativeHosts !== currentBooking.participantEmail && (
@@ -714,6 +697,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           </div>
 
           {/* Dial-in numbers collapsible */}
+          {!isCancelled && (
           <div>
             <button
               onClick={() => setShowDialIn(!showDialIn)}
@@ -744,6 +728,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               </div>
             )}
           </div>
+          )}
         </div>
 
         {/* Bottom Actions Bar. Joining lives in the ribbon above (there's no
@@ -752,13 +737,17 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
         <div className="p-6 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
           {!isCancelled && (
           <div className="flex flex-wrap sm:flex-nowrap items-center justify-center gap-2.5">
+            {/* When the email failed, the warning panel above already leads
+                with Copy invitation - don't offer it twice. */}
+            {!emailFailed && (
             <button
               onClick={copyInvitation}
               className="px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               {copiedField === 'invitation' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copiedField === 'invitation' ? 'Copied' : 'Copy Invitation'}</span>
+              <span>{copiedField === 'invitation' ? 'Copied' : 'Copy invitation'}</span>
             </button>
+            )}
             <button
               onClick={() => setIsEditModalOpen(true)}
               className="px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -795,7 +784,9 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               <button
                 onClick={onViewMeetings}
                 className={`px-5 py-2.5 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                  isCancelled
+                  // One blue action per state: Copy invitation (in the warning
+                  // panel) when the email failed, Book another when cancelled.
+                  isCancelled || emailFailed
                     ? 'bg-white border border-gray-300 hover:bg-gray-100 text-gray-800'
                     : 'bg-[#0433FF] hover:bg-[#0320AF] text-white shadow-xs'
                 }`}

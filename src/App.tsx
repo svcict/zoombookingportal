@@ -14,6 +14,7 @@ import { INITIAL_MEETING_TYPES, INITIAL_M365_STATE } from './data/initialData';
 import { getDetectedTimezone, formatDateInTimezone } from './utils/timezone';
 import { playZoomNotificationSound, sendBrowserPushNotification } from './utils/notifications';
 import { buildAuthHeaders } from './utils/auth';
+import { saveBookingEdit } from './utils/saveBookingEdit';
 import { Video, Sparkles, AlertCircle, Info, CheckCircle2, X } from 'lucide-react';
 
 // Only opened on demand (a meeting's settings), so loaded on first open
@@ -619,12 +620,12 @@ export default function App() {
                 }}
                 onViewMeetings={() => setCurrentView('dashboard')}
                 onCancelMeeting={handleCancelBooking}
-                onUpdateBookingConfig={async (updatedConfig, savedBooking) => {
+                onUpdateBookingConfig={async (updatedConfig, savedBooking, message) => {
                   setBookings((prev) =>
                     prev.map((b) => (b.id === confirmedBooking.id ? savedBooking ?? { ...b, zoomConfig: updatedConfig } : b))
                   );
                   setConfirmedBooking((prev) => (prev ? savedBooking ?? { ...prev, zoomConfig: updatedConfig } : null));
-                  showBanner('Zoom meeting details updated and synced to Office 365 Exchange.');
+                  showBanner(message || 'Meeting updated.');
                 }}
               />
             )}
@@ -642,31 +643,16 @@ export default function App() {
             initialConfig={selectedBookingForDetails.zoomConfig}
             onClose={() => setSelectedBookingForDetails(null)}
             onSave={async (updatedConfig, sendHostKey) => {
-              try {
-                const res = await fetch(`/api/bookings/${selectedBookingForDetails.id}`, {
-                  method: 'PATCH',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    ...authHeaders,
-                  },
-                  body: JSON.stringify({
-                    zoomConfig: updatedConfig,
-                    guestEmails: updatedConfig.invitees,
-                    sendHostKey,
-                  }),
-                });
-                let message = 'Zoom meeting settings saved and synced with Microsoft 365 Exchange.';
-                if (res.ok) {
-                  const data = await res.json();
-                  if (data.data) {
-                    setBookings((prev) => prev.map((b) => (b.id === data.data.id ? data.data : b)));
-                  }
-                  if (data.message) message = data.message;
-                }
-                showBanner(message, 5000);
-              } catch (e) {
-                console.error('Failed to update booking:', e);
-              }
+              // Throws on failure, so the Edit window keeps the changes and
+              // shows why; the notice only appears once the server saved.
+              const { booking: saved, message } = await saveBookingEdit(
+                selectedBookingForDetails.id,
+                updatedConfig,
+                sendHostKey,
+                authHeaders
+              );
+              setBookings((prev) => prev.map((b) => (b.id === saved.id ? saved : b)));
+              showBanner(message, 5000);
             }}
           />
         </Suspense>
