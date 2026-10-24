@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Calendar as CalendarIcon, Globe, CheckCircle2, XCircle, Loader2, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import { zonedTimeToUtc, getNowInTimezone, getWallTimeInTimezone } from '../utils/timezone';
+import { useFocusTrap } from '../utils/useFocusTrap';
 import { isBookableStart, isBookableEnd, isWeekendDate, BOOKING_END_HOUR, BOOKING_HOURS_LABEL } from '../utils/bookingHours';
 import { TimeSlot } from '../types';
 
@@ -75,6 +76,10 @@ const splitWall = (t: WallTime) => {
 };
 
 const DEFAULT_DURATION = 30;
+
+// The picker's footer actions: text buttons, but with a full 44px touch target.
+const pickerTextButton =
+  'min-h-11 px-3 rounded-lg text-sm font-bold text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer';
 
 // First start time at or after `from`, on a 30-minute boundary, that is
 // bookable (a weekday within booking hours) and not before `earliest`.
@@ -366,6 +371,10 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
   // Opening the panel, or switching between Start and End, puts keyboard
   // focus on the selected day, so arrow keys work straight away.
   const calendarRef = useRef<HTMLDivElement>(null);
+  // While open, Tab cycles inside the picker instead of escaping to the page
+  // behind it (Esc or Cancel closes it).
+  const popoverRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(popoverRef, isOpen);
   const focusActiveDay = () =>
     requestAnimationFrame(() => calendarRef.current?.querySelector<HTMLElement>('button[tabindex="0"]')?.focus());
   useEffect(() => {
@@ -539,6 +548,7 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
 
         {isOpen && (
           <div
+            ref={popoverRef}
             role="dialog"
             aria-label={step === 'start' ? 'Choose the start date and time' : 'Choose the end date and time'}
             className="mt-2 bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden"
@@ -657,28 +667,30 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
 
             <div className="px-5 pb-1">{availabilityReadout}</div>
 
-            <div className="flex items-center justify-end gap-5 px-5 py-3.5 border-t border-gray-100">
+            {/* Says what each step does: "Set end time" moves on to the end,
+                "Done" applies the range and continues to the details. */}
+            <div className="flex items-center justify-end gap-2 px-3 py-2 border-t border-gray-100">
               {step === 'start' ? (
                 <>
-                  <button type="button" onClick={handleCancel} className="text-[13px] font-bold tracking-wide text-[#0433FF] cursor-pointer">
-                    CANCEL
+                  <button type="button" onClick={handleCancel} className={pickerTextButton}>
+                    Cancel
                   </button>
-                  <button type="button" onClick={handleNext} className="text-[13px] font-bold tracking-wide text-[#0433FF] cursor-pointer">
-                    NEXT
+                  <button type="button" onClick={handleNext} className={`${pickerTextButton} text-[#0433FF]`}>
+                    Set end time
                   </button>
                 </>
               ) : (
                 <>
-                  <button type="button" onClick={handleBack} className="text-[13px] font-bold tracking-wide text-[#0433FF] cursor-pointer">
-                    BACK
+                  <button type="button" onClick={handleBack} className={pickerTextButton}>
+                    Back to start
                   </button>
                   <button
                     type="button"
                     onClick={handleApply}
                     disabled={isBlocked}
-                    className={`text-[13px] font-bold tracking-wide cursor-pointer ${isBlocked ? 'text-gray-300 cursor-not-allowed' : 'text-[#0433FF]'}`}
+                    className={`${pickerTextButton} ${isBlocked ? 'text-gray-400 cursor-not-allowed hover:bg-transparent' : 'text-[#0433FF]'}`}
                   >
-                    {applied ? 'APPLIED ✓' : 'APPLY'}
+                    {applied ? 'Done ✓' : 'Done'}
                   </button>
                 </>
               )}
@@ -696,11 +708,11 @@ export const SimpleDateTimePicker: React.FC<SimpleDateTimePickerProps> = ({
             type="button"
             onClick={handleApply}
             disabled={isBlocked}
-            className={`w-full py-3.5 rounded-xl text-[15px] font-bold text-white transition-colors ${
+            className={`w-full py-3.5 rounded-xl text-sm font-bold text-white transition-colors ${
               isBlocked ? 'bg-gray-300 cursor-not-allowed' : 'bg-[#0433FF] hover:bg-[#0320AF] cursor-pointer'
             }`}
           >
-            Next
+            Continue to details
           </button>
         </div>
       )}

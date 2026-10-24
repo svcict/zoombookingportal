@@ -4,7 +4,6 @@ import {
   Clock,
   Calendar,
   Globe,
-  ShieldCheck,
   User,
   Mail,
   Users,
@@ -15,6 +14,8 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { MeetingType, TimeSlot, M365User, ZoomMeetingConfig } from '../types';
+import { Switch } from './Switch';
+import { ZoomSettingsFields, ZoomSettingsValue, DEFAULT_ZOOM_SETTINGS } from './ZoomSettingsFields';
 
 // Only the settings that actually map to a real Zoom API meeting.settings
 // field (see src/lib/zoomApi.ts) are collected here - Template, Whiteboard,
@@ -78,8 +79,8 @@ interface ZoomIntakeFormProps {
 
 // Error key -> the field to send focus to when that check fails.
 const FIELD_IDS = {
-  fullName: 'intake-full-name',
-  email: 'intake-email',
+  fullName: 'intake-booking-as',
+  email: 'intake-booking-as',
   guestEmails: 'intake-invitees',
   hostOnBehalfEmail: 'intake-meeting-host',
 } as const;
@@ -222,20 +223,15 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
   // the booker isn't the meeting host (one of the two rotating Zoom
   // accounts is), so choosing meeting security isn't theirs to set.
   const [passcode] = useState(() => generateDefaultPasscode());
-  const [waitingRoom, setWaitingRoom] = useState(false);
-  const [requireAuth, setRequireAuth] = useState(false);
-  const [hostVideo, setHostVideo] = useState(true);
-  const [participantVideo, setParticipantVideo] = useState(true);
-  // Defaults to Computer Audio only - most participants just join via the
-  // Zoom app's own internet audio, and phone dial-in/3rd-party audio are
-  // edge cases the booker can still opt into below when actually needed.
-  const [audioOption, setAudioOption] = useState<'telephone' | 'computer' | 'both' | 'third_party'>('computer');
-  const [joinAnytime, setJoinAnytime] = useState(true);
-  const [muteOnEntry, setMuteOnEntry] = useState(true);
-  const [autoRecord, setAutoRecord] = useState(true);
+  // Same settings block, defaults and wording as the Edit window.
+  const [zoomSettings, setZoomSettings] = useState<ZoomSettingsValue>(DEFAULT_ZOOM_SETTINGS);
 
   const handleAddGuest = () => {
-    if (!guestEmailInput.trim() || !guestEmailInput.includes('@')) return;
+    if (!guestEmailInput.trim()) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmailInput.trim())) {
+      setErrors((prev) => ({ ...prev, guestEmails: 'Enter a full email address, like name@example.org' }));
+      return;
+    }
     if (!guestEmails.includes(guestEmailInput.trim())) {
       setGuestEmails([...guestEmails, guestEmailInput.trim()]);
     }
@@ -330,14 +326,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
       zoomConfig: {
         passcodeEnabled: true,
         passcode,
-        waitingRoom,
-        requireAuth,
-        hostVideo,
-        participantVideo,
-        audioOption,
-        joinAnytime,
-        muteOnEntry,
-        autoRecord,
+        ...zoomSettings,
         ...(trimmedHostOnBehalf ? { alternativeHosts: trimmedHostOnBehalf } : {}),
       },
     });
@@ -359,24 +348,12 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#0433FF] text-white">
-                  Agenda
-                </span>
-              </div>
-              <h2 ref={headingRef} tabIndex={-1} className="text-xl sm:text-2xl font-bold mt-1 text-white tracking-tight outline-none">
+              <h2 ref={headingRef} tabIndex={-1} className="text-xl sm:text-2xl font-bold text-white tracking-tight outline-none">
                 {topic || meetingType.title}
               </h2>
             </div>
           </div>
 
-          <div className="hidden sm:flex items-center gap-2 bg-white/10 px-3.5 py-2 rounded-xl border border-white/10">
-            <ShieldCheck className="w-5 h-5 text-emerald-400" />
-            <div className="text-left text-xs">
-              <div className="font-semibold text-white">Zoom Verified</div>
-              <div className="text-gray-300 text-[10px]">AES-256 Encryption</div>
-            </div>
-          </div>
         </div>
 
         {/* Meeting Details Strip */}
@@ -397,60 +374,23 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
       </div>
 
       {/* Main Intake Form Fields (Sleek UI) */}
-      <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6">
+      <form onSubmit={handleSubmit} noValidate className="p-6 sm:p-8 space-y-6">
         
-        {/* Section: Participant Credentials */}
-        <div>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2">
-            <User className="w-4 h-4 text-[#0433FF]" />
-            Your Contact Information
-          </h3>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Full Name - read-only, from the signed-in account */}
-            <div>
-              <label htmlFor="intake-full-name" className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">
-                Full Name <span className="text-red-600" aria-hidden="true">*</span>
-              </label>
-              <input
-                id="intake-full-name"
-                type="text"
-                value={fullName}
-                readOnly
-                tabIndex={-1}
-                aria-required="true"
-                aria-invalid={Boolean(errors.fullName)}
-                aria-describedby={errors.fullName ? 'intake-full-name-error' : undefined}
-                placeholder="e.g. Alex Morgan"
-                className="w-full px-4 py-3 bg-gray-100 border-none rounded-xl text-sm text-gray-600 cursor-not-allowed"
-              />
-              {errors.fullName && <p id="intake-full-name-error" className="text-red-600 text-xs mt-1">{errors.fullName}</p>}
-            </div>
-
-            {/* Email - read-only, from the signed-in account */}
-            <div className="sm:col-span-2">
-              <label htmlFor="intake-email" className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">
-                Work Email Address <span className="text-red-600" aria-hidden="true">*</span>
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  id="intake-email"
-                  type="email"
-                  value={email}
-                  readOnly
-                  tabIndex={-1}
-                  aria-required="true"
-                  aria-invalid={Boolean(errors.email)}
-                  aria-describedby={`intake-email-help${errors.email ? ' intake-email-error' : ''}`}
-                  placeholder="alex.morgan@company.com"
-                  className="w-full pl-10 pr-4 py-3 bg-gray-100 border-none rounded-xl text-sm text-gray-600 cursor-not-allowed"
-                />
-              </div>
-              <p id="intake-email-help" className="text-[11px] text-gray-500 mt-1 font-medium">Matches your signed-in account. Your Zoom join link, meeting ID, and passcode will be emailed here.</p>
-              {errors.email && <p id="intake-email-error" className="text-red-600 text-xs mt-1">{errors.email}</p>}
-            </div>
-          </div>
+        {/* Who's booking - from the signed-in account, nothing to fill in */}
+        <div id="intake-booking-as" tabIndex={-1} className="outline-none">
+          <p className="flex items-center gap-2 text-sm text-gray-700">
+            <User className="w-4 h-4 text-gray-500 shrink-0" />
+            <span>
+              Booking as <strong className="text-gray-900">{fullName || 'your account'}</strong>
+              {email && <span className="text-gray-500"> ({email})</span>}
+            </span>
+          </p>
+          <p className="text-xs text-gray-500 mt-1 ml-6">Your join link and passcode are emailed here.</p>
+          {(errors.fullName || errors.email) && (
+            <p role="alert" className="text-xs text-red-600 mt-1 ml-6">
+              Your account is missing a name or email address. Sign out and sign in again, then retry.
+            </p>
+          )}
         </div>
 
         {/* Section: Add Guests / Multi-Participant */}
@@ -496,7 +436,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                   }
                 }}
                 placeholder="colleague@company.com or search by name"
-                className="w-full pl-10 pr-4 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0433FF]"
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-[#0433FF] focus:ring-2 focus:ring-[#0433FF]/25"
               />
 
               {/* Azure AD / Entra ID directory matches - click to add directly */}
@@ -529,7 +469,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
             <button
               type="button"
               onClick={handleAddGuest}
-              className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+              className="px-4 min-h-11 rounded-xl bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               Add
@@ -570,31 +510,19 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
             <div className="w-8 h-8 rounded-lg bg-[#FF7B00] text-white flex items-center justify-center shrink-0 shadow-xs">
               <KeyRound className="w-4 h-4" />
             </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={sendHostKey}
-              aria-labelledby="intake-host-key-label"
-              aria-describedby="intake-host-key-help"
-              onClick={() =>
-                setSendHostKey((v) => {
-                  const next = !v;
+            <div className="mt-0.5">
+              <Switch
+                checked={sendHostKey}
+                onChange={(next) => {
+                  setSendHostKey(next);
                   // Hiding the Meeting Host field below also clears it, so a
                   // nomination never lingers unnoticed while its field is gone.
                   if (!next) setHostOnBehalfEmail('');
-                  return next;
-                })
-              }
-              className={`relative shrink-0 w-10 h-6 rounded-full transition-colors cursor-pointer mt-0.5 ${
-                sendHostKey ? 'bg-[#0433FF]' : 'bg-gray-300'
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${
-                  sendHostKey ? 'translate-x-4' : 'translate-x-0'
-                }`}
+                }}
+                labelledBy="intake-host-key-label"
+                describedBy="intake-host-key-help"
               />
-            </button>
+            </div>
             <div>
               <p id="intake-host-key-label" className="text-sm font-bold text-[#0320AF]">Send Host Key</p>
               <p id="intake-host-key-help" className="text-xs text-gray-700 mt-0.5">
@@ -647,7 +575,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
                     hostBlurTimeoutRef.current = setTimeout(() => setShowHostDirectoryResults(false), 150);
                   }}
                   placeholder="delacruz.j@ayalafoundation.org or search by name"
-                  className="w-full pl-10 pr-4 py-2.5 bg-[#F0F2F4] border-none rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0433FF]"
+                  className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-[#0433FF] focus:ring-2 focus:ring-[#0433FF]/25"
                 />
 
                 {/* Azure AD / Entra ID directory matches - click to select directly */}
@@ -683,145 +611,12 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
         </div>
 
         {/* Section: Zoom Meeting Settings (set now, applied when the meeting is created) */}
-        <div className="pt-4 border-t border-gray-100 space-y-5">
+        <div className="pt-4 border-t border-gray-100 space-y-3">
           <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
             <Video className="w-4 h-4 text-[#0433FF]" />
             Zoom Meeting Settings
           </h3>
-
-          {/* Security */}
-          <div className="space-y-2.5">
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">Security</label>
-            <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-800">
-              <input
-                type="checkbox"
-                checked={waitingRoom}
-                onChange={(e) => setWaitingRoom(e.target.checked)}
-                className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-              />
-              <span>Waiting Room</span>
-            </label>
-            <p className="text-xs text-gray-500 pl-6 -mt-1.5">
-              Only controls admission once someone tries to join - it doesn't affect whether they
-              can join before the host. See &quot;Allow participants to join anytime&quot; under Advanced for that.
-            </p>
-            <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-800">
-              <input
-                type="checkbox"
-                checked={requireAuth}
-                onChange={(e) => setRequireAuth(e.target.checked)}
-                className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-              />
-              <span>Only authenticated users can join: Sign in to Zoom</span>
-            </label>
-          </div>
-
-          {/* Video */}
-          <div className="space-y-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">Video</label>
-            <div className="flex items-center gap-10">
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-gray-800">Host:</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={hostVideo}
-                  aria-label="Host video"
-                  onClick={() => setHostVideo(!hostVideo)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                    hostVideo ? 'bg-[#0433FF]' : 'bg-gray-300'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      hostVideo ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-                <span className="text-xs font-semibold text-gray-600">{hostVideo ? 'On' : 'Off'}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-gray-800">Participant:</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={participantVideo}
-                  aria-label="Participant video"
-                  onClick={() => setParticipantVideo(!participantVideo)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                    participantVideo ? 'bg-[#0433FF]' : 'bg-gray-300'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      participantVideo ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-                <span className="text-xs font-semibold text-gray-600">{participantVideo ? 'On' : 'Off'}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Audio */}
-          <div className="space-y-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">Audio</label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {([
-                ['telephone', 'Telephone'],
-                ['computer', 'Computer Audio'],
-                ['both', 'Telephone and Computer Audio'],
-                ['third_party', '3rd Party Audio'],
-              ] as const).map(([value, label]) => (
-                <label key={value} className="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-800">
-                  <input
-                    type="radio"
-                    name="intakeAudioOption"
-                    checked={audioOption === value}
-                    onChange={() => setAudioOption(value)}
-                    className="w-4 h-4 text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-                  />
-                  <span>{label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Advanced */}
-          <div className="space-y-2.5">
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600">Advanced</label>
-            <label className="flex items-center gap-2.5 cursor-pointer select-none text-sm text-gray-800">
-              <input
-                type="checkbox"
-                checked={joinAnytime}
-                onChange={(e) => setJoinAnytime(e.target.checked)}
-                className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-              />
-              <span>Allow participants to join anytime</span>
-            </label>
-            <p className="text-xs text-gray-500 pl-6 -mt-1.5">
-              Leave this unchecked and participants will see &quot;waiting for host to start&quot;
-              regardless of the Waiting Room setting above - this is the toggle that actually controls that.
-            </p>
-            <label className="flex items-center gap-2.5 cursor-pointer select-none text-sm text-gray-800">
-              <input
-                type="checkbox"
-                checked={muteOnEntry}
-                onChange={(e) => setMuteOnEntry(e.target.checked)}
-                className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-              />
-              <span>Mute participants upon entry</span>
-            </label>
-            <label className="flex items-center gap-2.5 cursor-pointer select-none text-sm text-gray-800">
-              <input
-                type="checkbox"
-                checked={autoRecord}
-                onChange={(e) => setAutoRecord(e.target.checked)}
-                className="w-4 h-4 rounded text-[#0433FF] border-gray-300 focus:ring-[#0433FF]"
-              />
-              <span>Automatically record meeting to the cloud</span>
-            </label>
-          </div>
+          <ZoomSettingsFields value={zoomSettings} onChange={setZoomSettings} idPrefix="intake" />
         </div>
 
         {Object.keys(errors).length > 0 && !isSubmitting && (
@@ -837,7 +632,7 @@ export const ZoomIntakeForm: React.FC<ZoomIntakeFormProps> = ({
           <div role="alert" className="flex items-start gap-2 p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700">
             <AlertCircle className="w-4 h-4 mt-px shrink-0" />
             <span>
-              <strong className="font-bold">The meeting wasn't booked.</strong> {submitError} Your details are still here, so you can try again.
+              <strong className="font-bold">The meeting wasn't booked.</strong> {submitError.replace(/\.?$/, '.')} Your details are still here, so you can try again.
             </span>
           </div>
         )}
